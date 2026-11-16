@@ -31,6 +31,10 @@ next-env.d.ts
 !fixtures/.gitkeep
 !tests/**/*.mp4
 
+# Test render output
+m1-render-*/
+.pytest-outputs/
+
 # OS / editors
 .DS_Store
 *.log

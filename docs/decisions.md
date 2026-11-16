@@ -44,6 +44,25 @@ requires, so work packages can touch separate folders.
 - `fixtures/stream_10min.mp4` was not provided. M1 acceptance needs a real
   recording; a synthetic stand-in is used for automated tests only.
 
+## M1 clip engine
+
+| Choice | Reason | Licence |
+| --- | --- | --- |
+| faster-whisper 1.2.1 for transcription | Word-level timestamps on CPU, mission windows only. | MIT |
+| FFmpeg `subtitles`/`ass` filter for the burn-in | libass renders the hook, word captions and end card from one ASS file. | LGPL (see above) |
+| DejaVu Sans (font) | Installed in the worker image so libass has a font. | Free license (Bitstream Vera / public domain) |
+
+- **Spoiler guard scope.** The spec says "no speech *and no interface on screen*".
+  M1 drops windows with no transcribed speech. Detecting an on-screen interface
+  needs a visual pass (OCR / UI detection) and is not in M1. Recorded as a
+  limit, not silently skipped.
+- **Beats without an LLM.** The payoff is the last 18 s before Done; setup is the
+  three speech-richest 3 s pieces before it. Voice energy is approximated by
+  word density. M2 adds the LLM read of the transcript.
+- **Stand-in fixture.** `tests/fixtures/standin_speech_45s.mp4` is a synthetic
+  test pattern with real recorded speech (macOS `say`). It exists only because
+  `fixtures/stream_10min.mp4` was not provided; it is not a gameplay recording.
+
 ## Contracts first
 
 `contracts/openapi.yaml` and `contracts/mission-card.schema.json` are written

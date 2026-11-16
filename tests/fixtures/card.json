@@ -1,0 +1,14 @@
+{
+  "id": "m_0214",
+  "question": "Can you outrun five stars on a bicycle?",
+  "hook_text": "5 STARS. ONE BICYCLE.",
+  "setup": "Get five stars downtown, then switch to any bicycle.",
+  "win_condition": "Lose the wanted level without leaving the bike.",
+  "result_type": "time_seconds",
+  "est_minutes": 8,
+  "title_options": ["Can you escape 5 stars on a BIKE in GTA 6?"],
+  "mode": "free_roam",
+  "status": "unverified",
+  "evidence": {"askers": 0, "source_video_ids": []},
+  "policy": {"spoiler": false, "online_exploit": false}
+}

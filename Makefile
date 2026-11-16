@@ -4,7 +4,7 @@ PYTHON := $(VENV)/bin/python
 .PHONY: up down logs accept test lint
 
 up:
-	docker compose up -d --wait
+	docker compose up -d --wait --build
 
 down:
 	docker compose down
