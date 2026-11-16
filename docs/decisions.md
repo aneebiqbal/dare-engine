@@ -46,6 +46,25 @@ requires, so work packages can touch separate folders.
   recording; a synthetic stand-in is used for automated tests only, and those
   milestones are not accepted.
 
+## Sprint 3 — web app
+
+| Choice | Reason | Licence |
+| --- | --- | --- |
+| `openapi-typescript` for `web/lib/api-types.ts` | Typed client generated from `contracts/openapi.yaml`, not hand-written. | MIT |
+| Mock layer in `web/lib/mock.ts` | Pages whose backend is blocked by Gate 0 render contract-shaped data behind `NEXT_PUBLIC_API_MOCK=1`. | — |
+| axe-core for accessibility | Automated serious/critical checks in `make web-accept`. | MPL-2.0 (dev/test only, not shipped) |
+| CSS custom-property tokens in `globals.css` | One token file for both themes; no UI kit dependency. | — |
+
+- **Contract changes.** Sprint 3 added `/results`, `/history`, `/settings` and made
+  `Today.daily` nullable and `accepted` explicit. The repo has no git remote, so
+  the "contract change in its own pull request" rule cannot be satisfied yet;
+  the changes are recorded here instead.
+- **Mocked pages are not working pages.** Every page served by the mock layer is
+  listed under "Mocked pages" in `PROGRESS.md`.
+- **Stream keys.** Masked in the UI, revealed on tap, copied with one button,
+  never logged, never in a URL. The key does appear in Next's RSC payload,
+  because the client needs it; that is app data, not a URL or a log.
+
 ## M1 clip engine
 
 | Choice | Reason | Licence |

@@ -15,6 +15,47 @@
 M3 and M4 are **not accepted** and will not be until `fixtures/stream_10min.mp4`
 exists and the run is made.
 
+## Sprint 3 — the web app (W0–W7)
+
+Status: W0 done; W1–W6 pages built; W7 journey passes. 11 Playwright flow tests
+pass, axe-core reports **0 serious/critical** on the five main pages at phone and
+desktop. 64 screenshots in `docs/screens/`.
+
+### W0 design system
+
+- `web/app/globals.css` — one token file: colour, type, spacing, radius, motion;
+  light (warm cream) and dark (OLED) themes.
+- `web/components/ui.tsx` — Button, Input, Textarea, Field, Card (double-bezel),
+  Badge, Eyebrow, Tabs, Dialog, Toast, Table, EmptyState, Skeleton, PageState
+  (loading / error / empty / filled).
+- `/styleguide` shows every component in both themes.
+
+### Pages
+
+Real backend: `/` Today, `/admin` pool (M2). Everything else is listed under
+"Mocked pages" and is **not** reported as working against the real backend.
+
+**Mocked pages** (served by `web/lib/mock.ts` behind `NEXT_PUBLIC_API_MOCK=1`):
+`/welcome` (partial), `/signin`, `/m/[slug]`, `/leaderboard`, `/creators/[id]`,
+`/terms`, `/privacy`, `/remote` (marks), `/clips`, `/clips/[id]`, `/live`,
+`/results`, `/history`, `/settings`.
+
+### Three worst screens, and what I changed
+
+1. **Phone remote** — the mission badge stretched full width. Fixed: `Badge` is
+   now `self-start`.
+2. **Styleguide** — the light theme never applied because the theme toggle
+   re-asserted dark on mount. Fixed: the toggle honours `?theme=light|dark`.
+3. **Phone remote offline queue** — a tap queued while offline never flushed,
+   because the assignment was created while still offline. Fixed: `flush` creates
+   the assignment first; the Playwright test now covers offline → online.
+
+### Commands
+
+- `make accept` — milestone tests (M0/M1/M2), real API.
+- `make web-accept` — page flows + axe, mock layer, then restores the real build.
+- `make screens` — screenshots + a11y report.
+
 ## Milestone M2 — Missions: DONE (recorded LLM; live call untested)
 
 `make accept`: 18 passed (M0 8, M1 6, M2 4). Unit tests: 12 passed.

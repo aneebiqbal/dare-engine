@@ -26,7 +26,6 @@ next-env.d.ts
 *.mp4
 *.mov
 *.mkv
-*.ts
 *.m4a
 !fixtures/.gitkeep
 !tests/**/*.mp4

@@ -1,10 +1,19 @@
-import { Admin, type PoolEntry } from "@/components/admin";
+import { Admin } from "@/components/admin";
+import { Page } from "@/components/page";
+import { api, type PoolEntry } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  const api = process.env.API_URL ?? "http://api:8000";
-  const res = await fetch(`${api}/admin/pool`, { cache: "no-store" });
-  const pool: PoolEntry[] = res.ok ? await res.json() : [];
-  return <Admin pool={pool} />;
+  let initial: PoolEntry[] = [];
+  try {
+    initial = await api.pool();
+  } catch {
+    initial = [];
+  }
+  return (
+    <Page eyebrow="Admin" title="Mission pool">
+      <Admin initial={initial} />
+    </Page>
+  );
 }

@@ -355,6 +355,53 @@ paths:
                 items:
                   $ref: "#/components/schemas/PoolEntry"
 
+  /results:
+    get:
+      tags: [clips]
+      summary: Views and retention per clip and per mission type
+      responses:
+        "200":
+          description: Results.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clips:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ClipResult"
+                  by_type:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TypeResult"
+
+  /history:
+    get:
+      tags: [missions]
+      summary: The signed-in creator's mission history
+      responses:
+        "200":
+          description: History.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HistoryEntry"
+
+  /settings:
+    get:
+      tags: [auth]
+      summary: Plan, usage and preferences
+      responses:
+        "200":
+          description: Settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+
 components:
   parameters:
     Id:
@@ -399,14 +446,21 @@ components:
 
     Today:
       type: object
+      required: [date]
       properties:
         date: { type: string, format: date }
         daily:
-          $ref: "#/components/schemas/MissionCard"
+          anyOf:
+            - $ref: "#/components/schemas/MissionCard"
+            - type: "null"
         picks:
           type: array
           items:
             $ref: "#/components/schemas/MissionCard"
+        accepted:
+          type: object
+          additionalProperties:
+            type: string
 
     AssignmentRequest:
       type: object
@@ -426,6 +480,7 @@ components:
 
     Stream:
       type: object
+      required: [id, rtmp_url, stream_key]
       properties:
         id: { type: string }
         rtmp_url: { type: string }
@@ -445,6 +500,7 @@ components:
 
     Mark:
       type: object
+      required: [id]
       properties:
         id: { type: string }
         assignment_id: { type: string }
@@ -454,6 +510,7 @@ components:
 
     Clip:
       type: object
+      required: [id, state]
       properties:
         id: { type: string }
         assignment_id: { type: string }
@@ -486,6 +543,7 @@ components:
 
     PoolEntry:
       type: object
+      required: [id]
       properties:
         id: { type: string }
         card:
@@ -494,3 +552,37 @@ components:
         state:
           type: string
           enum: [candidate, approved, rejected]
+
+    ClipResult:
+      type: object
+      properties:
+        clip_id: { type: string }
+        title: { type: string }
+        views: { type: integer }
+        avg_view_percentage: { type: number }
+
+    TypeResult:
+      type: object
+      properties:
+        mode: { type: string }
+        clips: { type: integer }
+        views: { type: integer }
+
+    HistoryEntry:
+      type: object
+      required: [mission_id]
+      properties:
+        mission_id: { type: string }
+        date: { type: string, format: date }
+        state: { type: string }
+        result_value: { type: number }
+        clip_id: { type: string }
+
+    Settings:
+      type: object
+      properties:
+        plan: { type: string, enum: [free, paid] }
+        clips_used: { type: integer }
+        clips_limit: { type: integer }
+        caption_style: { type: string }
+        layout_preference: { type: string }
