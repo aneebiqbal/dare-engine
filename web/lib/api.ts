@@ -33,11 +33,11 @@ export class ApiError extends Error {
 }
 
 const SERVER_BASE = process.env.API_URL ?? "http://api:8000";
-const BROWSER_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 export const MOCK = process.env.NEXT_PUBLIC_API_MOCK === "1";
 
 function base() {
-  return typeof window === "undefined" ? SERVER_BASE : BROWSER_BASE;
+  // The browser talks to our own same-origin proxy; the server talks to the API.
+  return typeof window === "undefined" ? SERVER_BASE : "/api";
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -45,9 +45,17 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     const { mockRequest } = await import("./mock");
     return mockRequest<T>(method, path, body);
   }
+  const headers: Record<string, string> = {};
+  if (body) headers["Content-Type"] = "application/json";
+  if (typeof window === "undefined") {
+    const { cookies } = await import("next/headers");
+    const store = await cookies();
+    const token = store.get("clipdesk_session")?.value;
+    if (token) headers["Cookie"] = `clipdesk_session=${token}`;
+  }
   const res = await fetch(`${base()}${path}`, {
     method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
+    headers,
     body: body ? JSON.stringify(body) : undefined,
     cache: "no-store",
   });

@@ -24,6 +24,10 @@ accept: up $(VENV)/bin/python
 test: $(VENV)/bin/python
 	$(VENV)/bin/python -m pytest tests -v
 
+# Sprint 4 rule 2: fail if the mock layer leaks into application code.
+check: $(VENV)/bin/python
+	$(VENV)/bin/python -m pytest tests/unit/test_no_mock.py -v
+
 # Web sprint: page flows and accessibility run against the mock layer
 # (NEXT_PUBLIC_API_MOCK=1) for pages whose backend is blocked by Gate 0.
 web-accept: $(VENV)/bin/python

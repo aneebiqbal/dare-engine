@@ -135,3 +135,12 @@ CREATE INDEX IF NOT EXISTS clips_assignment_idx ON clips (assignment_id);
 INSERT INTO users (google_subject, display_name, role)
 VALUES ('dev-user', 'Dev Creator', 'creator')
 ON CONFLICT (google_subject) DO NOTHING;
+
+-- Real sessions for the development sign-in (R1). Google sign-in (M5) replaces
+-- only how the user is identified, not the session model.
+CREATE TABLE IF NOT EXISTS sessions (
+    token      text PRIMARY KEY,
+    user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    expires_at timestamptz NOT NULL DEFAULT now() + interval '30 days'
+);

@@ -1,9 +1,10 @@
 """M2 acceptance: typed questions become valid cards, and a creator accepts one.
 
 CI uses the recorded LLM provider (no key). The live Gemini run is manual.
+Signed in as a real development user (R1).
 """
+import http.cookiejar
 import json
-import os
 import pathlib
 import subprocess
 import urllib.request
@@ -12,24 +13,8 @@ import jsonschema
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-API = os.environ.get("CLIPDESK_API_URL", "http://localhost:8000")
-WEB = os.environ.get("CLIPDESK_WEB_URL", "http://localhost:3100")
-
-
-@pytest.fixture(scope="module", autouse=True)
-def clean_missions():
-    """Make the acceptance run repeatable: start from an empty mission pool."""
-    subprocess.run(
-        [
-            "docker", "compose", "exec", "-T", "db", "psql",
-            "-U", "clipdesk", "-d", "clipdesk", "-c",
-            "TRUNCATE missions, assignments, daily_sets RESTART IDENTITY CASCADE;",
-        ],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-    )
-    yield
+API = "http://localhost:8000"
+WEB = "http://localhost:3100"
 
 QUESTIONS = [
     "Can you outrun five stars on a bicycle?",
@@ -45,45 +30,69 @@ QUESTIONS = [
 ]
 
 
-def _post(path: str, body: dict) -> tuple[int, dict]:
+def _opener():
+    return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+
+
+@pytest.fixture(scope="module")
+def session():
+    """A real signed-in development user."""
+    subprocess.run(
+        [
+            "docker", "compose", "exec", "-T", "db", "psql", "-U", "clipdesk", "-d", "clipdesk",
+            "-c", "TRUNCATE missions, assignments, daily_sets, sessions RESTART IDENTITY CASCADE;",
+        ],
+        cwd=ROOT, check=True, capture_output=True,
+    )
+    opener = _opener()
+    req = urllib.request.Request(
+        f"{API}/auth/dev/sign-in",
+        data=json.dumps({"display_name": "Mission Editor"}).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with opener.open(req, timeout=30) as resp:
+        json.loads(resp.read())
+    return opener
+
+
+def _post(opener, path: str, body: dict) -> tuple[int, dict]:
     req = urllib.request.Request(
         f"{API}{path}",
         data=json.dumps(body).encode(),
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=60) as resp:
+    with opener.open(req, timeout=60) as resp:
         return resp.status, json.loads(resp.read())
 
 
-def _get(path: str) -> dict:
-    with urllib.request.urlopen(f"{API}{path}", timeout=30) as resp:
+def _get(opener, path: str) -> dict:
+    with opener.open(f"{API}{path}", timeout=30) as resp:
         return json.loads(resp.read())
 
 
-def test_ten_questions_produce_ten_valid_cards():
-    status, body = _post("/admin/questions", {"questions": QUESTIONS})
+def test_ten_questions_produce_ten_valid_cards(session):
+    status, body = _post(session, "/admin/questions", {"questions": QUESTIONS})
     assert status == 200
-    cards = body["cards"]
-    assert len(cards) == 10
-
+    assert len(body["cards"]) == 10
     schema = json.loads((ROOT / "contracts/mission-card.schema.json").read_text())
-    for card in cards:
+    for card in body["cards"]:
         jsonschema.validate(card, schema)
 
 
-def test_pool_lists_the_candidates():
-    pool = _get("/admin/pool")
+def test_pool_lists_the_candidates(session):
+    pool = _get(session, "/admin/pool")
     assert len(pool) >= 10
     assert all(entry["state"] == "candidate" for entry in pool)
 
 
-def test_approve_moves_a_card_out_of_the_pool():
-    pool = _get("/admin/pool")
+def test_approve_moves_a_card_out_of_the_pool(session):
+    pool = _get(session, "/admin/pool")
     entry = pool[0]
-    status, body = _post(f"/admin/pool/{entry['id']}/approve", {})
+    status, _ = _post(session, f"/admin/pool/{entry['id']}/approve", {})
     assert status == 200
-    assert entry["id"] not in {e["id"] for e in _get("/admin/pool")}
+    assert entry["id"] not in {e["id"] for e in _get(session, "/admin/pool")}
 
 
 def test_playwright_accepts_one_mission():
@@ -93,14 +102,18 @@ def test_playwright_accepts_one_mission():
         browser = p.chromium.launch()
         page = browser.new_page()
         try:
-            page.goto(f"{WEB}/admin")
+            page.goto(f"{WEB}/signin", wait_until="networkidle")
+            page.click('[data-testid="signin-alice"]')
+            page.wait_for_selector("text=Play today's mission", timeout=30000)
+
+            page.goto(f"{WEB}/admin", wait_until="networkidle")
             page.fill('[data-testid="questions"]', "\n".join(QUESTIONS))
             page.click('[data-testid="write-cards"]')
             page.wait_for_selector('[data-testid="approve-button"]', timeout=30000)
             page.click('[data-testid="approve-button"]')
             page.wait_for_timeout(1000)
 
-            page.goto(f"{WEB}/")
+            page.goto(f"{WEB}/", wait_until="networkidle")
             page.wait_for_selector('[data-testid="accept-button"]', timeout=30000)
             page.click('[data-testid="accept-button"]')
             page.wait_for_selector('[data-testid="accepted"]', timeout=30000)

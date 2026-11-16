@@ -13,3 +13,6 @@ jobs:
 
       - name: Acceptance tests
         run: make accept
+
+      - name: Mock layer doesn't leak into app code
+        run: make check

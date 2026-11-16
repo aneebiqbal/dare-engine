@@ -54,6 +54,10 @@ services:
       LLM_PROVIDER: ${LLM_PROVIDER:-recorded}
       LLM_RECORDED_RESPONSE: ${LLM_RECORDED_RESPONSE:-/app/app/llm_recorded.json}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Development sign-in. Refuses to start in production.
+      DEV_AUTH_ENABLED: ${DEV_AUTH_ENABLED:-true}
+      APP_ENV: ${APP_ENV:-development}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3100}
     depends_on:
       db:
         condition: service_healthy
@@ -108,9 +112,11 @@ services:
       context: ./web
       args:
         NEXT_PUBLIC_API_MOCK: ${NEXT_PUBLIC_API_MOCK:-0}
+        NEXT_PUBLIC_DEV_AUTH: ${NEXT_PUBLIC_DEV_AUTH:-1}
     environment:
       API_URL: ${API_URL:-http://api:8000}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_DEV_AUTH: ${NEXT_PUBLIC_DEV_AUTH:-1}
       # Next binds to HOSTNAME; Docker sets it to the container id, which breaks
       # the in-container health probe. Bind all interfaces instead.
       HOSTNAME: 0.0.0.0

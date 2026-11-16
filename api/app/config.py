@@ -16,5 +16,13 @@ class Settings(BaseSettings):
     llm_recorded_response: str = ""
     gemini_api_key: str = ""
 
+    # Development sign-in. Refuses to start in production when enabled.
+    dev_auth_enabled: bool = False
+    app_env: str = "development"
+
+    @property
+    def session_cookie(self) -> str:
+        return "clipdesk_session"
+
 
 settings = Settings()

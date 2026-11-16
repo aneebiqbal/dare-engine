@@ -8,7 +8,7 @@ import pathlib
 import re
 
 import jsonschema
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from . import db
@@ -52,8 +52,8 @@ def _card(row) -> dict:
 
 
 @router.post("/admin/questions")
-def write_cards(payload: QuestionsIn):
-    current_user()
+def write_cards(request: Request, payload: QuestionsIn):
+    current_user(request)
     if not payload.questions:
         raise HTTPException(422, "no questions supplied")
 
@@ -82,8 +82,8 @@ def write_cards(payload: QuestionsIn):
 
 
 @router.get("/admin/pool")
-def pool():
-    current_user()
+def pool(request: Request):
+    current_user(request)
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -94,8 +94,8 @@ def pool():
 
 
 @router.post("/admin/pool/{mission_id}/approve")
-def approve(mission_id: str):
-    current_user()
+def approve(request: Request, mission_id: str):
+    current_user(request)
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -109,8 +109,8 @@ def approve(mission_id: str):
 
 
 @router.get("/today")
-def today():
-    user = current_user()
+def today(request: Request):
+    user = current_user(request)
     date = datetime.date.today()
     with db.session() as conn:
         with conn.cursor() as cur:
@@ -141,8 +141,8 @@ def today():
 
 
 @router.post("/assignments")
-def accept(payload: MissionIn):
-    user = current_user()
+def accept(request: Request, payload: MissionIn):
+    user = current_user(request)
     date = datetime.date.today()
     with db.session() as conn:
         with conn.cursor() as cur:
@@ -157,8 +157,8 @@ def accept(payload: MissionIn):
 
 
 @router.post("/assignments/{assignment_id}/swap")
-def swap(assignment_id: str, payload: SwapIn):
-    user = current_user()
+def swap(request: Request, assignment_id: str, payload: SwapIn):
+    user = current_user(request)
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -169,3 +169,8 @@ def swap(assignment_id: str, payload: SwapIn):
             if cur.fetchone() is None:
                 raise HTTPException(404, "assignment not found")
     return {"id": assignment_id, "mission_id": payload.mission_id, "state": "swapped"}
+
+
+@router.get("/me")
+def me(request: Request):
+    return {"user": current_user(request), "channels": []}
