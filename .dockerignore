@@ -1,0 +1,14 @@
+# Build context is the repository root for api/ and worker/.
+.git
+.venv
+**/__pycache__
+**/.pytest_cache
+**/node_modules
+**/.next
+web
+tests
+fixtures
+docs
+*.md
+!api/requirements.txt
+!worker/requirements.txt

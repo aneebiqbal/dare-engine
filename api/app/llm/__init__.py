@@ -4,7 +4,7 @@ from .stub import StubLLM
 
 
 def get_llm() -> LLM:
-    from . import config
+    from .. import config
 
     provider = config.settings.llm_provider
     if provider == "recorded":

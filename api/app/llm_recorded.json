@@ -1,0 +1,224 @@
+{
+  "cards": [
+    {
+      "id": "m_1001",
+      "question": "Can you outrun five stars on a bicycle?",
+      "hook_text": "5 STARS. ONE BICYCLE.",
+      "setup": "Start in free roam with no wanted level and follow the mission steps.",
+      "win_condition": "Lose the wanted level without leaving the bike.",
+      "result_type": "time_seconds",
+      "est_minutes": 8,
+      "title_options": [
+        "Can you outrun five stars on a bicycle?"
+      ],
+      "mode": "free_roam",
+      "status": "unverified",
+      "evidence": {
+        "askers": 3,
+        "source_video_ids": []
+      },
+      "policy": {
+        "spoiler": false,
+        "online_exploit": false
+      }
+    },
+    {
+      "id": "m_1002",
+      "question": "What happens if you jump off the tallest building in a car?",
+      "hook_text": "FALLING CAR.",
+      "setup": "Start in free roam with no wanted level and follow the mission steps.",
+      "win_condition": "Land the car and drive away.",
+      "result_type": "distance_meters",
+      "est_minutes": 8,
+      "title_options": [
+        "What happens if you jump off the tallest building in a car?"
+      ],
+      "mode": "free_roam",
+      "status": "unverified",
+      "evidence": {
+        "askers": 6,
+        "source_video_ids": []
+      },
+      "policy": {
+        "spoiler": false,
+        "online_exploit": false
+      }
+    },
+    {
+      "id": "m_1003",
+      "question": "Is it possible to steal a police car in free roam?",
+      "hook_text": "STEAL A POLICE CAR.",
+      "setup": "Start in free roam with no wanted level and follow the mission steps.",
+      "win_condition": "Enter a police car and escape the area.",
+      "result_type": "pass_fail",
+      "est_minutes": 8,
+      "title_options": [
+        "Is it possible to steal a police car in free roam?"
+      ],
+      "mode": "free_roam",
+      "status": "unverified",
+      "evidence": {
+        "askers": 9,
+        "source_video_ids": []
+      },
+      "policy": {
+        "spoiler": false,
+        "online_exploit": false
+      }
+    },
+    {
+      "id": "m_1004",
+      "question": "Can you win a street race without using the brakes?",
+      "hook_text": "NO BRAKES. NO PROBLEM.",
+      "setup": "Start in free roam with no wanted level and follow the mission steps.",
+      "win_condition": "Win the race without pressing the brake.",
+      "result_type": "time_seconds",
+      "est_minutes": 8,
+      "title_options": [
+        "Can you win a street race without using the brakes?"
+      ],
+      "mode": "free_roam",
+      "status": "unverified",
+      "evidence": {
+        "askers": 12,
+        "source_video_ids": []
+      },
+      "policy": {
+        "spoiler": false,
+        "online_exploit": false
+      }
+    },
+    {
+      "id": "m_1005",
+      "question": "What is the fastest car in the game?",
+      "hook_text": "FASTEST CAR TEST.",
+      "setup": "Start in free roam with no wanted level and follow the mission steps.",
+      "win_condition": "Set the quickest lap in any car.",
+      "result_type": "time_seconds",
+      "est_minutes": 8,
+      "title_options": [
+        "What is the fastest car in the game?"
+      ],
+      "mode": "free_roam",
+      "status": "unverified",
+      "evidence": {
+        "askers": 15,
+        "source_video_ids": []
+      },
+      "policy": {
+        "spoiler": false,
+        "online_exploit": false
+      }
+    },
+    {
+      "id": "m_1006",
+      "question": "Can you survive a five-star wanted level on foot?",
+      "hook_text": "FIVE STARS, NO CAR.",
+      "setup": "Start in free roam with no wanted level and follow the mission steps.",
+      "win_condition": "Survive for three minutes without a vehicle.",
+      "result_type": "time_seconds",
+      "est_minutes": 8,
+      "title_options": [
+        "Can you survive a five-star wanted level on foot?"
+      ],
+      "mode": "free_roam",
+      "status": "unverified",
+      "evidence": {
+        "askers": 18,
+        "source_video_ids": []
+      },
+      "policy": {
+        "spoiler": false,
+        "online_exploit": false
+      }
+    },
+    {
+      "id": "m_1007",
+      "question": "Is it possible to swim across the whole map?",
+      "hook_text": "SWIM THE MAP.",
+      "setup": "Start in free roam with no wanted level and follow the mission steps.",
+      "win_condition": "Cross the map by swimming only.",
+      "result_type": "pass_fail",
+      "est_minutes": 8,
+      "title_options": [
+        "Is it possible to swim across the whole map?"
+      ],
+      "mode": "free_roam",
+      "status": "unverified",
+      "evidence": {
+        "askers": 21,
+        "source_video_ids": []
+      },
+      "policy": {
+        "spoiler": false,
+        "online_exploit": false
+      }
+    },
+    {
+      "id": "m_1008",
+      "question": "Can you land a helicopter on a moving truck?",
+      "hook_text": "HELICOPTER, MOVING TRUCK.",
+      "setup": "Start in free roam with no wanted level and follow the mission steps.",
+      "win_condition": "Land the helicopter on the truck bed.",
+      "result_type": "pass_fail",
+      "est_minutes": 8,
+      "title_options": [
+        "Can you land a helicopter on a moving truck?"
+      ],
+      "mode": "free_roam",
+      "status": "unverified",
+      "evidence": {
+        "askers": 24,
+        "source_video_ids": []
+      },
+      "policy": {
+        "spoiler": false,
+        "online_exploit": false
+      }
+    },
+    {
+      "id": "m_1009",
+      "question": "What happens when you drive into the ocean?",
+      "hook_text": "DRIVE INTO THE OCEAN.",
+      "setup": "Start in free roam with no wanted level and follow the mission steps.",
+      "win_condition": "Drive a car into open water and get out alive.",
+      "result_type": "pass_fail",
+      "est_minutes": 8,
+      "title_options": [
+        "What happens when you drive into the ocean?"
+      ],
+      "mode": "free_roam",
+      "status": "unverified",
+      "evidence": {
+        "askers": 27,
+        "source_video_ids": []
+      },
+      "policy": {
+        "spoiler": false,
+        "online_exploit": false
+      }
+    },
+    {
+      "id": "m_1010",
+      "question": "Can you finish a heist alone?",
+      "hook_text": "SOLO HEIST.",
+      "setup": "Start in free roam with no wanted level and follow the mission steps.",
+      "win_condition": "Complete a heist with no other players.",
+      "result_type": "pass_fail",
+      "est_minutes": 8,
+      "title_options": [
+        "Can you finish a heist alone?"
+      ],
+      "mode": "free_roam",
+      "status": "unverified",
+      "evidence": {
+        "askers": 30,
+        "source_video_ids": []
+      },
+      "policy": {
+        "spoiler": false,
+        "online_exploit": false
+      }
+    }
+  ]
+}

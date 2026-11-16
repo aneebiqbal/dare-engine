@@ -2,8 +2,10 @@ from contextlib import asynccontextmanager
 import datetime
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from . import db
+from .missions import router as missions_router
 
 
 @asynccontextmanager
@@ -13,6 +15,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Clipdesk Missions API", version="0.1.0", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.include_router(missions_router)
 
 
 @app.get("/healthz")
@@ -24,9 +33,3 @@ def healthz():
 def ready():
     db.check()
     return {"status": "ready"}
-
-
-@app.get("/today")
-def today():
-    # M2 fills this from daily_sets.
-    return {"date": datetime.date.today().isoformat(), "daily": None, "picks": []}

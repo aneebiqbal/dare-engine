@@ -130,3 +130,8 @@ CREATE INDEX IF NOT EXISTS jobs_claim_idx ON jobs (state, available_at);
 CREATE INDEX IF NOT EXISTS assignments_user_date_idx ON assignments (user_id, date);
 CREATE INDEX IF NOT EXISTS marks_stream_idx ON marks (stream_id, stream_time);
 CREATE INDEX IF NOT EXISTS clips_assignment_idx ON clips (assignment_id);
+
+-- M2 runs before accounts; M5 replaces this with real Google sign-in.
+INSERT INTO users (google_subject, display_name, role)
+VALUES ('dev-user', 'Dev Creator', 'creator')
+ON CONFLICT (google_subject) DO NOTHING;
