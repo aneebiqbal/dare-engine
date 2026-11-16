@@ -15,6 +15,34 @@
 M3 and M4 are **not accepted** and will not be until `fixtures/stream_10min.mp4`
 exists and the run is made.
 
+## Milestone M2 — Missions: DONE (recorded LLM; live call untested)
+
+`make accept`: 18 passed (M0 8, M1 6, M2 4). Unit tests: 12 passed.
+
+### What runs
+
+- `POST /admin/questions` → `api/llm/` provider → every card validated against
+  `contracts/mission-card.schema.json` → stored as pool candidates.
+- `GET /admin/pool`, `POST /admin/pool/{id}/approve`.
+- `GET /today` (daily mission + picks + accepted state), `POST /assignments`,
+  `POST /assignments/{id}/swap`.
+- Web: `/admin` (type questions, approve) and `/` (Today, accept/swap).
+- Providers: `recorded` (CI/dev default, `api/app/llm_recorded.json`), `gemini`
+  (REST, no SDK), `stub`. `GEMINI_API_KEY` unset → no live call.
+
+### Verified
+
+- Ten typed questions → ten schema-valid cards; pool lists them; approving one
+  moves it to Today; Playwright signs in (dev user), writes cards, approves one,
+  and accepts a mission on the Today page.
+- The M2 tests truncate the mission tables first, so they are repeatable.
+
+### Not done
+
+- The live Gemini run (no key). The recorded provider always returns the same
+  ten cards, so the live question→card mapping is untested.
+- Real accounts: M2 uses a seeded `dev-user`; M5 adds Google sign-in.
+
 ## Milestone M1 — Clip engine on a file: stand-in only, NOT accepted
 
 `make accept`: 14 passed (M0 8, M1 6). Unit tests: 12 passed.
@@ -68,16 +96,15 @@ exists and the run is made.
 - Host ports 3000/9000/9997 are taken, so the stack publishes 3100/9100/19997.
 - MinIO is unavailable (archived, `quay.io` blocked); Adobe S3Mock stands in.
 
-## Next milestone: M2 — Missions
+## Next milestone: M3 — Marks and the local path
 
 Next three tasks:
 
-1. `POST /admin/questions` → Gemini provider in `api/llm/`, validate every card
-   against `contracts/mission-card.schema.json`, store candidates in the pool.
-2. Admin pool page (`/admin`) and Today page; accept and swap
-   (`POST /assignments`, `POST /assignments/{id}/swap`).
-3. Acceptance: ten typed questions → ten valid cards; a Playwright test accepts
-   one. CI uses `LLM_PROVIDER=recorded`.
+1. Phone remote page with Start and Done (`POST /marks`), storing stream time.
+2. Local upload path: upload a recording plus its marks, enqueue one clip job
+   per mission, worker renders via `worker/clip/`.
+3. Acceptance: upload the fixture with three marks → three Shorts on the Clips
+   page, each downloadable. Blocked on the real fixture.
 
 ### Needs human
 
