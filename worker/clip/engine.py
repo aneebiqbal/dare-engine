@@ -11,18 +11,16 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from .beats import select_setup
 from .caption import write_ass, write_srt
 from .layout import filtergraph, pick_layout
-from .policy import guard_window, title_flags
+from .policy import detect_letterbox, guard_window, title_flags
 from .transcribe import Word, transcribe
 
 WINDOW_BEFORE = 10.0
 WINDOW_AFTER = 5.0
 HOOK_SECONDS = 2.0
 PAYOFF_SECONDS = 18.0
-SETUP_CLIP = 3.0
-SETUP_COUNT = 3
-SETUP_GAP = 2.0
 END_CARD_SECONDS = 3.0
 
 NORMALIZE_VF = (
@@ -39,6 +37,7 @@ class Result:
     metadata_path: str
     duration: float
     layout: str
+    flags: dict
 
 
 def _run(cmd: list[str]) -> str:
@@ -73,7 +72,7 @@ def _has_audio(path: str) -> bool:
     return bool(out)
 
 
-def _is_landscape(path: str) -> bool:
+def _dimensions(path: str) -> tuple[int, int]:
     out = _run(
         [
             "ffprobe", "-v", "error",
@@ -83,7 +82,12 @@ def _is_landscape(path: str) -> bool:
         ]
     ).strip()
     width, height = out.split("x")
-    return int(width) >= int(height)
+    return int(width), int(height)
+
+
+def _is_landscape(path: str) -> bool:
+    width, height = _dimensions(path)
+    return width >= height
 
 
 def _cut(src: str, out: str, start: float, length: float) -> None:
@@ -116,28 +120,6 @@ def _strongest_second(words: list[Word], lo: float, hi: float) -> float:
     return float(max(scores.items(), key=lambda kv: (kv[1], -kv[0]))[0])
 
 
-def _pick_setup(words: list[Word], lo: float, hi: float) -> list[tuple[float, float]]:
-    """Two or three short speech-rich pieces from before the payoff."""
-    if hi - lo < SETUP_CLIP:
-        return []
-    candidates: list[tuple[int, float]] = []
-    t = lo
-    while t + SETUP_CLIP <= hi + 1e-6:
-        n = sum(1 for w in words if t <= (w.start + w.end) / 2 < t + SETUP_CLIP)
-        if n >= 2:
-            candidates.append((n, t))
-        t += 1.0
-    candidates.sort(reverse=True)
-    chosen: list[tuple[float, float]] = []
-    for _n, start in candidates:
-        if all(abs(start - c[0]) >= SETUP_GAP for c in chosen):
-            chosen.append((start, start + SETUP_CLIP))
-        if len(chosen) >= SETUP_COUNT:
-            break
-    chosen.sort()
-    return chosen
-
-
 def render_short(
     input_path: str,
     card: dict,
@@ -146,6 +128,7 @@ def render_short(
     out_dir: str,
     result_value: str = "",
     template: str | None = None,
+    llm=None,
 ) -> Result:
     src = str(input_path)
     out_dir = Path(out_dir)
@@ -169,6 +152,7 @@ def render_short(
 
         # Spoiler guard: a window with no speech is treated as a cutscene.
         guard_window(words, payoff_start - win_start, payoff_end - win_start)
+        letterbox = detect_letterbox(str(window), *_dimensions(str(window)))
 
         rel_payoff_lo = payoff_start - win_start
         rel_payoff_hi = payoff_end - win_start
@@ -177,7 +161,7 @@ def render_short(
             max(strong, rel_payoff_lo),
             max(rel_payoff_lo, rel_payoff_hi - HOOK_SECONDS),
         )
-        setup = _pick_setup(words, 0.0, rel_payoff_lo)
+        setup = select_setup(words, 0.0, rel_payoff_lo, llm)
 
         parts: list[tuple[Path, float, float]] = []
         hook = tmp / "hook.mp4"
@@ -277,6 +261,7 @@ def render_short(
             "duration_seconds": round(duration, 3),
             "result": result_value,
             "title_flags": flags,
+            "spoiler_flags": letterbox,
         }
         metadata_path = out_dir / "metadata.json"
         metadata_path.write_text(json.dumps(metadata, indent=2))
@@ -288,4 +273,5 @@ def render_short(
             metadata_path=str(metadata_path),
             duration=duration,
             layout=layout,
+            flags=letterbox,
         )

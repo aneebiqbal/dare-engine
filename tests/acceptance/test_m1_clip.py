@@ -85,6 +85,7 @@ def test_metadata_written(render):
     assert meta["mission_id"] == "m_0214"
     assert meta["title"]
     assert meta["duration_seconds"] < 60
+    assert "spoiler_flags" in meta
 
 
 def test_thumbnail_written(render):

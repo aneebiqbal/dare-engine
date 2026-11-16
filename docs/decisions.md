@@ -38,11 +38,13 @@ requires, so work packages can touch separate folders.
 
 ## Missing inputs (see `PROGRESS.md` → Needs human)
 
-- `legacy/clipdesk/` was **not available**. The spec itself says "Clipdesk's code
-  was not available here, only your summary of it." The clip engine is therefore
-  written from scratch against the spec's nine steps, not reused.
-- `fixtures/stream_10min.mp4` was not provided. M1 acceptance needs a real
-  recording; a synthetic stand-in is used for automated tests only.
+- **`legacy/clipdesk/` was not available and will not be.** The spec itself says
+  "Clipdesk's code was not available here, only your summary of it." Sprint 2
+  confirms the decision: the clip engine is written from scratch and we do not
+  wait for the legacy code. `worker/clip/` is that engine.
+- `fixtures/stream_10min.mp4` was not provided. M1/M3/M4 acceptance needs a real
+  recording; a synthetic stand-in is used for automated tests only, and those
+  milestones are not accepted.
 
 ## M1 clip engine
 
@@ -52,10 +54,11 @@ requires, so work packages can touch separate folders.
 | FFmpeg `subtitles`/`ass` filter for the burn-in | libass renders the hook, word captions and end card from one ASS file. | LGPL (see above) |
 | DejaVu Sans (font) | Installed in the worker image so libass has a font. | Free license (Bitstream Vera / public domain) |
 
-- **Spoiler guard scope.** The spec says "no speech *and no interface on screen*".
-  M1 drops windows with no transcribed speech. Detecting an on-screen interface
-  needs a visual pass (OCR / UI detection) and is not in M1. Recorded as a
-  limit, not silently skipped.
+- **Spoiler guard scope.** Two signals: no speech (drops the window) and
+  letterbox / black bars (flagged for review, not dropped). Letterbox uses
+  FFmpeg `cropdetect`; it has **not** been checked on real gameplay footage, so
+  it flags rather than drops. Full interface detection (OCR / UI recognition)
+  is still out of scope.
 - **Beats without an LLM.** The payoff is the last 18 s before Done; setup is the
   three speech-richest 3 s pieces before it. Voice energy is approximated by
   word density. M2 adds the LLM read of the transcript.

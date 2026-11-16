@@ -26,9 +26,11 @@ def main() -> None:
     with open(args.card) as fh:
         card = json.load(fh)
 
+    from .llm import get_llm
+
     result = render_short(
         args.input, card, args.start, args.end,
-        args.out_dir, args.result, args.template,
+        args.out_dir, args.result, args.template, get_llm(),
     )
     print(json.dumps(dataclasses.asdict(result), indent=2))
 
