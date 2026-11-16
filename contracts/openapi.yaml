@@ -1,0 +1,496 @@
+openapi: 3.1.0
+info:
+  title: Clipdesk Missions API
+  version: 0.1.0
+  description: |
+    One contract for the web app, the API and the worker. The mission card shape
+    is owned by `contracts/mission-card.schema.json`; everything else lives here.
+
+    Changing this file requires human approval.
+  license:
+    name: Proprietary
+servers:
+  - url: http://localhost:8000
+    description: local
+tags:
+  - name: health
+  - name: auth
+  - name: missions
+  - name: streaming
+  - name: remote
+  - name: clips
+  - name: community
+  - name: admin
+
+paths:
+  /healthz:
+    get:
+      tags: [health]
+      summary: Liveness
+      responses:
+        "200":
+          description: Process is up.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+
+  /healthz/ready:
+    get:
+      tags: [health]
+      summary: Readiness (database reachable)
+      responses:
+        "200":
+          description: Ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: Dependency not ready.
+
+  /auth/google/start:
+    get:
+      tags: [auth]
+      summary: Start Google sign-in
+      responses:
+        "302":
+          description: Redirect to Google.
+
+  /auth/google/callback:
+    get:
+      tags: [auth]
+      summary: Google OAuth callback
+      parameters:
+        - $ref: "#/components/parameters/Code"
+      responses:
+        "302":
+          description: Redirect to the app.
+
+  /me:
+    get:
+      tags: [auth]
+      summary: Current user and connected channels
+      responses:
+        "200":
+          description: The signed-in user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "401":
+          description: Not signed in.
+
+  /today:
+    get:
+      tags: [missions]
+      summary: Daily mission plus personal picks
+      responses:
+        "200":
+          description: Today's missions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Today"
+
+  /assignments:
+    post:
+      tags: [missions]
+      summary: Accept a mission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignmentRequest"
+      responses:
+        "201":
+          description: Accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assignment"
+
+  /assignments/{id}/swap:
+    post:
+      tags: [missions]
+      summary: Swap a mission for another from the pool
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mission_id:
+                  type: string
+      responses:
+        "200":
+          description: Swapped.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assignment"
+
+  /streams:
+    post:
+      tags: [streaming]
+      summary: Create a stream session and issue a stream key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+      responses:
+        "201":
+          description: Stream created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stream"
+
+  /hooks/relay/auth:
+    post:
+      tags: [streaming]
+      summary: MediaMTX authentication hook
+      description: Called by the relay, never by a user. Requires the shared secret.
+      responses:
+        "200":
+          description: Publish allowed.
+
+  /hooks/relay/ready:
+    post:
+      tags: [streaming]
+      summary: MediaMTX ready hook (stream started)
+      responses:
+        "200":
+          description: Acknowledged.
+
+  /hooks/relay/ended:
+    post:
+      tags: [streaming]
+      summary: MediaMTX ended hook (stream stopped)
+      responses:
+        "200":
+          description: Acknowledged.
+
+  /marks:
+    post:
+      tags: [remote]
+      summary: Record a Start or Done tap
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkRequest"
+      responses:
+        "201":
+          description: Mark stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Mark"
+
+  /events:
+    get:
+      tags: [remote]
+      summary: Server-Sent Events stream of live status
+      responses:
+        "200":
+          description: text/event-stream
+
+  /clips:
+    get:
+      tags: [clips]
+      summary: List clips for the signed-in user
+      responses:
+        "200":
+          description: Clips.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Clip"
+
+  /clips/{id}:
+    patch:
+      tags: [clips]
+      summary: Retitle a clip
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 100
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Clip"
+
+  /clips/{id}/approve:
+    post:
+      tags: [clips]
+      summary: Approve a clip for publishing
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Approved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Clip"
+
+  /clips/{id}/post:
+    post:
+      tags: [clips]
+      summary: Publish an approved clip (always unlisted unless a human changes it)
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "201":
+          description: Publish queued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+
+  /m/{slug}:
+    get:
+      tags: [community]
+      summary: Public mission page
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public mission page payload.
+
+  /missions/{id}/leaderboard:
+    get:
+      tags: [community]
+      summary: Ranked attempts for a mission
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Ranked attempts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Attempt"
+
+  /admin/pool:
+    get:
+      tags: [admin]
+      summary: Candidate mission pool
+      responses:
+        "200":
+          description: Pool.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PoolEntry"
+
+  /admin/pool/{id}/approve:
+    post:
+      tags: [admin]
+      summary: Approve a pool entry into the mission pool
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Approved.
+
+  /admin/questions:
+    post:
+      tags: [admin]
+      summary: Type questions; the LLM writes mission cards
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [questions]
+              properties:
+                questions:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    type: string
+                    minLength: 10
+      responses:
+        "201":
+          description: Cards written.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PoolEntry"
+
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    Code:
+      name: code
+      in: query
+      required: true
+      schema:
+        type: string
+
+  schemas:
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+
+    Me:
+      type: object
+      properties:
+        user:
+          type: object
+          properties:
+            id: { type: string }
+            display_name: { type: string }
+            role: { type: string }
+        channels:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              title: { type: string }
+
+    MissionCard:
+      $ref: "mission-card.schema.json"
+
+    Today:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        daily:
+          $ref: "#/components/schemas/MissionCard"
+        picks:
+          type: array
+          items:
+            $ref: "#/components/schemas/MissionCard"
+
+    AssignmentRequest:
+      type: object
+      required: [mission_id]
+      properties:
+        mission_id: { type: string }
+
+    Assignment:
+      type: object
+      properties:
+        id: { type: string }
+        mission_id: { type: string }
+        date: { type: string, format: date }
+        state:
+          type: string
+          enum: [accepted, swapped, done, discarded]
+
+    Stream:
+      type: object
+      properties:
+        id: { type: string }
+        rtmp_url: { type: string }
+        stream_key: { type: string }
+        started_at: { type: string, format: date-time }
+
+    MarkRequest:
+      type: object
+      required: [assignment_id, kind]
+      properties:
+        assignment_id: { type: string }
+        kind:
+          type: string
+          enum: [start, done]
+        result:
+          type: string
+
+    Mark:
+      type: object
+      properties:
+        id: { type: string }
+        assignment_id: { type: string }
+        kind: { type: string }
+        stream_time: { type: number }
+        result: { type: string, nullable: true }
+
+    Clip:
+      type: object
+      properties:
+        id: { type: string }
+        assignment_id: { type: string }
+        title: { type: string }
+        state:
+          type: string
+          enum: [rendering, ready, approved, posted, discarded]
+        template: { type: string }
+        duration_seconds: { type: number }
+        download_url: { type: string, format: uri }
+
+    Post:
+      type: object
+      properties:
+        id: { type: string }
+        clip_id: { type: string }
+        platform: { type: string }
+        remote_id: { type: string, nullable: true }
+        state:
+          type: string
+          enum: [pending, posted, failed]
+
+    Attempt:
+      type: object
+      properties:
+        rank: { type: integer }
+        user_id: { type: string }
+        result_value: { type: number }
+        clip_id: { type: string }
+
+    PoolEntry:
+      type: object
+      properties:
+        id: { type: string }
+        card:
+          $ref: "#/components/schemas/MissionCard"
+        score: { type: number }
+        state:
+          type: string
+          enum: [candidate, approved, rejected]

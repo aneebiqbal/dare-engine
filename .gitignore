@@ -1,0 +1,38 @@
+# Secrets — never commit
+.env
+.env.local
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / Next
+node_modules/
+.next/
+out/
+web/.next/
+web/node_modules/
+*.tsbuildinfo
+next-env.d.ts
+
+# Video artefacts
+*.mp4
+*.mov
+*.mkv
+*.ts
+*.m4a
+!fixtures/.gitkeep
+!tests/**/*.mp4
+
+# OS / editors
+.DS_Store
+*.log
+.idea/
+.vscode/

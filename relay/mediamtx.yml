@@ -1,0 +1,30 @@
+# M0: RTMP ingest only. Recording, per-user keys and the forward target arrive in M4.
+rtmpAddress: :1935
+rtspAddress: :8554
+rtmpEncryption: "no"
+rtspEncryption: "no"
+
+api: yes
+apiAddress: :9997
+
+# The default config grants the API permission to localhost only, which locks out
+# the API and worker containers. Private networks are enough for a local POC;
+# M4 adds per-user stream keys and the relay hooks.
+authInternalUsers:
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: publish
+      - action: read
+      - action: playback
+  - user: any
+    pass:
+    ips: ["127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+    permissions:
+      - action: api
+      - action: metrics
+      - action: pprof
+
+paths:
+  all_others:

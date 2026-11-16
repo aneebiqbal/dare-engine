@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clipdesk.local/contracts/mission-card.schema.json",
+  "title": "MissionCard",
+  "description": "One playable mission. Written by the LLM from a mined question, approved by an editor.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "question",
+    "hook_text",
+    "setup",
+    "win_condition",
+    "result_type",
+    "est_minutes",
+    "title_options",
+    "mode",
+    "status",
+    "evidence",
+    "policy"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^m_[0-9]{4,}$",
+      "description": "Stable mission number, also printed on the end card."
+    },
+    "question": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 200,
+      "description": "The public question this mission answers."
+    },
+    "hook_text": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 40,
+      "description": "Two to six words shown over the first two seconds."
+    },
+    "setup": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 300
+    },
+    "win_condition": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 300
+    },
+    "result_type": {
+      "type": "string",
+      "enum": ["time_seconds", "star_count", "pass_fail", "distance_meters", "cash_dollars"]
+    },
+    "est_minutes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 30
+    },
+    "title_options": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": { "type": "string", "minLength": 5, "maxLength": 100 }
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["free_roam", "race", "mission_replay"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["unverified", "verified", "rejected"],
+      "description": "Missions start unverified and become verified on first completion."
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["askers", "source_video_ids"],
+      "properties": {
+        "askers": { "type": "integer", "minimum": 0 },
+        "source_video_ids": {
+          "type": "array",
+          "maxItems": 20,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spoiler", "online_exploit"],
+      "properties": {
+        "spoiler": { "type": "boolean" },
+        "online_exploit": { "type": "boolean" }
+      }
+    }
+  }
+}
