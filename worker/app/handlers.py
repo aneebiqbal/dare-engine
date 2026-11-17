@@ -9,13 +9,36 @@ from clip.engine import render_short
 from . import db, jobs, storage
 
 
+def _run_ffmpeg(cmd: list[str]) -> None:
+    import subprocess
+
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError(f"ffmpeg failed: {proc.stderr[-1500:]}")
+
+
 @jobs.register("render_clip")
 def render_clip(payload: dict) -> None:
     clip_id = payload["clip_id"]
     with tempfile.TemporaryDirectory(prefix="render-") as tmp:
         tmp = pathlib.Path(tmp)
-        recording = tmp / "recording.mp4"
-        storage.get_file(payload["recording_key"], str(recording))
+
+        if payload.get("recording_dir"):
+            # Relay path: concatenate the recorded segments, then cut the window.
+            directory = pathlib.Path(payload["recording_dir"])
+            segments = sorted(directory.glob("*.m4s")) + sorted(directory.glob("*.mp4"))
+            if not segments:
+                raise RuntimeError(f"no segments in {directory}")
+            listing = tmp / "segments.txt"
+            listing.write_text("".join(f"file '{s}'\n" for s in segments))
+            recording = tmp / "timeline.mp4"
+            _run_ffmpeg(
+                ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(listing),
+                 "-c", "copy", str(recording)]
+            )
+        else:
+            recording = tmp / "recording.mp4"
+            storage.get_file(payload["recording_key"], str(recording))
 
         result = render_short(
             str(recording),

@@ -91,6 +91,9 @@ services:
       S3_REGION: ${S3_REGION:-us-east-1}
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
       WORKER_STALE_SECONDS: ${WORKER_STALE_SECONDS:-600}
+    volumes:
+      # The relay records here; the worker reads the same files.
+      - relayrecordings:/recordings:ro
     depends_on:
       db:
         condition: service_healthy

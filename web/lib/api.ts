@@ -93,6 +93,7 @@ export const api = {
   leaderboard: (id: string) =>
     request<Attempt[]>("GET", `/missions/${id}/leaderboard`),
   mission: (slug: string) => request("GET", `/m/${slug}`),
+  streamStatus: (id: string) => request("GET", `/streams/${id}/status`),
   upload: (file: File, marks: unknown[]) =>
     request("POST", "/uploads", { file, marks }),
   downloadClip: (id: string) => `${base()}/clips/${id}/download`,

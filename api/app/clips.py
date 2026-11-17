@@ -52,6 +52,20 @@ def mark(request: Request, payload: dict):
                 (assignment_id, kind, float(stream_time), payload.get("result")),
             )
             row = cur.fetchone()
+            if kind == "done":
+                cur.execute(
+                    "SELECT stream_time FROM marks WHERE assignment_id = %s AND kind = 'start' "
+                    "ORDER BY stream_time DESC LIMIT 1",
+                    (assignment_id,),
+                )
+                start_row = cur.fetchone()
+                start = start_row[0] if start_row else max(0.0, float(stream_time) - 30.0)
+                _enqueue_relay_clip(
+                    cur,
+                    user["id"],
+                    assignment_id,
+                    {"start": start, "end": float(stream_time), "result": payload.get("result")},
+                )
     return {"id": str(row[0]), "assignment_id": assignment_id, "kind": kind, "stream_time": row[1]}
 
 
@@ -228,18 +242,58 @@ def create_stream(request: Request, payload: dict):
     import secrets
 
     key = secrets.token_urlsafe(24)
+    rtmp_url = f"rtmp://localhost:1935/live/{key}"
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO streams (user_id, stream_key_hash) VALUES (%s, %s) RETURNING id",
-                (user["id"], hashlib.sha256(key.encode()).hexdigest()),
+                "INSERT INTO streams (user_id, stream_key_hash, storage_prefix) "
+                "VALUES (%s, %s, %s) RETURNING id",
+                (user["id"], hashlib.sha256(key.encode()).hexdigest(), f"live/{key}"),
             )
             stream_id = cur.fetchone()[0]
-    return {
-        "id": str(stream_id),
-        "rtmp_url": "rtmp://localhost:1935/live",
-        "stream_key": key,
-    }
+    return {"id": str(stream_id), "rtmp_url": rtmp_url, "stream_key": key}
+
+
+def _enqueue_relay_clip(cur, user_id: str, assignment_id: str, payload: dict) -> None:
+    """On Done, queue a render from the relay's recorded segments."""
+    cur.execute(
+        "SELECT id, storage_prefix FROM streams "
+        "WHERE user_id = %s AND ended_at IS NULL ORDER BY started_at DESC LIMIT 1",
+        (user_id,),
+    )
+    stream = cur.fetchone()
+    if stream is None:
+        return
+    stream_id, prefix = stream
+    cur.execute("SELECT mission_id FROM assignments WHERE id = %s", (assignment_id,))
+    row = cur.fetchone()
+    if row is None:
+        return
+    mission_id = row[0]
+    cur.execute("SELECT card FROM missions WHERE id = %s", (mission_id,))
+    card = cur.fetchone()[0]
+    cur.execute(
+        "INSERT INTO clips (assignment_id, state) VALUES (%s, 'rendering') RETURNING id",
+        (assignment_id,),
+    )
+    clip_id = cur.fetchone()[0]
+    cur.execute(
+        "INSERT INTO jobs (kind, payload) VALUES ('render_clip', %s)",
+        (
+            json.dumps(
+                {
+                    "clip_id": str(clip_id),
+                    "assignment_id": str(assignment_id),
+                    "recording_dir": f"/recordings/{prefix}",
+                    "card": card,
+                    "start": float(payload["start"]),
+                    "end": float(payload["end"]),
+                    "result": payload.get("result", ""),
+                    "stream_id": str(stream_id),
+                }
+            ),
+        ),
+    )
 
 
 @router.get("/history")

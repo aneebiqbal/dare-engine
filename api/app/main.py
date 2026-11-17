@@ -11,6 +11,7 @@ from .auth import router as auth_router
 from .clips import router as clips_router
 from .community import router as community_router
 from .config import settings
+from .hooks import router as hooks_router
 from .missions import router as missions_router
 
 
@@ -37,6 +38,7 @@ app.include_router(clips_router)
 app.include_router(community_router)
 app.include_router(account_router)
 app.include_router(admin_router)
+app.include_router(hooks_router)
 
 
 @app.get("/healthz")

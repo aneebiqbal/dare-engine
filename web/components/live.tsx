@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, type Stream } from "@/lib/api";
 import { Badge, Button, Card, Field, Input, PageState, useToast } from "@/components/ui";
 
@@ -14,7 +14,27 @@ export function Live({ initial }: { initial: Stream | null }) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState<"url" | "key" | null>(null);
   const [busy, setBusy] = useState(false);
+  const [connected, setConnected] = useState(false);
   const toast = useToast();
+
+  useEffect(() => {
+    if (!stream?.id) return;
+    let alive = true;
+    const tick = async () => {
+      try {
+        const status = (await api.streamStatus(stream.id)) as { connected?: boolean };
+        if (alive) setConnected(Boolean(status.connected));
+      } catch {
+        if (alive) setConnected(false);
+      }
+    };
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [stream?.id]);
 
   async function create() {
     setBusy(true);
@@ -80,8 +100,9 @@ export function Live({ initial }: { initial: Stream | null }) {
             <Button onClick={create} disabled={busy}>
               Issue stream address
             </Button>
-            <span className="inline-flex items-center gap-2 text-xs text-success">
-              <span className="h-1.5 w-1.5 rounded-full bg-success" /> Relay reachable
+            <span className="inline-flex items-center gap-2 text-xs text-success" data-testid="relay-status">
+              <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-success" : "bg-danger"}`} />
+              {connected ? "Relay connected" : "Relay waiting"}
             </span>
           </div>
         </div>

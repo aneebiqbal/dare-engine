@@ -147,3 +147,11 @@ CREATE TABLE IF NOT EXISTS sessions (
     created_at timestamptz NOT NULL DEFAULT now(),
     expires_at timestamptz NOT NULL DEFAULT now() + interval '30 days'
 );
+
+CREATE TABLE IF NOT EXISTS stream_segments (
+    id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    stream_id  uuid NOT NULL REFERENCES streams(id) ON DELETE CASCADE,
+    path       text NOT NULL,
+    duration   double precision NOT NULL DEFAULT 0,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
