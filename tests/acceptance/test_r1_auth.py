@@ -39,6 +39,8 @@ def test_creator_cannot_reach_admin_routes():
 def test_admin_can_reach_admin_routes():
     admin = make_admin()
     assert len(admin.get("/admin/users")["items"]) >= 1
+    # Regression: /admin/jobs used to fail with tuple + list.
+    assert "items" in admin.get("/admin/jobs")
 
 
 def test_sign_up_requires_an_invite_by_default():

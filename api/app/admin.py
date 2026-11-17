@@ -175,7 +175,7 @@ def jobs(request: Request):
     with db.session() as conn:
         with conn.cursor() as cur:
             where = "WHERE state = %s" if state else ""
-            params = (state,) if state else ()
+            params = [state] if state else []
             cur.execute(f"SELECT count(*) FROM jobs {where}", params)
             total = cur.fetchone()[0]
             cur.execute(
