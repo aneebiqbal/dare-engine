@@ -28,6 +28,32 @@ NORMALIZE_VF = (
     "crop=1920:1080,setsar=1,fps=30"
 )
 
+_ENCODERS = ("h264_videotoolbox", "h264_nvenc", "h264_qsv", "h264_vaapi", "libx264")
+_encoder: str | None = None
+
+
+def detect_encoder() -> str:
+    """Pick a hardware H.264 encoder when there is one, else libx264."""
+    global _encoder
+    if _encoder is None:
+        out = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-encoders"], capture_output=True, text=True
+        ).stderr
+        _encoder = next((e for e in _ENCODERS if e in out), "libx264")
+        print(f"h264 encoder: {_encoder}")
+    return _encoder
+
+
+def codec_args(encoder: str | None = None) -> list[str]:
+    enc = encoder or detect_encoder()
+    if enc == "libx264":
+        return ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]
+    if enc == "h264_videotoolbox":
+        return ["-c:v", "h264_videotoolbox", "-b:v", "8000k"]
+    if enc in ("h264_nvenc", "h264_qsv"):
+        return ["-c:v", enc, "-preset", "p4", "-b:v", "8000k"]
+    return ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]
+
 
 @dataclasses.dataclass
 class Result:
@@ -101,8 +127,8 @@ def _cut(src: str, out: str, start: float, length: float) -> None:
     cmd += [
         "-t", f"{length:.3f}",
         "-vf", NORMALIZE_VF,
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
         "-pix_fmt", "yuv420p",
+        *codec_args(),
         "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
         *maps, out,
     ]
@@ -234,8 +260,8 @@ def render_short(
             [
                 "ffmpeg", "-y", "-i", str(timeline),
                 "-filter_complex", vf, "-map", "[outv]", "-map", "0:a:0?",
-                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
                 "-pix_fmt", "yuv420p", "-r", "30",
+                *codec_args(),
                 "-c:a", "aac", "-b:a", "128k",
                 "-movflags", "+faststart", str(out_path),
             ]
@@ -260,6 +286,7 @@ def render_short(
             "layout": layout,
             "duration_seconds": round(duration, 3),
             "result": result_value,
+            "encoder": detect_encoder(),
             "title_flags": flags,
             "spoiler_flags": letterbox,
         }

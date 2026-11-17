@@ -121,16 +121,29 @@ def settings(request: Request):
 @router.delete("/account")
 def delete_account(request: Request):
     user = current_user(request)
+    client = storage._client()
+    bucket = storage.settings.s3_bucket
+
+    def _delete_prefix(prefix: str) -> None:
+        try:
+            objects = client.list_objects_v2(Bucket=bucket, Prefix=prefix)
+            for obj in objects.get("Contents", []):
+                client.delete_object(Bucket=bucket, Key=obj["Key"])
+        except Exception:
+            pass
+
     with db.session() as conn:
         with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id FROM clips WHERE assignment_id IN "
+                "(SELECT id FROM assignments WHERE user_id = %s)",
+                (user["id"],),
+            )
+            clip_ids = [str(r[0]) for r in cur.fetchall()]
+            cur.execute("DELETE FROM clips WHERE id = ANY(%s)", (clip_ids,))
             cur.execute("DELETE FROM users WHERE id = %s", (user["id"],))
-    # Remove the user's stored files.
-    client = storage._client()
-    prefix = f"recordings/{user['id']}/"
-    try:
-        objects = client.list_objects_v2(Bucket=storage.settings.s3_bucket, Prefix=prefix)
-        for obj in objects.get("Contents", []):
-            client.delete_object(Bucket=storage.settings.s3_bucket, Key=obj["Key"])
-    except Exception:
-        pass
+
+    _delete_prefix(f"recordings/{user['id']}/")
+    for clip_id in clip_ids:
+        _delete_prefix(f"clips/{clip_id}/")
     return {"ok": True}
