@@ -56,6 +56,42 @@ Real backend: `/` Today, `/admin` pool (M2). Everything else is listed under
 - `make web-accept` — page flows + axe, mock layer, then restores the real build.
 - `make screens` — screenshots + a11y report.
 
+## Sprint 5 — finish, speed up, live show
+
+Status: `make accept` **28 passed**. Part 0 items 1–3 done; item 4 (M12/M13) not
+started. Part 1: S1 and S3 done, S2 not started. Part 2 not started.
+
+### Part 0
+
+- **R3 / M4 — built, unproven on real gameplay.** MediaMTX records fMP4 segments
+  to a shared volume, authenticates the stream key through
+  `/hooks/relay/auth`, registers segments, and `Done` enqueues a render from the
+  segments. The Live page polls `/streams/{id}/status` every second. Test: the
+  stand-in pushed over RTMP (`-stream_loop 3`) shows **connected**, Start at
+  stream time 8 and Done at 16 produce a ready Short in <180 s while the stream
+  is still running.
+- **R6 proof — done.** Deleting an account removes the user, assignments,
+  sessions, streams, clips, attempts and the S3 objects under
+  `recordings/<user_id>/` and `clips/<clip_id>/`. A test asserts zero rows and
+  zero files, and 401 afterwards.
+- **D1 — done.** `docs/design.md`: concept, type scale, colour roles, spacing,
+  motion, the three signature moments. D2/D3 not started.
+
+### Part 1
+
+- **S1 — done.** `WORKER_CONCURRENCY` (default = CPU count) render pool plus a
+  stale-job reaper (`WORKER_STALE_SECONDS`, default 600). Measured on this
+  machine: **serial 188.7 s** vs **parallel-4 119.8 s** for three clips; a
+  killed worker's jobs are recovered on restart and the test ends with exactly
+  three clips, no duplicates. Numbers in `docs/performance.md`.
+- **S3 — done.** `detect_encoder()` picks `h264_videotoolbox` / `h264_nvenc` /
+  `h264_qsv` when present, else `libx264`; the choice is logged and stored in
+  the metadata. Unit tests cover both paths.
+
+### Not started
+
+S2 (stages + progress + transcript cache), Part 2 (L1–L6), D2/D3, M12, M13.
+
 ## Sprint 4 — make every page real
 
 Status: `make accept` **25 passed**; `make web-accept` **11 passed** + axe clean
