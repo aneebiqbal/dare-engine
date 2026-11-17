@@ -25,9 +25,9 @@ def run_once(worker_id: str) -> bool:
     try:
         handler(payload)
         jobs.finish(job_id, "done")
-    except Exception:
+    except Exception as exc:
         traceback.print_exc()
-        jobs.finish(job_id, "failed")
+        jobs.fail(job_id, f"{type(exc).__name__}: {exc}")
     return True
 
 

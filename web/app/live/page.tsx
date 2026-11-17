@@ -1,19 +1,15 @@
-import { Page } from "@/components/page";
+import { AppPage } from "@/components/app-page";
 import { Live } from "@/components/live";
-import { api, type Stream } from "@/lib/api";
+import { requireUser } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function LivePage() {
-  let initial: Stream | null = null;
-  try {
-    initial = await api.createStream("Launch day stream");
-  } catch {
-    initial = null;
-  }
+  const user = await requireUser();
+  // The stream address is issued client-side so the CSRF header is present.
   return (
-    <Page eyebrow="Go Live" title="Your stream address">
-      <Live initial={initial} />
-    </Page>
+    <AppPage user={user} eyebrow="Go Live" title="Your stream address">
+      <Live initial={null} />
+    </AppPage>
   );
 }

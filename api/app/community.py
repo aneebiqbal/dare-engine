@@ -1,9 +1,10 @@
 """Community: public mission pages, leaderboards and creator profiles."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from . import db
+from .paging import envelope, order_clause, parse
 
 router = APIRouter()
 
@@ -37,35 +38,48 @@ def mission_page(slug: str):
 
 
 @router.get("/missions/{mission_id}/leaderboard")
-def leaderboard(mission_id: str):
+def leaderboard(request: Request, mission_id: str):
+    page, size, sort, order = parse(request, "rank", "asc")
+    allowed = {"rank": "result_value", "result_value": "result_value", "user_id": "user_id"}
     with db.session() as conn:
         with conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM attempts WHERE mission_id = %s", (mission_id,))
+            total = cur.fetchone()[0]
             cur.execute(
                 "SELECT user_id, result_value, clip_id FROM attempts "
-                "WHERE mission_id = %s ORDER BY result_value ASC NULLS LAST",
-                (mission_id,),
+                f"WHERE mission_id = %s ORDER BY {order_clause(sort, allowed, 'result_value', order)} "
+                "LIMIT %s OFFSET %s",
+                (mission_id, size, (page - 1) * size),
             )
             rows = cur.fetchall()
-    return [
-        {"rank": i, "user_id": str(r[0]), "result_value": r[1], "clip_id": str(r[2]) if r[2] else None}
-        for i, r in enumerate(rows, 1)
-    ]
+    return envelope(
+        [
+            {"rank": i, "user_id": str(r[0]), "result_value": r[1], "clip_id": str(r[2]) if r[2] else None}
+            for i, r in enumerate(rows, (page - 1) * size + 1)
+        ],
+        total,
+        page,
+        size,
+    )
 
 
 @router.get("/creators/{user_id}")
-def creator(user_id: str):
+def creator(request: Request, user_id: str):
+    page, size, sort, order = parse(request, "created_at")
     with db.session() as conn:
         with conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM attempts WHERE user_id = %s", (user_id,))
+            total = cur.fetchone()[0]
             cur.execute(
-                "SELECT a.mission_id, a.result_value, a.clip_id, m.card "
-                "FROM attempts a JOIN missions m ON m.id = a.mission_id "
-                "WHERE a.user_id = %s ORDER BY a.created_at DESC",
-                (user_id,),
+                "SELECT a.mission_id, a.result_value, a.clip_id, m.card FROM attempts a "
+                "JOIN missions m ON m.id = a.mission_id "
+                f"WHERE a.user_id = %s ORDER BY {order_clause(sort, {'created_at': 'a.created_at', 'result_value': 'a.result_value'}, 'a.created_at', order)} "
+                "LIMIT %s OFFSET %s",
+                (user_id, size, (page - 1) * size),
             )
             rows = cur.fetchall()
-    return {
-        "user_id": user_id,
-        "attempts": [
+    return envelope(
+        [
             {
                 "mission_id": r[0],
                 "result_value": r[1],
@@ -74,4 +88,7 @@ def creator(user_id: str):
             }
             for r in rows
         ],
-    }
+        total,
+        page,
+        size,
+    )

@@ -1,19 +1,14 @@
-import { Admin } from "@/components/admin";
-import { Page } from "@/components/page";
-import { api, type PoolEntry } from "@/lib/api";
+import { AppPage } from "@/components/app-page";
+import { AdminOverview } from "@/components/admin";
+import { requireAdmin } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  let initial: PoolEntry[] = [];
-  try {
-    initial = await api.pool();
-  } catch {
-    initial = [];
-  }
+  const user = await requireAdmin();
   return (
-    <Page eyebrow="Admin" title="Mission pool">
-      <Admin initial={initial} />
-    </Page>
+    <AppPage user={user} eyebrow="Admin" title="Overview">
+      <AdminOverview />
+    </AppPage>
   );
 }

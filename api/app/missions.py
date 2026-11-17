@@ -8,12 +8,13 @@ import pathlib
 import re
 
 import jsonschema
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from . import db
-from .llm import get_llm
-from .users import current_user
+from .ai import run_ai
+from .paging import envelope, order_clause, parse
+from .users import audit, current_user, require_admin
 
 router = APIRouter()
 
@@ -28,11 +29,8 @@ SYSTEM = (
     "result. Never use story spoilers, online cheats, or trademarked names in a "
     "title. Return JSON only."
 )
-RESPONSE_SCHEMA = {
-    "type": "object",
-    "properties": {"cards": {"type": "array", "items": CARD_SCHEMA}},
-    "required": ["cards"],
-}
+
+POOL_SORT = {"created_at": "m.created_at", "id": "m.id", "score": "m.score"}
 
 
 class QuestionsIn(BaseModel):
@@ -47,22 +45,43 @@ class SwapIn(BaseModel):
     mission_id: str
 
 
+class CardIn(BaseModel):
+    card: dict
+
+
 def _card(row) -> dict:
     return {"id": row[0], "card": row[1], "score": row[2], "state": row[3]}
 
 
-@router.post("/admin/questions")
+@router.post("/admin/questions", dependencies=[Depends(require_admin)])
 def write_cards(request: Request, payload: QuestionsIn):
-    current_user(request)
+    user = current_user(request)
     if not payload.questions:
         raise HTTPException(422, "no questions supplied")
 
-    result = get_llm().complete_json(
-        SYSTEM, json.dumps(payload.questions), RESPONSE_SCHEMA
+    result, fallback = run_ai(
+        user, "admin-pool", "cards", SYSTEM, json.dumps(payload.questions)
     )
-    cards = result.get("cards", [])
+    cards = (result or {}).get("cards", []) if not fallback else []
     if not cards:
-        raise HTTPException(422, "the model returned no cards")
+        # Non-AI fallback: a plain card per question, clearly marked.
+        cards = [
+            {
+                "id": f"m_{2000 + i:04d}",
+                "question": q,
+                "hook_text": q,
+                "setup": "Play the mission in free roam.",
+                "win_condition": "Complete the mission and record the result.",
+                "result_type": "pass_fail",
+                "est_minutes": 8,
+                "title_options": [q],
+                "mode": "free_roam",
+                "status": "unverified",
+                "evidence": {"askers": 0, "source_video_ids": []},
+                "policy": {"spoiler": False, "online_exploit": False},
+            }
+            for i, q in enumerate(payload.questions)
+        ]
 
     stored = []
     with db.session() as conn:
@@ -78,24 +97,31 @@ def write_cards(request: Request, payload: QuestionsIn):
                     (card["id"], json.dumps(card)),
                 )
                 stored.append(card)
-    return {"cards": stored, "count": len(stored)}
+    audit(user["id"], "questions.write", "mission", "", {"count": len(stored), "fallback": fallback})
+    return {"cards": stored, "count": len(stored), "fallback": fallback}
 
 
-@router.get("/admin/pool")
+@router.get("/admin/pool", dependencies=[Depends(require_admin)])
 def pool(request: Request):
-    current_user(request)
+    page, size, sort, order = parse(request, "created_at")
+    status = request.query_params.get("status", "candidate")
     with db.session() as conn:
         with conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM missions WHERE status = %s", (status,))
+            total = cur.fetchone()[0]
             cur.execute(
-                "SELECT id, card, score, status FROM missions "
-                "WHERE status = 'candidate' ORDER BY created_at"
+                f"SELECT m.id, m.card, m.score, m.status FROM missions m WHERE m.status = %s "
+                f"ORDER BY {order_clause(sort, POOL_SORT, 'm.created_at', order)} "
+                f"LIMIT %s OFFSET %s",
+                (status, size, (page - 1) * size),
             )
-            return [_card(r) for r in cur.fetchall()]
+            rows = cur.fetchall()
+    return envelope([_card(r) for r in rows], total, page, size)
 
 
-@router.post("/admin/pool/{mission_id}/approve")
+@router.post("/admin/pool/{mission_id}/approve", dependencies=[Depends(require_admin)])
 def approve(request: Request, mission_id: str):
-    current_user(request)
+    user = current_user(request)
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -105,7 +131,53 @@ def approve(request: Request, mission_id: str):
             )
             if cur.fetchone() is None:
                 raise HTTPException(404, "not a candidate")
+    audit(user["id"], "pool.approve", "mission", mission_id)
     return {"id": mission_id, "state": "unverified"}
+
+
+@router.post("/admin/pool/{mission_id}/reject", dependencies=[Depends(require_admin)])
+def reject(request: Request, mission_id: str):
+    user = current_user(request)
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE missions SET status = 'rejected' "
+                "WHERE id = %s AND status = 'candidate' RETURNING id",
+                (mission_id,),
+            )
+            if cur.fetchone() is None:
+                raise HTTPException(404, "not a candidate")
+    audit(user["id"], "pool.reject", "mission", mission_id)
+    return {"id": mission_id, "state": "rejected"}
+
+
+@router.get("/missions/{mission_id}")
+def get_mission(mission_id: str):
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, card, score, status FROM missions WHERE id = %s", (mission_id,))
+            row = cur.fetchone()
+    if row is None:
+        raise HTTPException(404, "mission not found")
+    return _card(row)
+
+
+@router.patch("/missions/{mission_id}")
+def update_mission(request: Request, mission_id: str, payload: CardIn):
+    user = current_user(request)
+    card = dict(payload.card)
+    card["id"] = mission_id
+    jsonschema.validate(card, CARD_SCHEMA)
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE missions SET card = %s WHERE id = %s RETURNING id",
+                (json.dumps(card), mission_id),
+            )
+            if cur.fetchone() is None:
+                raise HTTPException(404, "mission not found")
+    audit(user["id"], "mission.update", "mission", mission_id)
+    return {"id": mission_id, "card": card}
 
 
 @router.get("/today")

@@ -1,9 +1,11 @@
 import { Remote } from "@/components/remote";
 import { api, type Today as TodayResponse } from "@/lib/api";
+import { requireUser } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function RemotePage() {
+  await requireUser();
   let mission: TodayResponse["daily"];
   try {
     const data = await api.today();
@@ -18,5 +20,5 @@ export default async function RemotePage() {
       </main>
     );
   }
-  return <Remote mission={mission} />
+  return <Remote mission={mission} />;
 }

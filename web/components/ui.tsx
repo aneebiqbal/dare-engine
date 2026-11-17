@@ -11,8 +11,10 @@ import {
   type HTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
+  type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
+import { forwardRef } from "react";
 
 /* ------------------------------------------------------------------ button */
 
@@ -48,14 +50,17 @@ export function Button({
 
 /* ------------------------------------------------------------------- input */
 
-export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      className={`w-full rounded-xl bg-surface px-4 py-3 text-sm text-text ring-surface outline-none transition duration-300 ease-out placeholder:text-muted focus:bg-surface-2 ${className}`}
-      {...props}
-    />
-  );
-}
+export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
+  function Input({ className = "", ...props }, ref) {
+    return (
+      <input
+        ref={ref}
+        className={`w-full rounded-xl bg-surface px-4 py-3 text-sm text-text ring-surface outline-none transition duration-300 ease-out placeholder:text-muted focus:bg-surface-2 ${className}`}
+        {...props}
+      />
+    );
+  },
+);
 
 export function Textarea({ className = "", ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
@@ -288,13 +293,15 @@ export function Td({
   children,
   className = "",
   colSpan,
+  title,
 }: {
   children: ReactNode;
   className?: string;
   colSpan?: number;
+  title?: string;
 }) {
   return (
-    <td colSpan={colSpan} className={`px-4 py-3 align-middle ${className}`}>
+    <td colSpan={colSpan} title={title} className={`px-4 py-3 align-middle ${className}`}>
       {children}
     </td>
   );
@@ -331,6 +338,77 @@ export function Skeleton({ className = "" }: { className?: string }) {
   return <div className={`animate-pulse rounded-lg bg-surface-2 ${className}`} aria-hidden />;
 }
 
+export function Select({
+  className = "",
+  children,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      className={`w-full appearance-none rounded-xl bg-surface px-4 py-3 text-sm text-text ring-surface outline-none transition duration-300 ease-out focus:bg-surface-2 ${className}`}
+      {...props}
+    >
+      {children}
+    </select>
+  );
+}
+
+export function Progress({
+  value,
+  className = "",
+  label = "Progress",
+}: {
+  value: number;
+  className?: string;
+  label?: string;
+}) {
+  return (
+    <div
+      className={`h-1.5 w-full overflow-hidden rounded-full bg-surface-2 ${className}`}
+      role="progressbar"
+      aria-label={label}
+      aria-valuenow={Math.round(value)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
+      <div
+        className="h-full rounded-full bg-accent transition-[width] duration-500 ease-out"
+        style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
+      />
+    </div>
+  );
+}
+
+export function Notice({ children, tone = "info" }: { children: ReactNode; tone?: "info" | "warn" }) {
+  const styles =
+    tone === "warn"
+      ? "bg-danger/10 text-danger ring-danger/20"
+      : "bg-accent-soft text-accent ring-accent/20";
+  return (
+    <p className={`rounded-xl px-4 py-3 text-xs leading-relaxed ring-1 ${styles}`} role="status">
+      {children}
+    </p>
+  );
+}
+
+export function Stat({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: ReactNode;
+  hint?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] uppercase tracking-[0.2em] text-muted">{label}</span>
+      <span className="text-2xl font-semibold tracking-tight">{value}</span>
+      {hint && <span className="text-xs text-muted">{hint}</span>}
+    </div>
+  );
+}
+
 export function PageState({
   loading,
   error,
@@ -340,7 +418,7 @@ export function PageState({
   loading?: boolean;
   error?: string | null;
   empty?: boolean;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
   if (loading) {
     return (

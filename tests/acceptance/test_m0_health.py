@@ -12,7 +12,7 @@ import jsonschema
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-SERVICES = ["db", "storage", "api", "worker", "web", "relay"]
+SERVICES = ["db", "api", "worker", "web", "relay"]
 
 API_URL = os.environ.get("CLIPDESK_API_URL", "http://localhost:8000")
 WEB_URL = os.environ.get("CLIPDESK_WEB_URL", "http://localhost:3100")
@@ -65,13 +65,22 @@ def test_openapi_contract_covers_the_spec_endpoints():
     spec = yaml.safe_load((ROOT / "contracts/openapi.yaml").read_text())
     for path in [
         "/healthz",
-        "/auth/google/start",
+        "/auth/sign-in",
+        "/auth/sign-up",
         "/today",
         "/marks",
         "/clips",
-        "/missions/{id}/leaderboard",
+        "/uploads/start",
+        "/missions/{mission_id}/leaderboard",
         "/admin/pool",
         "/admin/questions",
+        "/admin/invites",
+        "/admin/jobs",
+        "/admin/audit",
+        "/admin/ai-usage",
+        "/admin/setup",
+        "/ai/help",
+        "/tours/{tour_id}",
     ]:
         assert path in spec["paths"], f"{path} missing from contracts/openapi.yaml"
     assert spec["components"]["schemas"]["MissionCard"]["$ref"] == "mission-card.schema.json"

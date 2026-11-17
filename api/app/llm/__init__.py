@@ -1,16 +1,20 @@
-from .base import LLM
+from ..config import settings
+from .base import LLM, LLMError
 from .recorded import RecordedLLM
 from .stub import StubLLM
 
 
 def get_llm() -> LLM:
-    from .. import config
+    provider = (settings.llm_provider or "").lower()
+    if provider == "openai":
+        from .openai_compat import OpenAICompatibleLLM
 
-    provider = config.settings.llm_provider
+        return OpenAICompatibleLLM(
+            settings.llm_base_url, settings.llm_api_key, settings.llm_model, settings.llm_timeout
+        )
     if provider == "recorded":
-        return RecordedLLM(config.settings.llm_recorded_response)
-    if provider == "gemini":
-        from .gemini import GeminiLLM
-
-        return GeminiLLM(config.settings.gemini_api_key)
+        return RecordedLLM(settings.llm_recorded_response)
     return StubLLM()
+
+
+__all__ = ["LLM", "LLMError", "get_llm"]

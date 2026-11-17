@@ -1,0 +1,67 @@
+{
+  "creator": {
+    "title": "Your first mission",
+    "steps": [
+      {
+        "selector": "[data-tour='nav-today']",
+        "title": "Start here",
+        "body": "Today shows the Daily Mission and your personal picks. Accept one to send it to your phone."
+      },
+      {
+        "selector": "[data-tour='today-missions']",
+        "title": "Mission cards",
+        "body": "Each card has a hook, a setup and a win condition. Accept the one you will play."
+      },
+      {
+        "selector": "[data-tour='nav-go-live']",
+        "title": "Go live",
+        "body": "This page issues your stream address and key. The key stays masked until you reveal it."
+      },
+      {
+        "selector": "[data-tour='nav-clips']",
+        "title": "Clips",
+        "body": "Every Start and Done becomes one Short. Watch the render stage here."
+      },
+      {
+        "selector": "[data-tour='nav-results']",
+        "title": "Results",
+        "body": "Enter views and retention, then read which mission types are working."
+      },
+      {
+        "selector": "[data-tour='help-button']",
+        "title": "Replay this tour",
+        "body": "Open Help any time to replay the tour or read the guide."
+      }
+    ]
+  },
+  "admin": {
+    "title": "Running Clipdesk",
+    "steps": [
+      {
+        "selector": "[data-tour='nav-overview']",
+        "title": "Admin overview",
+        "body": "Users, invites, jobs, pool, AI usage and storage in one place."
+      },
+      {
+        "selector": "[data-tour='nav-invites']",
+        "title": "Invites",
+        "body": "Sign-up is invite-only. Create a code and give it to a creator."
+      },
+      {
+        "selector": "[data-tour='nav-jobs']",
+        "title": "Job queue",
+        "body": "Failed jobs show their error and can be retried here. Jobs retry with backoff first."
+      },
+      {
+        "selector": "[data-tour='nav-ai-usage']",
+        "title": "AI usage",
+        "body": "Tokens and latency per call, and which provider and model are configured."
+      },
+      {
+        "selector": "[data-tour='nav-setup-status']",
+        "title": "Setup status",
+        "body": "The same checks as make doctor: database, storage, AI key and voice model."
+      }
+    ]
+  }
+}

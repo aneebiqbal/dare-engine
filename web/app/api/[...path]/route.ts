@@ -6,12 +6,14 @@ const API = process.env.API_URL ?? "http://api:8000";
 async function proxy(req: NextRequest, method: string) {
   const path = req.nextUrl.pathname.replace(/^\/api/, "") + req.nextUrl.search;
   const headers: Record<string, string> = {};
-  const cookie = req.cookies.get("clipdesk_session")?.value;
-  if (cookie) headers["Cookie"] = `clipdesk_session=${cookie}`;
+  const cookie = req.headers.get("cookie");
+  if (cookie) headers["Cookie"] = cookie;
   const contentType = req.headers.get("content-type");
   if (contentType) headers["Content-Type"] = contentType;
+  const csrf = req.headers.get("x-csrf-token");
+  if (csrf) headers["X-CSRF-Token"] = csrf;
 
-  const body = method === "GET" || method === "HEAD" ? undefined : await req.text();
+  const body = method === "GET" || method === "HEAD" ? undefined : await req.arrayBuffer();
   const res = await fetch(`${API}${path}`, { method, headers, body, cache: "no-store" });
 
   const out = new Headers();
@@ -19,7 +21,7 @@ async function proxy(req: NextRequest, method: string) {
   if (ct) out.set("Content-Type", ct);
   for (const c of res.headers.getSetCookie?.() ?? []) out.append("Set-Cookie", c);
 
-  return new NextResponse(await res.text(), { status: res.status, headers: out });
+  return new NextResponse(await res.arrayBuffer(), { status: res.status, headers: out });
 }
 
 export const GET = (r: NextRequest) => proxy(r, "GET");

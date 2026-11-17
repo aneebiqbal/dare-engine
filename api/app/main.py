@@ -1,18 +1,22 @@
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from . import db, storage
 from .account import router as account_router
 from .admin import router as admin_router
+from .ai import router as ai_router
 from .auth import router as auth_router
 from .clips import router as clips_router
 from .community import router as community_router
 from .config import settings
 from .hooks import router as hooks_router
 from .missions import router as missions_router
+from .tours import router as tours_router
+from .users import csrf_protect
 
 
 @asynccontextmanager
@@ -24,7 +28,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Clipdesk Missions API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Clipdesk Missions API", version="0.6.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[os.environ.get("WEB_ORIGIN", "http://localhost:3100")],
@@ -32,12 +36,28 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.include_router(auth_router)
-app.include_router(missions_router)
-app.include_router(clips_router)
-app.include_router(community_router)
-app.include_router(account_router)
-app.include_router(admin_router)
+
+
+@app.exception_handler(HTTPException)
+async def http_error_handler(request: Request, exc: HTTPException):
+    # Consistent shape, with `detail` kept for older clients.
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "error": {"status": exc.status_code, "message": exc.detail}},
+    )
+
+
+for router in (
+    auth_router,
+    missions_router,
+    clips_router,
+    community_router,
+    account_router,
+    admin_router,
+    ai_router,
+    tours_router,
+):
+    app.include_router(router, dependencies=[Depends(csrf_protect)])
 app.include_router(hooks_router)
 
 

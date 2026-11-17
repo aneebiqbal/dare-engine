@@ -18,6 +18,11 @@ export function Live({ initial }: { initial: Stream | null }) {
   const toast = useToast();
 
   useEffect(() => {
+    if (!stream) void create();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stream]);
+
+  useEffect(() => {
     if (!stream?.id) return;
     let alive = true;
     const tick = async () => {

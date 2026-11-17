@@ -74,3 +74,29 @@ Only `transform` and `opacity` animate. Every transition is disabled under
 No default component-library look: no all-grey cards, no drop-shadow stacks, no
 linear easing, no scrolling marquees. If a screen could be any dashboard, it is
 not done.
+
+## Sprint 6 — the app shell and layout system
+
+**Concept.** A quiet broadcast desk: one persistent rail for where you are, one
+wide canvas for the work, and a single accent that means "this is live". The
+shell is the same on a phone and on a wide monitor; only the rail moves.
+
+**Shell.** A collapsible left rail (2 rem, hairline right border) with icon +
+label links; the label collapses to the icon under `md`. On phones the rail
+becomes an overlay from a top-bar menu button. The top bar is sticky, blurred,
+and holds page search, the account menu and the theme toggle. Content uses the
+full window width up to `1600px`, in a responsive card grid
+(`md:2`, `xl:3`, `2xl:4`). No narrow centred column on desktop.
+
+**States.** Every page renders the same four: a skeleton grid while loading, an
+error card with the message, an empty state with one action, and the filled
+grid. A fallback notice is shown whenever an AI path is used.
+
+**Motion.** One curve, `cubic-bezier(0.22, 1, 0.36, 1)`; rail width 300 ms,
+theme 400 ms, scroll entry 800 ms. Only `transform` and `opacity` animate,
+except the rail's width, which is a layout property but a systemic chrome
+element. `prefers-reduced-motion: reduce` disables all of it.
+
+**Tour.** Tooltips anchor to `data-tour` elements, highlight the target with an
+accent ring, and are keyboard-only operable: `→`/`Enter` next, `←` back,
+`Esc` skip. Progress is stored per user and never blocks work.

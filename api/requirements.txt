@@ -5,3 +5,5 @@ pydantic-settings==2.7.1
 jsonschema==4.23.0
 boto3==1.37.1
 python-multipart==0.0.20
+argon2-cffi==23.1.0
+pyyaml==6.0.2

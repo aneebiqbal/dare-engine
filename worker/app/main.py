@@ -27,3 +27,23 @@ app = FastAPI(title="Clipdesk Missions Worker", version="0.1.0", lifespan=lifesp
 @app.get("/healthz")
 def healthz():
     return {"status": "ok", "worker": WORKER_ID}
+
+
+@app.get("/healthz/ready")
+def ready():
+    import os
+    import shutil
+
+    from .config import settings
+
+    from . import db
+
+    db.check()
+    tts = bool(shutil.which(settings.tts_command))
+    voice = os.path.exists(os.path.join(settings.tts_model_dir, f"{settings.tts_voice}.onnx"))
+    return {
+        "status": "ready",
+        "worker": WORKER_ID,
+        "tts": tts,
+        "voice_model": voice,
+    }

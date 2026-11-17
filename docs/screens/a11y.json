@@ -1,12 +1,18 @@
 {
   "phone-welcome": [],
+  "phone-dashboard": [],
   "phone-today": [],
   "phone-remote": [],
   "phone-clips": [],
+  "phone-results": [],
+  "phone-help": [],
   "phone-styleguide": [],
   "desktop-welcome": [],
+  "desktop-dashboard": [],
   "desktop-today": [],
   "desktop-remote": [],
   "desktop-clips": [],
+  "desktop-results": [],
+  "desktop-help": [],
   "desktop-styleguide": []
 }

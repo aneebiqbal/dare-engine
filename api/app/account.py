@@ -1,13 +1,15 @@
-"""R5 results, R6 settings and account deletion."""
+"""Results, settings, data export and account deletion."""
 from __future__ import annotations
 
+import json
 import pathlib
 import tempfile
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse
 
 from . import db, storage
-from .users import current_user
+from .users import audit, current_user
 
 router = APIRouter()
 
@@ -18,7 +20,7 @@ def _score(views: int, avg_view_percentage: float | None) -> float:
 
 @router.post("/metrics")
 def record_metric(request: Request, payload: dict):
-    """Manual metric entry (R5). The YouTube collector is built, unproven."""
+    """Manual metric entry. The YouTube collector is built, unproven."""
     user = current_user(request)
     clip_id = payload.get("clip_id")
     with db.session() as conn:
@@ -99,10 +101,16 @@ def results(request: Request):
 
 
 @router.get("/settings")
-def settings(request: Request):
+def get_settings(request: Request):
     user = current_user(request)
     with db.session() as conn:
         with conn.cursor() as cur:
+            cur.execute(
+                "SELECT caption_style, layout_preference, voice_over_default, voice "
+                "FROM user_settings WHERE user_id = %s",
+                (user["id"],),
+            )
+            row = cur.fetchone()
             cur.execute(
                 "SELECT COUNT(*) FROM clips c JOIN assignments a ON a.id = c.assignment_id "
                 "WHERE a.user_id = %s",
@@ -113,24 +121,81 @@ def settings(request: Request):
         "plan": "free",
         "clips_used": used,
         "clips_limit": 5,
-        "caption_style": "word",
-        "layout_preference": "rotate",
+        "caption_style": row[0] if row else "word",
+        "layout_preference": row[1] if row else "rotate",
+        "voice_over_default": bool(row[2]) if row else False,
+        "voice": row[3] if row else None,
     }
+
+
+@router.patch("/settings")
+def update_settings(request: Request, payload: dict):
+    user = current_user(request)
+    fields = {}
+    for key in ("caption_style", "layout_preference", "voice_over_default", "voice"):
+        if key in payload:
+            fields[key] = payload[key]
+    if not fields:
+        raise HTTPException(422, "nothing to update")
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO user_settings (user_id, caption_style, layout_preference, "
+                "voice_over_default, voice) VALUES (%s, %s, %s, %s, %s) "
+                "ON CONFLICT (user_id) DO UPDATE SET "
+                "caption_style = COALESCE(EXCLUDED.caption_style, user_settings.caption_style), "
+                "layout_preference = COALESCE(EXCLUDED.layout_preference, user_settings.layout_preference), "
+                "voice_over_default = EXCLUDED.voice_over_default, "
+                "voice = COALESCE(EXCLUDED.voice, user_settings.voice), updated_at = now()",
+                (
+                    user["id"],
+                    fields.get("caption_style", "word"),
+                    fields.get("layout_preference", "rotate"),
+                    fields.get("voice_over_default", False),
+                    fields.get("voice"),
+                ),
+            )
+    audit(user["id"], "settings.update", "user", user["id"], fields)
+    return {"ok": True, **fields}
+
+
+@router.get("/account/export")
+def export_account(request: Request):
+    user = current_user(request)
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, email, display_name, role, created_at FROM users WHERE id = %s",
+                (user["id"],),
+            )
+            row = cur.fetchone()
+            cur.execute(
+                "SELECT a.mission_id, a.date, a.state FROM assignments a WHERE a.user_id = %s",
+                (user["id"],),
+            )
+            assignments = [
+                {"mission_id": r[0], "date": r[1].isoformat(), "state": r[2]}
+                for r in cur.fetchall()
+            ]
+    data = {
+        "user": {
+            "id": str(row[0]) if row else user["id"],
+            "email": row[1] if row else None,
+            "display_name": row[2] if row else None,
+            "role": row[3] if row else None,
+            "created_at": row[4].isoformat() if row and row[4] else None,
+        },
+        "assignments": assignments,
+    }
+    tmp = pathlib.Path(tempfile.mkdtemp()) / "clipdesk-export.json"
+    tmp.write_text(json.dumps(data, indent=2))
+    return FileResponse(tmp, media_type="application/json", filename="clipdesk-export.json")
 
 
 @router.delete("/account")
 def delete_account(request: Request):
     user = current_user(request)
-    client = storage._client()
-    bucket = storage.settings.s3_bucket
-
-    def _delete_prefix(prefix: str) -> None:
-        try:
-            objects = client.list_objects_v2(Bucket=bucket, Prefix=prefix)
-            for obj in objects.get("Contents", []):
-                client.delete_object(Bucket=bucket, Key=obj["Key"])
-        except Exception:
-            pass
+    store = storage.get_storage()
 
     with db.session() as conn:
         with conn.cursor() as cur:
@@ -140,10 +205,9 @@ def delete_account(request: Request):
                 (user["id"],),
             )
             clip_ids = [str(r[0]) for r in cur.fetchall()]
-            cur.execute("DELETE FROM clips WHERE id = ANY(%s)", (clip_ids,))
             cur.execute("DELETE FROM users WHERE id = %s", (user["id"],))
 
-    _delete_prefix(f"recordings/{user['id']}/")
+    store.delete_prefix(f"recordings/{user['id']}/")
     for clip_id in clip_ids:
-        _delete_prefix(f"clips/{clip_id}/")
+        store.delete_prefix(f"clips/{clip_id}/")
     return {"ok": True}

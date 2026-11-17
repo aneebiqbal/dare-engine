@@ -13,7 +13,16 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 AXE = pathlib.Path(__file__).parent / "lib" / "axe.min.js"
 BASE = __import__("os").environ.get("CLIPDESK_WEB_URL", "http://localhost:3100")
 
-PAGES = [("welcome", "/welcome"), ("today", "/"), ("remote", "/remote"), ("clips", "/clips"), ("styleguide", "/styleguide")]
+PAGES = [
+    ("welcome", "/welcome"),
+    ("dashboard", "/"),
+    ("today", "/today"),
+    ("remote", "/remote"),
+    ("clips", "/clips"),
+    ("results", "/results"),
+    ("help", "/help"),
+    ("styleguide", "/styleguide"),
+]
 SIZES = [("phone", 390, 844), ("desktop", 1280, 900)]
 
 
@@ -25,10 +34,11 @@ def main() -> int:
         for size_name, width, height in SIZES:
             context = browser.new_context(viewport={"width": width, "height": height})
             # Sign in so the protected pages render their filled state.
+            csrf = context.request.get(f"{BASE}/api/auth/csrf").json()["csrf"]
             context.request.post(
                 f"{BASE}/api/auth/dev/sign-in",
                 data={"display_name": "Axe"},
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json", "X-CSRF-Token": csrf},
             )
             page = context.new_page()
             for name, path in PAGES:

@@ -24,4 +24,5 @@ paths:
     runOnRecordSegmentComplete: >-
       /bin/sh -c 'curl -s -X POST http://api:8000/hooks/relay/segment
       -H "Content-Type: application/json"
+      -H "X-Relay-Secret: $RELAY_HOOK_SECRET"
       -d "{\"path\":\"$MTX_PATH\",\"segment\":\"$MTX_SEGMENT_PATH\",\"duration\":$MTX_SEGMENT_DURATION}"'

@@ -11,6 +11,15 @@ from . import db
 router = APIRouter()
 
 
+def _secret_ok(request: Request) -> bool:
+    from .config import settings
+
+    if not settings.relay_hook_secret:
+        return True
+    sent = request.headers.get("x-relay-secret", "")
+    return bool(sent) and sent == settings.relay_hook_secret
+
+
 def _creds(payload: dict) -> tuple[str | None, str | None]:
     user = payload.get("user")
     password = payload.get("pass")
@@ -25,8 +34,10 @@ def _creds(payload: dict) -> tuple[str | None, str | None]:
 
 
 @router.post("/hooks/relay/auth")
-def auth(payload: dict):
+def auth(request: Request, payload: dict):
     """Allow a publish only when the stream key matches a real stream."""
+    if not _secret_ok(request):
+        return {"ok": False}
     action = payload.get("action")
     if action not in (None, "publish", "read"):
         return {"ok": False}
@@ -46,7 +57,9 @@ def auth(payload: dict):
 
 
 @router.post("/hooks/relay/segment")
-def segment(payload: dict):
+def segment(request: Request, payload: dict):
+    if not _secret_ok(request):
+        return {"ok": False}
     path = payload.get("path") or ""
     key = path.rstrip("/").split("/")[-1]
     with db.session() as conn:

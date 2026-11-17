@@ -2,6 +2,10 @@ name: clipdesk
 
 # One server, one command. Dev defaults are inline so `docker compose up` works
 # with no .env; production must override every secret.
+#
+# Storage is local disk by default (STORAGE_DRIVER=local). Set STORAGE_DRIVER=s3
+# and the S3_* variables to use S3-compatible object storage instead; the mock
+# storage container is not part of the default run.
 
 services:
   db:
@@ -19,49 +23,39 @@ services:
       retries: 20
     restart: unless-stopped
 
-  storage:
-    # S3Mock stands in for S3. MinIO's OSS server is archived and its registry is
-    # unreachable here; see docs/decisions.md. Swap this block for real S3 later.
-    image: adobe/s3mock:latest
-    environment:
-      COM_ADOBE_TESTING_S3MOCK_STORE_ROOT: /s3mockroot
-      COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "true"
-      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: ${S3_BUCKET:-clipdesk}
-      COM_ADOBE_TESTING_S3MOCK_STORE_REGION: ${S3_REGION:-us-east-1}
-    volumes:
-      - s3mockdata:/s3mockroot
-    ports:
-      # Host port 9100 avoids other local services; the container port is 9090.
-      - "9100:9090"
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9090/favicon.ico"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    restart: unless-stopped
-
   api:
     build:
       context: .
       dockerfile: api/Dockerfile
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://clipdesk:clipdesk@db:5432/clipdesk}
+      DATABASE_URL_DIRECT: ${DATABASE_URL_DIRECT:-postgresql://clipdesk:clipdesk@db:5432/clipdesk}
+      SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret-change-me}
+      APP_ENV: ${APP_ENV:-development}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3100}
+      INVITE_REQUIRED: ${INVITE_REQUIRED:-true}
+      DEV_AUTH_ENABLED: ${DEV_AUTH_ENABLED:-false}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_DIR: /data/storage
       S3_ENDPOINT: ${S3_ENDPOINT:-http://storage:9090}
       S3_BUCKET: ${S3_BUCKET:-clipdesk}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-clipdesk}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-clipdesk-dev-secret}
       S3_REGION: ${S3_REGION:-us-east-1}
       LLM_PROVIDER: ${LLM_PROVIDER:-recorded}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://opencode.ai/zen/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
       LLM_RECORDED_RESPONSE: ${LLM_RECORDED_RESPONSE:-/app/app/llm_recorded.json}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      # Development sign-in. Refuses to start in production.
-      DEV_AUTH_ENABLED: ${DEV_AUTH_ENABLED:-true}
-      APP_ENV: ${APP_ENV:-development}
-      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3100}
+      TTS_COMMAND: ${TTS_COMMAND:-piper}
+      TTS_VOICE: ${TTS_VOICE:-en_US-amy-medium}
+      TTS_MODEL_DIR: /data/voices
+      UPLOAD_TMP_DIR: /tmp/clipdesk-uploads
+    volumes:
+      - storage-data:/data/storage
+      - voices:/data/voices
     depends_on:
       db:
-        condition: service_healthy
-      storage:
         condition: service_healthy
     ports:
       - "8000:8000"
@@ -84,16 +78,31 @@ services:
       dockerfile: worker/Dockerfile
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://clipdesk:clipdesk@db:5432/clipdesk}
+      DATABASE_URL_DIRECT: ${DATABASE_URL_DIRECT:-postgresql://clipdesk:clipdesk@db:5432/clipdesk}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_DIR: /data/storage
       S3_ENDPOINT: ${S3_ENDPOINT:-http://storage:9090}
       S3_BUCKET: ${S3_BUCKET:-clipdesk}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-clipdesk}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-clipdesk-dev-secret}
       S3_REGION: ${S3_REGION:-us-east-1}
+      LLM_PROVIDER: ${LLM_PROVIDER:-stub}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      TTS_COMMAND: ${TTS_COMMAND:-piper}
+      TTS_VOICE: ${TTS_VOICE:-en_US-amy-medium}
+      TTS_MODEL_DIR: /data/voices
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+      WHISPER_DEVICE: ${WHISPER_DEVICE:-cpu}
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
       WORKER_STALE_SECONDS: ${WORKER_STALE_SECONDS:-600}
     volumes:
       # The relay records here; the worker reads the same files.
       - relayrecordings:/recordings:ro
+      - storage-data:/data/storage
+      - voices:/data/voices
     depends_on:
       db:
         condition: service_healthy
@@ -117,11 +126,11 @@ services:
       context: ./web
       args:
         NEXT_PUBLIC_API_MOCK: ${NEXT_PUBLIC_API_MOCK:-0}
-        NEXT_PUBLIC_DEV_AUTH: ${NEXT_PUBLIC_DEV_AUTH:-1}
+        NEXT_PUBLIC_DEV_AUTH: ${NEXT_PUBLIC_DEV_AUTH:-0}
     environment:
       API_URL: ${API_URL:-http://api:8000}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-      NEXT_PUBLIC_DEV_AUTH: ${NEXT_PUBLIC_DEV_AUTH:-1}
+      NEXT_PUBLIC_DEV_AUTH: ${NEXT_PUBLIC_DEV_AUTH:-0}
       # Next binds to HOSTNAME; Docker sets it to the container id, which breaks
       # the in-container health probe. Bind all interfaces instead.
       HOSTNAME: 0.0.0.0
@@ -138,12 +147,14 @@ services:
         - |
           fetch("http://127.0.0.1:3000/api/health").then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))
       interval: 5s
-      timeout: 3s
+      timeout: 5s
       retries: 40
     restart: unless-stopped
 
   relay:
     build: ./relay
+    environment:
+      RELAY_HOOK_SECRET: ${RELAY_HOOK_SECRET:-}
     volumes:
       - ./relay/mediamtx.yml:/mediamtx.yml:ro
       - relayrecordings:/recordings
@@ -160,5 +171,6 @@ services:
 
 volumes:
   pgdata:
-  s3mockdata:
+  storage-data:
+  voices:
   relayrecordings:

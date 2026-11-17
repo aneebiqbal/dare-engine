@@ -5,15 +5,88 @@
 | Item | Status |
 | --- | --- |
 | `fixtures/stream_10min.mp4` (real gameplay + commentary) | **MISSING** |
-| LLM API key in `.env` | **MISSING** (no `.env` at all) |
+| Managed database URL (Neon or Aiven) | **MISSING** (no `.env`; local Postgres container used) |
+| AI provider key (`LLM_API_KEY`) | **MISSING** (`LLM_PROVIDER=recorded` used) |
 | Git remote on the organisation's Git host | **MISSING** (`git remote -v` empty) |
-| Google OAuth client + test YouTube channel | **MISSING** |
-| YouTube Data API key | **MISSING** |
-| Payment provider test-mode keys | **MISSING** |
+| Google OAuth client + test YouTube channel | **MISSING** (not in Sprint 6) |
+| YouTube Data API key | **MISSING** (not in Sprint 6) |
+| Payment provider test-mode keys | **MISSING** (not in Sprint 6) |
 
 **Accepted on stand-in data only:** M1. Because the real fixture is missing, M1,
 M3 and M4 are **not accepted** and will not be until `fixtures/stream_10min.mp4`
 exists and the run is made.
+
+## Sprint 6 — the complete working application
+
+Status: built against a local Postgres container and the recorded AI provider.
+Nothing is reported as proven on a managed database or with live AI: no managed
+URL and no key exist.
+
+- `make accept` — **44 passed** (0 failed), including the real Piper voice-over
+  run and the transcript-cache trim re-render.
+- `make web-accept` — **11 passed**; axe-core **0 serious/critical** on eight
+  pages at phone and desktop.
+- Migrations on an empty database — **26 tables**, no errors.
+- `make doctor` — 11/13 (the two failures are the missing AI key and model).
+
+### Parts A–G
+
+| Part | Built | Tested locally | Proven on managed DB | Proven with live AI |
+| --- | --- | --- | --- | --- |
+| A accounts and roles | yes | yes (10 tests) | no | n/a |
+| B backend and API | yes | yes (`make accept`, empty-DB migrations) | no | n/a |
+| C AI on every page | yes | yes (recorded provider) | no | no |
+| D clipping and voice-over | yes | yes on the stand-in, with the real voice model | no | n/a |
+| E interface redesign | yes | yes (11 web tests + axe) | no | n/a |
+| F first-run guide | yes | yes (keyboard-only tour test) | no | n/a |
+| G setup and keys | yes | yes (`make doctor`, Setup page) | no | no |
+
+### Needs human
+
+- A managed database URL (and its direct variant) for Neon or Aiven.
+- An AI provider key, base URL and model.
+- `fixtures/stream_10min.mp4`, the real gameplay recording with commentary.
+- A Git remote, so the review rule can be satisfied.
+
+### What runs now
+
+- Email/password accounts, Argon2id, server sessions, CSRF, invite-only sign-up,
+  admin role gating, lockout, admin-issued reset links, sign out everywhere.
+- Migrations on an empty database; the job queue retries with backoff and keeps
+  its error; an audit log of admin actions.
+- One OpenAI-compatible AI client with JSON schema validation, one retry and a
+  visible fallback; tokens and latency logged per call.
+- Chunked resumable upload, render stages, trim re-render with the transcript
+  cached, layout/caption picker, local Piper voice-over with ducking, export zip.
+- Full-width app shell, creator and admin dashboards, all creator and admin
+  pages, tours driven by `web/data/tours.json`.
+- `make doctor`, `docs/SETUP_KEYS.md`, `.env.example`, admin Setup status.
+
+### Design round 1 — five weakest screens, and the fix
+
+1. **Admin overview** showed the creator hint ("Your day…") because the `/`
+   hint prefix matched every path. Fixed: `/` matches exactly, other prefixes
+   match by `startsWith`.
+2. **Sidebar** used text glyphs (▦ ◎ ◉). Replaced with 1.5 px stroke line icons
+   in `web/components/icons.tsx`.
+3. **Admin overview** was two rows of stats and a lot of empty space. Added a
+   recent-jobs panel and a recent-AI-calls panel.
+4. **Public pages** still used the Sprint 3 narrow `max-w-5xl` column. Widened
+   to the same `1600px` canvas as the app shell.
+5. **Progress bars** had no accessible name (axe serious). Added `aria-label`;
+   `make web-accept` now reports 0 serious/critical on eight pages at phone and
+   desktop.
+
+Screenshots for human review: `docs/screens/` (29 pages × phone/desktop ×
+light/dark). Rounds 2 and 3 are not done.
+
+### Not done / unproven
+
+- The real fixture run (Part D acceptance is not met).
+- A live AI call and a managed-database run (Parts B, C, G).
+- Publishing to YouTube/TikTok/Instagram (out of sprint, `POST /clips/{id}/post`
+  still flips state and is marked unproven).
+- Google sign-in, payments, the question miner (kept off by flags).
 
 ## Sprint 3 — the web app (W0–W7)
 

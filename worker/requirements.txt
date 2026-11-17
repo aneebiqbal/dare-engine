@@ -6,3 +6,4 @@ faster-whisper==1.2.1
 # PyAV 17+ removed the metadata_errors argument faster-whisper uses.
 av==16.1.0
 boto3==1.37.1
+piper-tts>=1.8.0

@@ -1,8 +1,8 @@
-import type { MissionCard, PoolEntry } from "./types";
+import type { Clip, HistoryEntry, MissionCard, PoolEntry } from "./types";
 
 /**
  * Contract-shaped mock layer, enabled with NEXT_PUBLIC_API_MOCK=1.
- * Every page that uses it is listed under "Mocked pages" in PROGRESS.md.
+ * Used only for screenshots; the default run never imports it.
  */
 
 const cards: MissionCard[] = [
@@ -59,32 +59,58 @@ let pool: PoolEntry[] = [
   },
 ];
 
-const clips = [
+const clips: Clip[] = [
   {
     id: "c_0001",
     assignment_id: "a_0001",
+    file_key: "clips/c_0001/short.mp4",
     title: "5 STARS. ONE BICYCLE.",
     state: "ready",
     template: "blur_fit",
     duration_seconds: 29.1,
-    download_url: "/downloads/c_0001.mp4",
+    stage: "store",
+    progress: 100,
+    error: null,
+    layout: "blur_fit",
+    caption_style: "word",
+    voice_over: false,
+    voice: null,
+    export_title: null,
+    export_description: null,
+    export_tags: null,
+    transcript: [],
+    download_url: "/clips/c_0001/download",
   },
   {
     id: "c_0002",
     assignment_id: "a_0002",
+    file_key: null,
     title: "NO BRAKES. NO PROBLEM.",
     state: "rendering",
     template: "center_crop",
     duration_seconds: null,
+    stage: "render",
+    progress: 62,
+    error: null,
+    layout: "center_crop",
+    caption_style: "word",
+    voice_over: false,
+    voice: null,
+    export_title: null,
+    export_description: null,
+    export_tags: null,
+    transcript: null,
     download_url: null,
   },
 ];
 
-const marks: { id: string; assignment_id: string; kind: string; stream_time: number }[] = [];
-let stream: { id: string; rtmp_url: string; stream_key: string } | null = null;
+const history: HistoryEntry[] = [
+  { mission_id: "m_0214", date: "2026-11-16", state: "done", result_value: 41.2, clip_id: "c_0001", clip_state: "ready", duration_seconds: 29.1 },
+  { mission_id: "m_0215", date: "2026-11-15", state: "done", result_value: 55.8, clip_id: "c_0002", clip_state: "rendering", duration_seconds: null },
+];
 
-function json<T>(data: T, status = 200): T {
-  return data;
+function envelope<T>(items: T[], total = items.length) {
+  return { items, total, page: 1, page_size: 20 };
 }
 
 export async function mockRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -92,29 +118,31 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
   const bodyObj = (body ?? {}) as Record<string, unknown>;
 
   if (method === "GET" && pathname === "/today") {
-    return json({
+    return {
       date: new Date().toISOString().slice(0, 10),
       daily: cards[0],
       picks: cards.slice(1, 4),
       accepted: {},
-    }) as T;
+    } as T;
   }
   if (method === "GET" && pathname === "/me") {
-    return json({ user: { id: "u_1", display_name: "Dev Creator", role: "creator" }, channels: [] }) as T;
+    // Admin so the admin pages render for screenshots; the creator pages render too.
+    return { user: { id: "u_1", email: "admin@example.com", display_name: "Dev Admin", role: "admin" }, channels: [] } as T;
   }
+  if (method === "POST" && pathname === "/auth/dev/sign-in") return { ok: true } as T;
+  if (method === "POST" && pathname === "/auth/sign-in") return { ok: true } as T;
+  if (method === "POST" && pathname === "/auth/sign-up") return { ok: true } as T;
   if (method === "POST" && pathname === "/assignments") {
-    return json({ id: "a_new", mission_id: bodyObj.mission_id, state: "accepted" }) as T;
+    return { id: "a_new", mission_id: bodyObj.mission_id, state: "accepted" } as T;
   }
   if (method === "POST" && pathname.endsWith("/swap")) {
-    return json({ id: pathname.split("/")[2], mission_id: bodyObj.mission_id, state: "swapped" }) as T;
+    return { id: pathname.split("/")[2], mission_id: bodyObj.mission_id, state: "swapped" } as T;
   }
-  if (method === "GET" && pathname === "/admin/pool") {
-    return json(pool) as T;
-  }
+  if (method === "GET" && pathname === "/admin/pool") return envelope(pool) as T;
   if (method === "POST" && pathname.endsWith("/approve")) {
     const id = pathname.split("/")[3];
     pool = pool.filter((p) => p.id !== id);
-    return json({ id, state: "unverified" }) as T;
+    return { id, state: "unverified" } as T;
   }
   if (method === "POST" && pathname === "/admin/questions") {
     const questions = (bodyObj.questions as string[]) ?? [];
@@ -125,77 +153,115 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
       state: "candidate",
     }));
     pool = [...pool, ...created];
-    return json({ cards: created.map((c) => c.card), count: created.length }) as T;
+    return { cards: created.map((c) => c.card), count: created.length, fallback: false } as T;
   }
-  if (method === "GET" && pathname === "/clips") {
-    return json(clips) as T;
-  }
+  if (method === "GET" && pathname === "/clips") return envelope(clips) as T;
+  if (method === "GET" && pathname.startsWith("/clips/")) return clips[0] as T;
   if (method === "PATCH" && pathname.startsWith("/clips/")) {
     const id = pathname.split("/")[2];
     const clip = clips.find((c) => c.id === id);
     if (clip) clip.title = String(bodyObj.title ?? clip.title);
-    return json(clip ?? {}) as T;
+    return clip as T;
   }
-  if (method === "POST" && pathname.endsWith("/approve")) {
-    return json({ id: pathname.split("/")[2], state: "approved" }) as T;
-  }
-  if (method === "POST" && pathname.endsWith("/post")) {
-    return json({ id: "p_new", clip_id: pathname.split("/")[2], state: "posted" }) as T;
-  }
+  if (method === "POST" && pathname.endsWith("/approve")) return { id: pathname.split("/")[2], state: "approved" } as T;
+  if (method === "POST" && pathname.endsWith("/post")) return { id: pathname.split("/")[2], state: "posted" } as T;
+  if (method === "POST" && pathname.endsWith("/trim")) return { id: pathname.split("/")[2], ...bodyObj } as T;
+  if (method === "POST" && pathname.endsWith("/voice-over")) return { id: pathname.split("/")[2], ...bodyObj } as T;
+  if (method === "POST" && pathname.endsWith("/export")) return { id: "e_1", state: "ready" } as T;
   if (method === "POST" && pathname === "/marks") {
-    const mark = {
-      id: `mk_${marks.length + 1}`,
-      assignment_id: String(bodyObj.assignment_id ?? ""),
-      kind: String(bodyObj.kind),
-      stream_time: 12.5,
-      result: (bodyObj.result as string) ?? null,
-    };
-    marks.push(mark);
-    return json(mark) as T;
+    return { id: "mk_1", assignment_id: String(bodyObj.assignment_id ?? ""), kind: String(bodyObj.kind), stream_time: 12.5, result: null } as T;
   }
   if (method === "POST" && pathname === "/streams") {
-    stream = {
-      id: "s_1",
-      rtmp_url: "rtmp://localhost:1935/live",
-      stream_key: "dev-key-please-change",
-    };
-    return json(stream) as T;
+    return { id: "s_1", rtmp_url: "rtmp://localhost:1935/live", stream_key: "dev-key-please-change" } as T;
   }
+  if (method === "GET" && pathname.endsWith("/status")) return { connected: true } as T;
+  if (method === "POST" && pathname === "/uploads/start") return { upload_id: "u_1", chunk_size: 1048576 } as T;
+  if (method === "POST" && pathname.endsWith("/complete")) return { stream_id: "s_1", clips: [], count: 0 } as T;
   if (method === "GET" && pathname.endsWith("/leaderboard")) {
-    return json([
+    return envelope([
       { rank: 1, user_id: "u_1", result_value: 41.2, clip_id: "c_0001" },
       { rank: 2, user_id: "u_2", result_value: 55.8, clip_id: "c_0003" },
     ]) as T;
   }
   if (method === "GET" && pathname.startsWith("/m/")) {
-    return json({ slug: pathname.slice(3), card: cards[0], attempts: [] }) as T;
+    return { slug: pathname.slice(3), card: cards[0], attempts: [] } as T;
   }
   if (method === "GET" && pathname === "/results") {
-    return json({
+    return {
       clips: [
-        { clip_id: "c_0001", title: "5 STARS. ONE BICYCLE.", views: 1204, avg_view_percentage: 61.2 },
-        { clip_id: "c_0002", title: "NO BRAKES. NO PROBLEM.", views: 842, avg_view_percentage: 55.7 },
+        { clip_id: "c_0001", title: "5 STARS. ONE BICYCLE.", views: 1204, avg_view_percentage: 61.2, source: "manual" },
+        { clip_id: "c_0002", title: "NO BRAKES. NO PROBLEM.", views: 842, avg_view_percentage: 55.7, source: "manual" },
       ],
       by_type: [
         { mode: "free_roam", clips: 8, views: 9820 },
         { mode: "race", clips: 3, views: 2140 },
       ],
-    }) as T;
+    } as T;
   }
-  if (method === "GET" && pathname === "/history") {
-    return json([
-      { mission_id: "m_0214", date: "2026-11-16", state: "done", result_value: 41.2, clip_id: "c_0001" },
-      { mission_id: "m_0215", date: "2026-11-15", state: "done", result_value: 55.8, clip_id: "c_0002" },
-    ]) as T;
-  }
+  if (method === "GET" && pathname === "/history") return envelope(history) as T;
   if (method === "GET" && pathname === "/settings") {
-    return json({
+    return {
       plan: "free",
       clips_used: 3,
       clips_limit: 5,
       caption_style: "word",
       layout_preference: "rotate",
-    }) as T;
+      voice_over_default: false,
+      voice: null,
+    } as T;
   }
-  return json({ ok: true }) as T;
+  if (method === "PATCH" && pathname === "/settings") return { ok: true, ...bodyObj } as T;
+  if (method === "GET" && pathname === "/admin/users") {
+    return envelope([
+      { id: "u_1", email: "creator@example.com", display_name: "Creator", role: "creator", created_at: "2026-11-01T00:00:00Z", last_login_at: null, locked: false },
+    ]) as T;
+  }
+  if (method === "GET" && pathname === "/admin/invites") return envelope([]) as T;
+  if (method === "POST" && pathname === "/admin/invites") {
+    return { id: "i_1", code: "mock-code", url: "/signup?code=mock-code" } as T;
+  }
+  if (method === "GET" && pathname === "/admin/jobs") return envelope([]) as T;
+  if (method === "GET" && pathname === "/admin/audit") return envelope([]) as T;
+  if (method === "GET" && pathname === "/admin/ai-usage") return envelope([]) as T;
+  if (method === "GET" && pathname === "/admin/ai-config") {
+    return { provider: "recorded", base_url: "https://example.invalid/v1", model: "recorded", key_present: false, configured: false } as T;
+  }
+  if (method === "GET" && pathname === "/admin/storage") return { driver: "local", bytes: 123456 } as T;
+  if (method === "GET" && pathname === "/admin/setup") {
+    return { checks: [
+      { name: "DATABASE_URL set", ok: true, detail: "" },
+      { name: "storage (local)", ok: true, detail: "" },
+    ] } as T;
+  }
+  if (method === "GET" && pathname === "/admin/templates") return envelope([]) as T;
+  if (method === "GET" && pathname === "/tours") {
+    return [
+      { tour_id: "creator", step_index: 6, completed: true, skipped: false },
+      { tour_id: "admin", step_index: 5, completed: true, skipped: false },
+    ] as T;
+  }
+  if (method === "POST" && pathname.startsWith("/tours/")) return { ok: true } as T;
+  if (method === "GET" && pathname === "/ai/results-summary") {
+    return { summary: "Free-roam missions are working best.", fallback: false, by_type: [] } as T;
+  }
+  if (method === "POST" && pathname === "/ai/suggest") {
+    return { suggestions: cards.slice(1, 4), fallback: false } as T;
+  }
+  if (method === "POST" && pathname === "/ai/mission-editor") {
+    return { hook_text: "5 STARS. ONE BICYCLE.", win_condition: "Lose the wanted level without leaving the bike.", title_spoiler: false, fallback: false } as T;
+  }
+  if (method === "POST" && pathname === "/ai/clip-review") {
+    return { hook_line: "5 STARS. ONE BICYCLE.", score: 82, weaknesses: [], beats: [], fallback: false } as T;
+  }
+  if (method === "POST" && pathname === "/ai/export") {
+    return { titles: ["Title one", "Title two", "Title three"], description: "A description", tags: ["one"], fallback: false } as T;
+  }
+  if (method === "POST" && pathname === "/ai/pool-review") {
+    return { merged: [], policy_flags: [], fallback: false } as T;
+  }
+  if (method === "POST" && pathname === "/ai/help") {
+    return { answer: "Open Today and accept a mission.", fallback: false } as T;
+  }
+  if (method === "GET" && pathname === "/help/guide") return { guide: "# Guide\n" } as T;
+  return { ok: true } as T;
 }

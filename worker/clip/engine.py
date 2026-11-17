@@ -64,6 +64,7 @@ class Result:
     duration: float
     layout: str
     flags: dict
+    words_abs: list["Word"] | None = None
 
 
 def _run(cmd: list[str]) -> str:
@@ -155,6 +156,8 @@ def render_short(
     result_value: str = "",
     template: str | None = None,
     llm=None,
+    words_abs: list["Word"] | None = None,
+    caption_style: str = "word",
 ) -> Result:
     src = str(input_path)
     out_dir = Path(out_dir)
@@ -174,7 +177,16 @@ def render_short(
 
         window = tmp / "window.mp4"
         _cut(src, str(window), win_start, win_end - win_start)
-        words = transcribe(str(window))
+        if words_abs is None:
+            words = transcribe(str(window))
+            words_abs = [Word(w.start + win_start, w.end + win_start, w.text) for w in words]
+        else:
+            # Cached transcript is in source-recording time; re-window it.
+            words = [
+                Word(w.start - win_start, w.end - win_start, w.text)
+                for w in words_abs
+                if win_start <= (w.start + w.end) / 2 < win_end
+            ]
 
         # Spoiler guard: a window with no speech is treated as a cutscene.
         guard_window(words, payoff_start - win_start, payoff_end - win_start)
@@ -249,7 +261,7 @@ def render_short(
         ass_path = tmp / "burn.ass"
         write_ass(
             str(ass_path), card.get("hook_text", ""), HOOK_SECONDS,
-            mapped, end_lines, end_start, total,
+            mapped if caption_style != "none" else [], end_lines, end_start, total,
         )
         srt_path = out_dir / "captions.srt"
         write_srt(str(srt_path), mapped)
@@ -301,4 +313,5 @@ def render_short(
             duration=duration,
             layout=layout,
             flags=letterbox,
+            words_abs=words_abs,
         )

@@ -1,19 +1,21 @@
+import { AppPage } from "@/components/app-page";
 import { Clips } from "@/components/clips";
-import { Page } from "@/components/page";
-import { api } from "@/lib/api";
+import { api, type Clip } from "@/lib/api";
+import { requireUser } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function ClipsPage() {
-  let initial: Awaited<ReturnType<typeof api.clips>> = [];
+  const user = await requireUser();
+  let initial: Clip[] = [];
   try {
-    initial = await api.clips();
+    initial = (await api.clips("?page_size=50")).items;
   } catch {
     initial = [];
   }
   return (
-    <Page eyebrow="Clips" title="Your Shorts">
+    <AppPage user={user} eyebrow="Clips" title="Your Shorts">
       <Clips initial={initial} />
-    </Page>
+    </AppPage>
   );
 }

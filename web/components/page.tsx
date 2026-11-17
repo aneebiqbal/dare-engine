@@ -14,7 +14,7 @@ export function Page({
   action?: ReactNode;
 }) {
   return (
-    <main className="mx-auto flex min-h-[100dvh] w-full max-w-5xl flex-col gap-8 px-5 pb-24 pt-6 sm:px-8">
+    <main className="mx-auto flex min-h-[100dvh] w-full max-w-[1600px] flex-col gap-8 px-5 pb-24 pt-6 sm:px-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <Eyebrow>{eyebrow}</Eyebrow>
         <Nav />

@@ -1,18 +1,23 @@
+import { AppPage } from "@/components/app-page";
 import { ClipReview } from "@/components/clip-review";
-import { Page } from "@/components/page";
-import { api } from "@/lib/api";
+import { api, type Clip } from "@/lib/api";
+import { requireUser } from "@/lib/server";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function ClipPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const clips = await api.clips();
-  const clip = clips.find((c) => c.id === id);
-  if (!clip) notFound();
+  const user = await requireUser();
+  let clip: Clip;
+  try {
+    clip = await api.clip(id);
+  } catch {
+    notFound();
+  }
   return (
-    <Page eyebrow="Review" title={clip.title ?? "Untitled"}>
+    <AppPage user={user} eyebrow="Review" title={clip.title ?? "Untitled"}>
       <ClipReview clip={clip} />
-    </Page>
+    </AppPage>
   );
 }

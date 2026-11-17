@@ -3,101 +3,54 @@
 Uses the synthetic stand-in because `fixtures/stream_10min.mp4` is missing, so
 this proves the path, not the output quality. M3 is not accepted.
 """
-import http.cookiejar
-import json
-import pathlib
-import subprocess
 import time
-import urllib.request
+import urllib.error
 
 import pytest
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
-API = "http://localhost:8000"
-STANDIN = ROOT / "tests/fixtures/standin_speech_45s.mp4"
-
-
-def _opener():
-    return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+from helpers import make_admin, sign_up, truncate, upload_recording
 
 
 @pytest.fixture(scope="module")
-def session():
-    subprocess.run(
-        [
-            "docker", "compose", "exec", "-T", "db", "psql", "-U", "clipdesk", "-d", "clipdesk",
-            "-c", "TRUNCATE clips, jobs, marks, assignments, streams, missions, daily_sets, sessions "
-                 "RESTART IDENTITY CASCADE;",
-        ],
-        cwd=ROOT, check=True, capture_output=True,
+def seeded():
+    truncate(
+        "users", "invites", "sessions", "login_attempts", "password_resets",
+        "missions", "assignments", "marks", "clips", "jobs", "streams", "attempts",
+        "daily_sets", "ai_usage", "tour_progress", "user_settings",
     )
-    opener = _opener()
-    req = urllib.request.Request(
-        f"{API}/auth/dev/sign-in",
-        data=json.dumps({"display_name": "Clip Runner"}).encode(),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with opener.open(req, timeout=30) as resp:
-        json.loads(resp.read())
-    return opener
+    admin = make_admin()
+    admin.post("/admin/questions", {"questions": ["Can you outrun five stars on a bicycle?"]})
+    mission_id = admin.get("/admin/pool")["items"][0]["id"]
+    admin.post(f"/admin/pool/{mission_id}/approve", {})
+    creator = sign_up("clip-runner@example.com", name="Clip Runner")
+    return creator, mission_id
 
 
-def call(opener, method, path, body=None, raw=None, ctype="application/json"):
-    data = raw if raw is not None else (json.dumps(body).encode() if body is not None else None)
-    req = urllib.request.Request(
-        f"{API}{path}", data=data, method=method,
-        headers={"Content-Type": ctype} if data else {},
-    )
-    with opener.open(req, timeout=180) as resp:
-        return json.loads(resp.read())
-
-
-def test_marks_require_an_assignment(session):
-    call(session, "POST", "/admin/questions", {"questions": ["Can you outrun five stars on a bicycle?"]})
-    pool = call(session, "GET", "/admin/pool")
-    mission_id = pool[0]["id"]
-    call(session, "POST", f"/admin/pool/{mission_id}/approve", {})
-    assignment = call(session, "POST", "/assignments", {"mission_id": mission_id})
-    mark = call(session, "POST", "/marks", {
+def test_marks_require_an_assignment(seeded):
+    creator, mission_id = seeded
+    assignment = creator.post("/assignments", {"mission_id": mission_id})
+    mark = creator.post("/marks", {
         "assignment_id": assignment["id"], "kind": "start", "stream_time": 12.5,
     })
     assert mark["stream_time"] == 12.5
     with pytest.raises(urllib.error.HTTPError) as exc:
-        call(session, "POST", "/marks", {"assignment_id": assignment["id"], "kind": "pause"})
+        creator.post("/marks", {"assignment_id": assignment["id"], "kind": "pause"})
     assert exc.value.code == 422
 
 
-def test_three_marks_yield_three_real_shorts(session):
-    pool = call(session, "GET", "/admin/pool")
-    if not pool:
-        call(session, "POST", "/admin/questions", {"questions": ["Can you outrun five stars on a bicycle?"]})
-        pool = call(session, "GET", "/admin/pool")
-    mission_id = pool[0]["id"]
-    call(session, "POST", f"/admin/pool/{mission_id}/approve", {})
-
-    boundary = "----clipdesk-r2"
-    video = STANDIN.read_bytes()
-    marks = json.dumps([
+def test_three_marks_yield_three_real_shorts(seeded):
+    creator, mission_id = seeded
+    uploaded = upload_recording(creator, [
         {"mission_id": mission_id, "start": 5, "end": 20, "result": "0:41"},
         {"mission_id": mission_id, "start": 20, "end": 35, "result": "0:52"},
         {"mission_id": mission_id, "start": 10, "end": 25, "result": "pass"},
     ])
-    body = (
-        f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"rec.mp4\"\r\n"
-        f"Content-Type: video/mp4\r\n\r\n"
-    ).encode() + video + (
-        f"\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"marks\"\r\n\r\n{marks}\r\n"
-        f"--{boundary}--\r\n"
-    ).encode()
-
-    uploaded = call(session, "POST", "/uploads", raw=body, ctype=f"multipart/form-data; boundary={boundary}")
     assert uploaded["count"] == 3
 
     deadline = time.time() + 420
     clips = []
     while time.time() < deadline:
-        clips = call(session, "GET", "/clips")
+        clips = creator.get("/clips")["items"]
         if len(clips) >= 3 and all(c["state"] == "ready" for c in clips):
             break
         time.sleep(5)
@@ -107,7 +60,6 @@ def test_three_marks_yield_three_real_shorts(session):
     assert all(c["duration_seconds"] and c["duration_seconds"] < 60 for c in clips[:3])
     assert all(c["download_url"] for c in clips[:3])
 
-    # The download is a real file.
-    with session.open(f"{API}{clips[0]['download_url']}", timeout=60) as resp:
+    with creator.opener.open(f"http://localhost:8000{clips[0]['download_url']}", timeout=60) as resp:
         data = resp.read()
     assert len(data) > 1000

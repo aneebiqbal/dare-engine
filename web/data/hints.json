@@ -1,0 +1,21 @@
+[
+  ["/", "Your day: accepted missions, ready Shorts and the next step."],
+  ["/today", "Accept a mission to send it to your phone."],
+  ["/missions/", "Edit the hook, setup and win condition. The AI can rewrite them."],
+  ["/live", "Issue a stream address, then paste the key into OBS. The key stays masked."],
+  ["/clips/", "Retitle, trim, pick a layout, add a voice-over, then export."],
+  ["/clips", "Upload a recording or watch a render. Each Start and Done becomes a Short."],
+  ["/export/", "Write the metadata with AI, then download the package."],
+  ["/results", "Enter views and retention. The AI summary cites the numbers it used."],
+  ["/history", "Every accepted mission and its clip."],
+  ["/settings", "Preferences, password, data export and account deletion."],
+  ["/help", "Ask the guide, or replay the tour."],
+  ["/admin/pool", "Type questions, review them with AI, then approve."],
+  ["/admin/users", "Change roles and issue password reset links."],
+  ["/admin/invites", "Sign-up is invite-only. Create a code for a creator."],
+  ["/admin/jobs", "Failed jobs show their error and can be retried."],
+  ["/admin/ai", "Tokens and latency per AI call, and the configured provider."],
+  ["/admin/audit", "Every admin action, with who did it and when."],
+  ["/admin/setup", "The same checks as make doctor."],
+  ["/admin", "Users, invites, jobs, pool, AI usage and storage in one place."]
+]

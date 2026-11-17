@@ -171,6 +171,7 @@ export function Remote({ mission }: { mission: MissionCard }) {
           <Button
             size="lg"
             data-testid="start"
+            data-tour="remote-start"
             onClick={start}
             className="w-full rounded-2xl py-7 text-lg"
           >
@@ -181,6 +182,7 @@ export function Remote({ mission }: { mission: MissionCard }) {
             size="lg"
             variant="outline"
             data-testid="done"
+            data-tour="remote-done"
             onClick={finish}
             className="w-full rounded-2xl py-7 text-lg"
           >

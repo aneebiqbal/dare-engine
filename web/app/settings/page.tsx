@@ -1,20 +1,21 @@
-import { Page } from "@/components/page";
-import { Badge, Button, Card, Field, Input, useToast } from "@/components/ui";
-import { Settings as SettingsForm } from "@/components/settings";
-import { api, type Settings } from "@/lib/api";
+import { AppPage } from "@/components/app-page";
+import { Settings } from "@/components/settings";
+import { api, type Settings as SettingsData } from "@/lib/api";
+import { requireUser } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  let settings: Settings | null = null;
+  const user = await requireUser();
+  let settings: SettingsData | null = null;
   try {
     settings = await api.settings();
   } catch {
     settings = null;
   }
   return (
-    <Page eyebrow="Settings" title="Account settings">
-      <SettingsForm initial={settings} />
-    </Page>
+    <AppPage user={user} eyebrow="Settings" title="Account settings">
+      <Settings user={user} initial={settings} />
+    </AppPage>
   );
 }

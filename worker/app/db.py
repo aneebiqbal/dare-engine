@@ -5,13 +5,14 @@ import psycopg
 from .config import settings
 
 
-def _connect():
-    return psycopg.connect(settings.database_url)
+def connect(direct: bool = True):
+    # The worker takes row locks, so it always uses the direct connection.
+    return psycopg.connect(settings.direct_url if direct else settings.database_url)
 
 
 @contextmanager
 def session():
-    conn = _connect()
+    conn = connect()
     try:
         yield conn
         conn.commit()
@@ -20,7 +21,7 @@ def session():
 
 
 def check() -> None:
-    with closing(_connect()) as conn:
+    with closing(connect(False)) as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT 1")
             cur.fetchone()

@@ -88,4 +88,30 @@ requires, so work packages can touch separate folders.
 ## Contracts first
 
 `contracts/openapi.yaml` and `contracts/mission-card.schema.json` are written
-before code. Changing them needs a human to approve.
+before code. Changing them needs a human to approve. Sprint 6 regenerates the
+contract from the implemented routes with `make contract`; a CI test fails if
+the two differ in either direction.
+
+## Sprint 6 decisions
+
+| Choice | Reason | Licence |
+| --- | --- | --- |
+| Argon2id (`argon2-cffi`) for passwords | Current memory-hard password hash; no password is stored or logged. | MIT |
+| Sessions in Postgres, double-submit CSRF | No third-party identity provider this sprint; every state-changing route is protected. | — |
+| Invite-only sign-up, admin-issued reset links | No email service; an admin creates a code or a one-time link. | — |
+| `DATABASE_URL` pooled + `DATABASE_URL_DIRECT` direct | Neon's PgBouncer is transaction mode and breaks DDL and the worker's row locks; Aiven's URI is direct. | — |
+| Local-disk storage by default, S3 behind `STORAGE_DRIVER` | The mock S3 container is not part of the default run. | — |
+| OpenAI-compatible chat client (`LLM_BASE_URL`/`LLM_API_KEY`/`LLM_MODEL`) | One client for OpenCode Zen and xAI Grok by changing three values; verified against both providers' docs. | — |
+| Piper for voice-over | Local, no paid speech service. Piper is MIT; `rhasspy/piper-voices` declares MIT, individual voice cards vary. | MIT |
+| Export package (zip) only | No YouTube/TikTok/Instagram API this sprint. | — |
+| FFmpeg `sidechaincompress` ducking | Game audio dips only while the voice bed speaks. | LGPL (see above) |
+| `piper-tts>=1.8.0` | `1.2.0` pins `piper-phonemize~=1.1.0`, which has no wheels on this platform. | MIT |
+
+- **Voice-over licence.** Piper is MIT. The voice model repository declares MIT
+  at the repo level; the individual voice card is the authority. The UI tells
+  the creator that their own voice is safer for monetisation.
+- **AI usage.** Every call logs provider, model, tokens, latency and whether a
+  fallback was used. The admin sees the provider and model and whether a key is
+  present, never the key.
+- **Dev sign-in.** Off unless `DEV_AUTH_ENABLED=true`; the API refuses to start
+  with it in production. Tests set it.
