@@ -28,6 +28,10 @@ URL and no key exist.
   pages at phone and desktop.
 - Migrations on an empty database — **26 tables**, no errors.
 - `make doctor` — 11/13 (the two failures are the missing AI key and model).
+- `make create-admin` — prompts for email and password, creates a real admin,
+  signs in. Tested.
+- Unit tests — 17 passed, 1 skipped.
+- Committed on branch `sprint-6` (no git remote, so no pull request yet).
 
 ### Parts A–G
 
