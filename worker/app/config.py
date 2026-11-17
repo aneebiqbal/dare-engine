@@ -6,7 +6,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql://clipdesk:clipdesk@db:5432/clipdesk"
 
-    s3_endpoint: str = "http://storage:9000"
+    s3_endpoint: str = "http://storage:9090"
     s3_bucket: str = "clipdesk"
     s3_access_key: str = "clipdesk"
     s3_secret_key: str = "clipdesk-dev-secret"

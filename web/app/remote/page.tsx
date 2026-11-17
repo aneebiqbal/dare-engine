@@ -1,11 +1,16 @@
 import { Remote } from "@/components/remote";
-import { api, type Today } from "@/lib/api";
+import { api, type Today as TodayResponse } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
 export default async function RemotePage() {
-  const data: Today = await api.today();
-  const mission = data.daily ?? data.picks?.[0];
+  let mission: TodayResponse["daily"];
+  try {
+    const data = await api.today();
+    mission = data.daily ?? data.picks?.[0] ?? null;
+  } catch {
+    mission = null;
+  }
   if (!mission) {
     return (
       <main className="flex min-h-[100dvh] items-center justify-center p-6 text-center text-muted">
@@ -13,5 +18,5 @@ export default async function RemotePage() {
       </main>
     );
   }
-  return <Remote mission={mission} />;
+  return <Remote mission={mission} />
 }

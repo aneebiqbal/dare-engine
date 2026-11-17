@@ -56,6 +56,64 @@ Real backend: `/` Today, `/admin` pool (M2). Everything else is listed under
 - `make web-accept` — page flows + axe, mock layer, then restores the real build.
 - `make screens` — screenshots + a11y report.
 
+## Sprint 4 — make every page real
+
+Status: `make accept` **25 passed**; `make web-accept` **11 passed** + axe clean
+against the real backend (`NEXT_PUBLIC_API_MOCK=0`).
+
+### R1 — DONE
+
+- `POST /auth/dev/sign-in` creates a **real user and a real session** (cookie),
+  gated by `DEV_AUTH_ENABLED`. The API **refuses to start** when that flag is set
+  in `APP_ENV=production`; a test proves it.
+- Every endpoint takes the session user; `/today`, `/clips`, `/uploads`,
+  `/settings` and `/results` filter by `user_id`.
+- Web: same-origin `/api/*` proxy keeps the cookie on the web origin; the
+  server components forward it to the API.
+- Tests: two dev users are isolated, anonymous requests get 401, the production
+  guard trips. `make check` fails if `web/lib/mock.ts` is imported by app code.
+
+### R2 / M3 — built, unproven on the real fixture
+
+- Real `POST /marks`, `POST /uploads` (multipart), `GET /clips`, `PATCH`,
+  `approve`, `download`, `POST /streams`, `GET /history`.
+- Worker `render_clip`: S3 download → `clip.engine.render_short` → S3 upload →
+  clip row `ready`.
+- Acceptance on the stand-in: three marks → three real Shorts. **M3 is not
+  accepted** — `fixtures/stream_10min.mp4` is missing.
+
+### R4 / M7 — built
+
+- Real `/m/{slug}`, `/missions/{id}/leaderboard`, `/creators/{id}`.
+- Two dev users' attempts rank correctly (test passes).
+
+### R5 / R6 / R7 — built
+
+- `/metrics` manual entry updates the mission score; `/results` reads it.
+- `/settings`, `DELETE /account` (removes rows and stored files).
+- `/admin/templates`, `/admin/users`, `/admin/jobs`, `/admin/jobs/{id}/retry`.
+
+### Mocked pages (with the exact blocker)
+
+| Page | Blocker |
+| --- | --- |
+| `/signin` Google path | Gate 0: Google OAuth client |
+| `/live` real relay connection | Gate 0: no stream key/relay credentials for a real stream |
+| `/remote` mid-stream marks | Gate 0: needs a real live stream |
+| `/results` YouTube collector | Gate 0: YouTube Data API key |
+
+Everything else is real.
+
+### Built, unproven against the real service
+
+| Feature | Stand-in | Waiting on |
+| --- | --- | --- |
+| Google sign-in (M5) | dev sign-in | Gate 0: OAuth client |
+| YouTube posting (M6) | `POST /clips/{id}/post` flips state | Gate 0: OAuth + channel |
+| Question miner (M8) | recorded LLM | Gate 0: YouTube Data API key |
+| Billing (M10) | plan field on `/settings` | Gate 0: payment keys |
+| TikTok / Instagram (M14) | — | platform approval |
+
 ## Milestone M2 — Missions: DONE (recorded LLM; live call untested)
 
 `make accept`: 18 passed (M0 8, M1 6, M2 4). Unit tests: 12 passed.

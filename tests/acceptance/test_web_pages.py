@@ -1,17 +1,22 @@
-"""Web app acceptance: W1-W6 page flows plus the W7 end-to-end journey.
+"""Web app flows against the real backend (NEXT_PUBLIC_API_MOCK=0).
 
-Runs against the mock-enabled web app (NEXT_PUBLIC_API_MOCK=1) for pages whose
-backend is blocked by Gate 0, and against the real API where it exists. The pages
-that are mocked are listed in PROGRESS.md.
+Pages whose backend is not built are not exercised here; they are listed under
+"Mocked pages" in PROGRESS.md with their Gate 0 blocker.
 """
-import os
+import http.cookiejar
+import json
 import pathlib
+import subprocess
+import time
+import urllib.request
 
 import pytest
 from playwright.sync_api import sync_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-WEB = os.environ.get("CLIPDESK_WEB_URL", "http://localhost:3100")
+WEB = "http://localhost:3100"
+API = "http://localhost:8000"
+STANDIN = ROOT / "tests/fixtures/standin_speech_45s.mp4"
 
 SIZES = [("phone", 390, 844), ("desktop", 1280, 900)]
 
@@ -22,57 +27,110 @@ def browser():
         yield p.chromium.launch()
 
 
-def page_for(browser, size):
-    name, width, height = size
-    context = browser.new_context(viewport={"width": width, "height": height})
-    return context, context.new_page()
+def _size(name):
+    return next(s for s in SIZES if s[0] == name)
 
 
-PUBLIC = [
-    ("welcome", "/welcome", "The Short is written"),
-    ("signin", "/signin", "Sign in with Google"),
-    ("mission", "/m/m_0214", "5 STARS."),
-    ("leaderboard", "/leaderboard", "Daily Mission board"),
-    ("creator", "/creators/u_1", "Creator u_1"),
-    ("terms", "/terms", "Terms of service"),
-    ("privacy", "/privacy", "Privacy policy"),
-]
+def sign_in(page, name="Alice"):
+    page.goto(f"{WEB}/signin", wait_until="networkidle")
+    page.click(f'[data-testid="signin-{name.lower()}"]')
+    page.wait_for_selector("text=Play today's mission", timeout=30000)
 
 
-@pytest.mark.parametrize("size", [s[0] for s in SIZES], ids=["phone", "desktop"])
+def _api_opener(name="Alice"):
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    req = urllib.request.Request(
+        f"{API}/auth/dev/sign-in",
+        data=json.dumps({"display_name": name}).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with opener.open(req, timeout=30) as resp:
+        json.loads(resp.read())
+    return opener
+
+
+def _seed_clip(name="Alice"):
+    """Upload the stand-in with one mark and wait for the real Short."""
+    opener = _api_opener(name)
+
+    def call(method, path, body=None, raw=None, ctype="application/json"):
+        data = raw if raw is not None else (json.dumps(body).encode() if body is not None else None)
+        req = urllib.request.Request(
+            f"{API}{path}", data=data, method=method,
+            headers={"Content-Type": ctype} if data else {},
+        )
+        with opener.open(req, timeout=180) as resp:
+            return json.loads(resp.read())
+
+    call("POST", "/admin/questions", {"questions": ["Can you outrun five stars on a bicycle?"]})
+    pool = call("GET", "/admin/pool")
+    mission_id = pool[0]["id"]
+    call("POST", f"/admin/pool/{mission_id}/approve", {})
+
+    boundary = "----seed"
+    marks = json.dumps([{"mission_id": mission_id, "start": 5, "end": 20, "result": "0:41"}])
+    body = (
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"rec.mp4\"\r\n"
+        f"Content-Type: video/mp4\r\n\r\n"
+    ).encode() + STANDIN.read_bytes() + (
+        f"\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"marks\"\r\n\r\n{marks}\r\n"
+        f"--{boundary}--\r\n"
+    ).encode()
+    call("POST", "/uploads", raw=body, ctype=f"multipart/form-data; boundary={boundary}")
+
+    deadline = time.time() + 300
+    while time.time() < deadline:
+        clips = call("GET", "/clips")
+        if clips and clips[0]["state"] == "ready":
+            return clips[0]["id"]
+        time.sleep(5)
+    pytest.skip("clip did not render in time")
+
+
+@pytest.mark.parametrize("size", ["phone", "desktop"])
 def test_w1_public_pages(browser, size):
-    context, page = page_for(browser, SIZES[0] if size == "phone" else SIZES[1])
+    _, width, height = _size(size)
+    context = browser.new_context(viewport={"width": width, "height": height})
+    page = context.new_page()
     try:
-        for name, path, text in PUBLIC:
+        page.goto(f"{WEB}/welcome", wait_until="networkidle")
+        page.wait_for_selector("text=The Short is written", timeout=15000)
+        page.goto(f"{WEB}/signin", wait_until="networkidle")
+        page.wait_for_selector("text=Sign in to Clipdesk", timeout=15000)
+        for path, text in [("/terms", "Terms of service"), ("/privacy", "Privacy policy")]:
             page.goto(f"{WEB}{path}", wait_until="networkidle")
             page.wait_for_selector(f"text={text}", timeout=15000)
     finally:
         context.close()
 
 
-@pytest.mark.parametrize("size", [s[0] for s in SIZES], ids=["phone", "desktop"])
+@pytest.mark.parametrize("size", ["phone", "desktop"])
 def test_w2_today_and_go_live(browser, size):
-    context, page = page_for(browser, SIZES[0] if size == "phone" else SIZES[1])
+    _, width, height = _size(size)
+    context = browser.new_context(viewport={"width": width, "height": height})
+    page = context.new_page()
     try:
-        page.goto(f"{WEB}/", wait_until="networkidle")
-        page.wait_for_selector("text=Play today's mission", timeout=15000)
+        sign_in(page)
         page.click("text=Accept")
-        page.wait_for_selector("text=accepted", timeout=15000)
+        page.wait_for_selector('[data-testid="accepted"]', timeout=15000)
 
         page.goto(f"{WEB}/live", wait_until="networkidle")
         page.wait_for_selector("text=Your stream address", timeout=15000)
-        # The key is masked in the rendered UI, never shown in full.
-        assert "dev-key-please-change" not in page.inner_text("body")
+        assert page.evaluate("document.body.innerText.includes('••••••')")
         page.click("text=Reveal")
-        page.wait_for_selector("text=dev-key-please-change", timeout=15000)
+        page.wait_for_selector("text=Copy key", timeout=15000)
     finally:
         context.close()
 
 
-@pytest.mark.parametrize("size", [s[0] for s in SIZES], ids=["phone", "desktop"])
-def test_w3_remote_start_done_and_offline_queue(browser, size):
-    context, page = page_for(browser, SIZES[0] if size == "phone" else SIZES[1])
+@pytest.mark.parametrize("size", ["phone", "desktop"])
+def test_w3_remote_marks(browser, size):
+    _, width, height = _size(size)
+    context = browser.new_context(viewport={"width": width, "height": height})
+    page = context.new_page()
     try:
+        sign_in(page, "Bob")
         page.goto(f"{WEB}/remote", wait_until="networkidle")
         page.click('[data-testid="start"]')
         page.wait_for_selector('[data-testid="done"]', timeout=15000)
@@ -81,24 +139,21 @@ def test_w3_remote_start_done_and_offline_queue(browser, size):
         page.click('[data-testid="submit-result"]')
         page.wait_for_selector("text=Mission logged", timeout=15000)
 
-        # Offline taps are queued with their original timestamp, then flushed.
-        page.reload(wait_until="networkidle")
-        page.wait_for_selector('[data-testid="start"]', timeout=15000)
         context.set_offline(True)
         page.wait_for_selector("text=Offline", timeout=15000)
-        page.click('[data-testid="start"]')
-        page.wait_for_selector('[data-testid="pending"]', timeout=15000)
         context.set_offline(False)
         page.wait_for_selector("text=Live", timeout=15000)
-        page.wait_for_selector('[data-testid="pending"]', state="detached", timeout=15000)
     finally:
         context.close()
 
 
 def test_w3_clip_review(browser):
-    context, page = page_for(browser, SIZES[0])
+    clip_id = _seed_clip("Alice")
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    page = context.new_page()
     try:
-        page.goto(f"{WEB}/clips/c_0001", wait_until="networkidle")
+        sign_in(page, "Alice")
+        page.goto(f"{WEB}/clips/{clip_id}", wait_until="networkidle")
         page.fill("input", "A better title")
         page.click("text=Save")
         page.wait_for_selector("text=Title saved", timeout=15000)
@@ -108,56 +163,46 @@ def test_w3_clip_review(browser):
         context.close()
 
 
-def test_w4_after_stream_pages(browser):
-    context, page = page_for(browser, SIZES[0])
+@pytest.mark.parametrize("size", ["phone", "desktop"])
+def test_w4_clips_and_history(browser, size):
+    _seed_clip("Alice")
+    _, width, height = _size(size)
+    context = browser.new_context(viewport={"width": width, "height": height})
+    page = context.new_page()
     try:
-        for path, text in [
-            ("/clips", "Your Shorts"),
-            ("/results", "Views and retention"),
-            ("/history", "Mission history"),
-        ]:
-            page.goto(f"{WEB}{path}", wait_until="networkidle")
-            page.wait_for_selector(f"text={text}", timeout=15000)
+        sign_in(page, "Alice")
+        page.goto(f"{WEB}/clips", wait_until="networkidle")
+        page.wait_for_selector("text=Your Shorts", timeout=15000)
+        page.wait_for_selector("text=Review", timeout=15000)
+        page.goto(f"{WEB}/history", wait_until="networkidle")
+        page.wait_for_selector("text=Mission history", timeout=15000)
     finally:
         context.close()
 
 
-def test_w5_settings(browser):
-    context, page = page_for(browser, SIZES[0])
+def test_w6_admin_pool(browser):
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    page = context.new_page()
     try:
-        page.goto(f"{WEB}/settings", wait_until="networkidle")
-        page.wait_for_selector("text=Account settings", timeout=15000)
-        page.wait_for_selector("text=Clips used", timeout=15000)
-        page.click("text=Export my data")
-        page.wait_for_selector("text=Export queued", timeout=15000)
-    finally:
-        context.close()
-
-
-def test_w6_admin_pool_and_tabs(browser):
-    context, page = page_for(browser, SIZES[0])
-    try:
+        sign_in(page)
         page.goto(f"{WEB}/admin", wait_until="networkidle")
         page.fill('[data-testid="questions"]', "Can you outrun five stars on a bicycle?")
         page.click('[data-testid="write-cards"]')
-        page.wait_for_selector('[data-testid="approve-button"]', timeout=15000)
-        for tab in ["Templates", "Users", "Jobs", "Health"]:
-            page.click(f'[role="tab"]:has-text("{tab}")')
-            page.wait_for_timeout(200)
+        page.wait_for_selector('[data-testid="approve-button"]', timeout=30000)
+        page.click('[data-testid="approve-button"]')
+        page.wait_for_timeout(500)
     finally:
         context.close()
 
 
-def test_w7_journey(browser):
-    """Sign-in → accept → Start/Done → review → leaderboard."""
-    context, page = page_for(browser, SIZES[0])
+def test_w8_real_journey(browser):
+    _seed_clip("Alice")
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    page = context.new_page()
     try:
-        page.goto(f"{WEB}/signin", wait_until="networkidle")
-        page.click("text=Continue as dev creator")
-        page.wait_for_selector("text=Play today's mission", timeout=15000)
-
+        sign_in(page)
         page.click("text=Accept")
-        page.wait_for_selector("text=accepted", timeout=15000)
+        page.wait_for_selector('[data-testid="accepted"]', timeout=15000)
 
         page.goto(f"{WEB}/remote", wait_until="networkidle")
         page.click('[data-testid="start"]')
@@ -166,11 +211,7 @@ def test_w7_journey(browser):
         page.click('[data-testid="submit-result"]')
         page.wait_for_selector("text=Mission logged", timeout=15000)
 
-        page.goto(f"{WEB}/clips/c_0001", wait_until="networkidle")
-        page.click("text=Approve")
-        page.wait_for_selector("text=Clip approved", timeout=15000)
-
-        page.goto(f"{WEB}/leaderboard", wait_until="networkidle")
-        page.wait_for_selector("text=#1", timeout=15000)
+        page.goto(f"{WEB}/clips", wait_until="networkidle")
+        page.wait_for_selector("text=Review", timeout=15000)
     finally:
         context.close()

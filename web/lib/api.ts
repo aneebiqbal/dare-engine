@@ -93,7 +93,18 @@ export const api = {
   leaderboard: (id: string) =>
     request<Attempt[]>("GET", `/missions/${id}/leaderboard`),
   mission: (slug: string) => request("GET", `/m/${slug}`),
+  upload: (file: File, marks: unknown[]) =>
+    request("POST", "/uploads", { file, marks }),
+  downloadClip: (id: string) => `${base()}/clips/${id}/download`,
   results: () => request<Results>("GET", "/results"),
   history: () => request<HistoryEntry[]>("GET", "/history"),
   settings: () => request<Settings>("GET", "/settings"),
+  recordMetric: (clip_id: string, views: number, avg_view_percentage: number) =>
+    request("POST", "/metrics", { clip_id, views, avg_view_percentage }),
+  deleteAccount: () => request("DELETE", "/account"),
+  adminTemplates: () => request("GET", "/admin/templates"),
+  adminUsers: () => request("GET", "/admin/users"),
+  adminJobs: () => request("GET", "/admin/jobs"),
+  retryJob: (id: string) => request("POST", `/admin/jobs/${id}/retry`),
+  creator: (id: string) => request("GET", `/creators/${id}`),
 };

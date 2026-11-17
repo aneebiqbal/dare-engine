@@ -284,8 +284,20 @@ export function Tr({ children }: { children: ReactNode }) {
   return <tr className="border-b border-border last:border-0">{children}</tr>;
 }
 
-export function Td({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <td className={`px-4 py-3 align-middle ${className}`}>{children}</td>;
+export function Td({
+  children,
+  className = "",
+  colSpan,
+}: {
+  children: ReactNode;
+  className?: string;
+  colSpan?: number;
+}) {
+  return (
+    <td colSpan={colSpan} className={`px-4 py-3 align-middle ${className}`}>
+      {children}
+    </td>
+  );
 }
 
 /* -------------------------------------------------------------- empty/state */

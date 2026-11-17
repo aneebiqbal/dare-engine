@@ -24,6 +24,12 @@ def main() -> int:
         browser = p.chromium.launch()
         for size_name, width, height in SIZES:
             context = browser.new_context(viewport={"width": width, "height": height})
+            # Sign in so the protected pages render their filled state.
+            context.request.post(
+                f"{BASE}/api/auth/dev/sign-in",
+                data={"display_name": "Axe"},
+                headers={"Content-Type": "application/json"},
+            )
             page = context.new_page()
             for name, path in PAGES:
                 page.goto(f"{BASE}{path}?theme=dark", wait_until="networkidle")

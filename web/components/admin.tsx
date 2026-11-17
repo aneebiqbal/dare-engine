@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, type PoolEntry } from "@/lib/api";
 import {
   Badge,
@@ -22,7 +22,20 @@ export function Admin({ initial }: { initial: PoolEntry[] }) {
   const [tab, setTab] = useState("pool");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<unknown[]>([]);
+  const [users, setUsers] = useState<unknown[]>([]);
+  const [jobs, setJobs] = useState<unknown[]>([]);
   const toast = useToast();
+
+  useEffect(() => {
+    Promise.all([api.adminTemplates(), api.adminUsers(), api.adminJobs()])
+      .then(([t, u, j]) => {
+        setTemplates(t as unknown[]);
+        setUsers(u as unknown[]);
+        setJobs(j as unknown[]);
+      })
+      .catch(() => {});
+  }, []);
 
   async function write() {
     const questions = text.split("\n").map((q) => q.trim()).filter(Boolean);
@@ -113,29 +126,54 @@ export function Admin({ initial }: { initial: PoolEntry[] }) {
 
       {tab === "templates" && (
         <Table head={["Template", "Weight"]}>
-          <Tr>
-            <Td>blur_fit</Td>
-            <Td>1</Td>
-          </Tr>
-          <Tr>
-            <Td>center_crop</Td>
-            <Td>1</Td>
-          </Tr>
+          {templates.map((t, i) => {
+            const row = t as { id?: string; weight?: number };
+            return (
+              <Tr key={row.id ?? i}>
+                <Td>{row.id}</Td>
+                <Td>{row.weight}</Td>
+              </Tr>
+            );
+          })}
         </Table>
       )}
 
       {tab === "users" && (
         <Table head={["User", "Role", "Plan"]}>
-          <Tr>
-            <Td>Dev Creator</Td>
-            <Td>creator</Td>
-            <Td>free</Td>
-          </Tr>
+          {users.map((u, i) => {
+            const row = u as { id?: string; display_name?: string; role?: string };
+            return (
+              <Tr key={row.id ?? i}>
+                <Td>{row.display_name}</Td>
+                <Td>{row.role}</Td>
+                <Td>free</Td>
+              </Tr>
+            );
+          })}
         </Table>
       )}
 
       {tab === "jobs" && (
-        <EmptyState title="No queued jobs" body="Jobs appear while clips render." />
+        <Table head={["Job", "State", "Attempts"]}>
+          {jobs.length === 0 ? (
+            <Tr>
+              <Td colSpan={3}>No jobs yet.</Td>
+            </Tr>
+          ) : (
+            jobs.map((j, i) => {
+              const row = j as { id?: string; kind?: string; state?: string; attempts?: number };
+              return (
+                <Tr key={row.id ?? i}>
+                  <Td>{row.kind}</Td>
+                  <Td>
+                    <Badge tone={row.state === "failed" ? "danger" : "muted"}>{row.state}</Badge>
+                  </Td>
+                  <Td>{row.attempts}</Td>
+                </Tr>
+              );
+            })
+          )}
+        </Table>
       )}
 
       {tab === "health" && (

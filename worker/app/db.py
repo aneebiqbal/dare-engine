@@ -1,4 +1,4 @@
-from contextlib import closing
+from contextlib import closing, contextmanager
 
 import psycopg
 
@@ -7,6 +7,16 @@ from .config import settings
 
 def _connect():
     return psycopg.connect(settings.database_url)
+
+
+@contextmanager
+def session():
+    conn = _connect()
+    try:
+        yield conn
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def check() -> None:

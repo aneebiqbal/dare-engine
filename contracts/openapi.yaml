@@ -244,6 +244,48 @@ paths:
               schema:
                 $ref: "#/components/schemas/Clip"
 
+  /uploads:
+    post:
+      tags: [clips]
+      summary: Upload a local recording and its marks; one clip job per mission
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, marks]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                marks:
+                  type: string
+                  description: JSON array of {mission_id, start, end, result}
+      responses:
+        "201":
+          description: Jobs queued.
+          content:
+            application/json:
+              schema:
+                type: object
+              properties:
+                stream_id: { type: string }
+                clips:
+                  type: array
+                  items: { type: string }
+                count: { type: integer }
+
+  /clips/{id}/download:
+    get:
+      tags: [clips]
+      summary: Download the rendered Short
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: video/mp4
+
   /clips/{id}/approve:
     post:
       tags: [clips]
@@ -401,6 +443,86 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Settings"
+
+  /creators/{id}:
+    get:
+      tags: [community]
+      summary: A creator's attempts and ranks
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Creator profile.
+          content:
+            application/json:
+              schema:
+                type: object
+              properties:
+                user_id: { type: string }
+                attempts:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/Attempt"
+
+  /metrics:
+    post:
+      tags: [clips]
+      summary: Record a metric manually (the YouTube collector is built, unproven)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                clip_id: { type: string }
+                views: { type: integer }
+                avg_view_percentage: { type: number }
+      responses:
+        "200":
+          description: Recorded.
+
+  /account:
+    delete:
+      tags: [auth]
+      summary: Delete the signed-in account and all of its data
+      responses:
+        "200":
+          description: Deleted.
+
+  /admin/templates:
+    get:
+      tags: [admin]
+      summary: Layout and caption templates
+      responses:
+        "200":
+          description: Templates.
+
+  /admin/users:
+    get:
+      tags: [admin]
+      summary: Users
+      responses:
+        "200":
+          description: Users.
+
+  /admin/jobs:
+    get:
+      tags: [admin]
+      summary: Job queue
+      responses:
+        "200":
+          description: Jobs.
+
+  /admin/jobs/{id}/retry:
+    post:
+      tags: [admin]
+      summary: Retry a failed job
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Requeued.
 
 components:
   parameters:

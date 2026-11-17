@@ -4,8 +4,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import db
+from . import db, storage
+from .account import router as account_router
+from .admin import router as admin_router
 from .auth import router as auth_router
+from .clips import router as clips_router
+from .community import router as community_router
 from .config import settings
 from .missions import router as missions_router
 
@@ -15,6 +19,7 @@ async def lifespan(app: FastAPI):
     if settings.dev_auth_enabled and settings.app_env == "production":
         raise RuntimeError("DEV_AUTH_ENABLED must never be set in production")
     db.migrate()
+    storage.ensure_bucket()
     yield
 
 
@@ -28,6 +33,10 @@ app.add_middleware(
 )
 app.include_router(auth_router)
 app.include_router(missions_router)
+app.include_router(clips_router)
+app.include_router(community_router)
+app.include_router(account_router)
+app.include_router(admin_router)
 
 
 @app.get("/healthz")
