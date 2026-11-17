@@ -22,17 +22,22 @@ web/node_modules/
 *.tsbuildinfo
 next-env.d.ts
 
-# Video artefacts
+# Video / media artefacts
 *.mp4
 *.mov
 *.mkv
 *.m4a
+*.wav
+*.zip
 !fixtures/.gitkeep
 !tests/**/*.mp4
+!tests/**/*.wav
 
-# Test render output
+# Test render output and scratch
 m1-render-*/
+render-*/
 .pytest-outputs/
+trash/
 
 # OS / editors
 .DS_Store
