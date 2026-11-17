@@ -1,0 +1,71 @@
+# 12 — Tests and quality
+
+Results below were captured by running the suites at the end of this context
+export (branch `sprint-6`, commit `3475745`), against the local Docker stack
+(Postgres container, local storage, `LLM_PROVIDER=recorded`, dev sign-in on for
+the API suites).
+
+| Suite | Command | Result |
+| --- | --- | --- |
+| API acceptance | `pytest tests/acceptance --ignore=test_web_pages.py -q` | **44 passed** in 373.63 s |
+| Web flows + a11y | `make web-accept` | **11 passed**; axe **0 serious/critical** on 8 pages × phone/desktop |
+| Unit | `pytest tests/unit -q` | **17 passed, 1 skipped** |
+| Mock-leak check | `make check` | **1 passed** |
+| Doctor | `make doctor` | **11/13** (fails: `LLM_API_KEY present`, `LLM_MODEL set`) |
+| Migrations on an empty DB | ad-hoc | **26 tables**, no errors |
+
+## Acceptance tests (`tests/acceptance/`)
+
+| File | Covers | Runs against |
+| --- | --- | --- |
+| `test_m0_health.py` | all services healthy, API ready, web health, relay API, contract coverage, mission-card schema | live stack |
+| `test_m1_clip.py` | render the stand-in via `docker compose run worker python -m clip.cli`; ffprobe 1080×1920 H.264, <60 s, audio, captions contain words, metadata, thumbnail | worker container, stand-in |
+| `test_m2_missions.py` | 10 questions → 10 schema-valid cards, pool, approve, AI suggest, Playwright accept | live stack, recorded AI |
+| `test_m4_relay.py` | FFmpeg RTMP push, relay connected, marks, Short before the stream ends, <180 s | live stack + relay |
+| `test_r1_auth.py` | roles, invite-only, single-use invite, CSRF, lockout, reset once, sign-out-all, production dev-auth guard, anonymous 401 | live stack, real accounts |
+| `test_r2_local_path.py` | marks require an assignment, 3 marks → 3 Shorts, download is a real file | live stack, stand-in |
+| `test_r4_community.py` | two users rank on the public page | live stack |
+| `test_r6_deletion.py` | deleting an account removes rows and stored files | live stack, local storage |
+| `test_s1_parallel.py` | kill the worker mid-render; jobs recover, no duplicate clips | live stack |
+| `test_contract.py` | the served routes and `contracts/openapi.yaml` match in both directions; MissionCard `$ref` | live stack |
+| `test_sprint6_features.py` | chunked resumable upload, export zip contents, trim re-render with the transcript cached, AI usage logged | live stack, stand-in |
+| `test_sprint6_tour.py` | a new account sees the tour, keyboard only, skip/replay, progress stored | live stack |
+| `test_sprint6_voice.py` | voice-over re-render with speech, WAV preview | live stack, real Piper model; **skipped** if the model is absent |
+| `test_web_pages.py` | 11 Playwright page flows at phone/desktop (run by `make web-accept`) | live stack, mock off |
+
+`tests/acceptance/helpers.py` provides real-account sign-up/sign-in, CSRF and
+multipart upload helpers.
+
+## Unit tests (`tests/unit/`)
+
+| File | Covers |
+| --- | --- |
+| `test_clip_units.py` | spoiler guard, letterbox flag, title flags, layout rotation, word-density fallback, LLM beat selection |
+| `test_encoder.py` | hardware/software encoder selection (1 skipped: no hardware encoder on this machine) |
+| `test_no_mock.py` | fails if `web/lib/mock.ts` is imported outside `web/lib/api.ts` |
+
+## Screenshots and accessibility
+
+- `tests/screenshots/capture.py` — 29 pages × phone/desktop × light/dark into
+  `docs/screens/` (mock on).
+- `tests/screenshots/a11y.py` — axe-core serious/critical on 8 pages at phone and
+  desktop; writes `docs/screens/a11y.json`.
+- `tests/performance/bench.py` — manual render benchmark; **not run in CI**.
+
+## What is not tested
+
+- **S3 storage** (no credentials).
+- **A managed database** (Neon/Aiven pooling and TLS).
+- **Live AI** (no key); only the recorded provider.
+- **The real gameplay fixture** — M1/M3/M4 are not accepted.
+- **Large uploads** (8-hour / 30 GB), resuming across a restart, and disk
+  exhaustion.
+- **Retention/cleanup** and account deletion of voice-over previews.
+- **Role change invalidating sessions**; per-IP rate limiting.
+- **The relay shared secret** and the auth hook without a stream key.
+- **Publishing** (`POST /clips/{id}/post` is a stub).
+- **Backups/restore**, TLS, dependency/secret scanning (CI runs only
+  `make accept` and `make check`).
+- **Web performance budgets** — `docs/performance.md` says "not yet measured".
+- **`tests/performance/bench.py`** is manual and its numbers are from an
+  earlier machine state.
