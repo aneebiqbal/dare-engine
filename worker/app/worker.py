@@ -17,6 +17,7 @@ def run_once(worker_id: str) -> bool:
     if row is None:
         return False
     job_id, kind, payload = row
+    payload = {**payload, "_job_id": str(job_id)}
     handler = jobs.HANDLERS.get(kind)
     if handler is None:
         print(f"no handler for job {job_id} kind={kind}")

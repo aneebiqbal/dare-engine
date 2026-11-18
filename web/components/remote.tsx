@@ -8,7 +8,7 @@ type QueuedTap = { kind: "start" | "done"; at: number; result?: string };
 
 const QUEUE_KEY = "clipdesk.pending_taps";
 
-export function Remote({ mission }: { mission: MissionCard }) {
+export function Remote({ mission, next }: { mission: MissionCard; next?: MissionCard | null }) {
   const [assignment, setAssignment] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
   const [startedAt, setStartedAt] = useState<number | null>(null);
@@ -133,6 +133,8 @@ export function Remote({ mission }: { mission: MissionCard }) {
         <Eyebrow>Remote</Eyebrow>
         <span
           data-testid="connection"
+          role="status"
+          aria-live="polite"
           className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${
             online ? "bg-success/10 text-success" : "bg-danger/10 text-danger"
           }`}
@@ -163,7 +165,7 @@ export function Remote({ mission }: { mission: MissionCard }) {
 
       <section className="mt-auto flex flex-col gap-3 pt-6">
         {pending.length > 0 && (
-          <p className="text-center text-xs text-danger" data-testid="pending">
+          <p className="text-center text-xs text-danger" data-testid="pending" role="status">
             {pending.length} tap{pending.length === 1 ? "" : "s"} queued — will send when back online
           </p>
         )}
@@ -191,9 +193,22 @@ export function Remote({ mission }: { mission: MissionCard }) {
         ) : (
           <div
             data-testid="done-state"
+            role="status"
             className="rounded-2xl bg-success/10 py-7 text-center text-lg font-medium text-success"
           >
             Mission logged{result ? ` · ${result}` : ""}
+          </div>
+        )}
+
+        {done && next && (
+          <div className="flex flex-col gap-2 rounded-2xl bg-surface p-1.5 ring-surface" data-testid="next-dare">
+            <div className="flex flex-col gap-2 rounded-[calc(2rem-0.375rem)] bg-surface-2 p-5">
+              <span className="text-[10px] uppercase tracking-[0.2em] text-muted">Up next</span>
+              <p className="text-sm font-medium leading-snug">{next.question}</p>
+              <a href="/today" className="text-sm text-accent hover:underline">
+                Pick it on Today
+              </a>
+            </div>
           </div>
         )}
       </section>

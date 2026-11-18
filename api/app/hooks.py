@@ -98,7 +98,10 @@ def stream_status(request: Request, stream_id: str):
     except Exception:
         paths = {"items": []}
     active = [p.get("name") for p in paths.get("items", [])]
-    return {"connected": bool(active), "paths": active}
+    # Only this stream's path counts: another user's live stream must not make
+    # this one look connected.
+    connected = row[0] in active
+    return {"connected": connected, "paths": active}
 
 
 from .users import current_user  # noqa: E402

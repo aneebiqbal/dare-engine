@@ -8,14 +8,15 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage() {
   const user = await requireUser();
   let settings: SettingsData | null = null;
+  let loadError = false;
   try {
     settings = await api.settings();
   } catch {
-    settings = null;
+    loadError = true;
   }
   return (
     <AppPage user={user} eyebrow="Settings" title="Account settings">
-      <Settings user={user} initial={settings} />
+      <Settings user={user} initial={settings} loadError={loadError} />
     </AppPage>
   );
 }

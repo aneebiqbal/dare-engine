@@ -2,7 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { api, type Results } from "@/lib/api";
-import { Badge, Card, PageState, Stat, Table, Td, Tr } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  Field,
+  Input,
+  PageState,
+  Stat,
+  Table,
+  Td,
+  Tr,
+  useToast,
+} from "@/components/ui";
 
 export function Results({ initial }: { initial: Results | null }) {
   const [data, setData] = useState<Results | null>(initial);
@@ -10,17 +23,45 @@ export function Results({ initial }: { initial: Results | null }) {
   const [fallback, setFallback] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [metricFor, setMetricFor] = useState<{ clip_id: string; title: string | null } | null>(null);
+  const [views, setViews] = useState("");
+  const [avg, setAvg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
+
+  async function load() {
+    try {
+      const [r, s] = await Promise.all([api.results(), api.resultsSummary()]);
+      setData(r);
+      setSummary(s.summary);
+      setFallback(s.fallback);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load results");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    Promise.all([api.results(), api.resultsSummary()])
-      .then(([r, s]) => {
-        setData(r);
-        setSummary(s.summary);
-        setFallback(s.fallback);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load results"))
-      .finally(() => setLoading(false));
+    void load();
   }, []);
+
+  async function saveMetric() {
+    if (!metricFor) return;
+    setBusy(true);
+    try {
+      await api.recordMetric(metricFor.clip_id, Number(views), Number(avg));
+      setMetricFor(null);
+      setViews("");
+      setAvg("");
+      await load();
+      toast("Metrics saved", "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not save metrics", "danger");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const totalViews = data?.clips.reduce((n, c) => n + c.views, 0) ?? 0;
 
@@ -34,7 +75,7 @@ export function Results({ initial }: { initial: Results | null }) {
           <Stat label="Clips" value={data?.clips.length ?? 0} />
         </Card>
         <Card>
-          <Stat label="Mission types" value={data?.by_type.length ?? 0} />
+          <Stat label="Dare types" value={data?.by_type.length ?? 0} />
         </Card>
       </div>
 
@@ -50,14 +91,28 @@ export function Results({ initial }: { initial: Results | null }) {
         </Card>
       )}
 
-      <PageState loading={loading} error={error} empty={!data || data.clips.length === 0}>
+      <PageState
+        loading={loading}
+        error={error}
+        empty={!data || data.clips.length === 0}
+        emptyTitle="No results yet"
+        emptyBody="Record views for a clip and the numbers show up here."
+      >
         <div className="grid gap-6">
-          <Table head={["Clip", "Views", "Avg. view %"]}>
+          <Table
+            caption="Views and retention per clip"
+            head={["Clip", "Views", "Avg. view %", "Record"]}
+          >
             {data?.clips?.map((c) => (
               <Tr key={c.clip_id}>
                 <Td>{c.title}</Td>
                 <Td>{c.views?.toLocaleString() ?? "—"}</Td>
-                <Td>{c.avg_view_percentage ?? "—"}</Td>
+                <Td>{c.avg_view_percentage != null ? `${c.avg_view_percentage}%` : "—"}</Td>
+                <Td>
+                  <Button size="sm" variant="outline" onClick={() => setMetricFor({ clip_id: c.clip_id, title: c.title })}>
+                    Add metrics
+                  </Button>
+                </Td>
               </Tr>
             ))}
           </Table>
@@ -68,6 +123,7 @@ export function Results({ initial }: { initial: Results | null }) {
                   <Badge tone="accent">{t.mode}</Badge>
                   <span className="text-sm text-muted">
                     {t.clips} clips · {t.views?.toLocaleString() ?? "—"} views
+                    {t.avg_view_percentage != null ? ` · ${t.avg_view_percentage}%` : ""}
                   </span>
                 </div>
               </Card>
@@ -75,6 +131,42 @@ export function Results({ initial }: { initial: Results | null }) {
           </div>
         </div>
       </PageState>
+
+      <Dialog
+        open={Boolean(metricFor)}
+        onClose={() => setMetricFor(null)}
+        title={`Record metrics${metricFor?.title ? ` — ${metricFor.title}` : ""}`}
+      >
+        <div className="flex flex-col gap-4">
+          <Field label="Views" hint="From your channel analytics.">
+            <Input
+              type="number"
+              min={0}
+              value={views}
+              onChange={(e) => setViews(e.target.value)}
+              placeholder="1204"
+            />
+          </Field>
+          <Field label="Average view %" hint="0 to 100.">
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={avg}
+              onChange={(e) => setAvg(e.target.value)}
+              placeholder="42"
+            />
+          </Field>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setMetricFor(null)}>
+              Cancel
+            </Button>
+            <Button onClick={saveMetric} disabled={busy || !views}>
+              Save metrics
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }

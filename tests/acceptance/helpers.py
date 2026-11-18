@@ -1,8 +1,10 @@
 """Shared helpers for acceptance tests: real accounts, CSRF, pagination."""
 import http.cookiejar
 import json
+import os
 import pathlib
 import subprocess
+import time
 import urllib.request
 
 import pytest
@@ -10,6 +12,23 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 API = "http://localhost:8000"
 WEB = "http://localhost:3100"
+
+
+def _load_env() -> None:
+    """Load .env into the environment so tests target the app's database,
+    whether that is the local container or a managed Neon project."""
+    env_path = ROOT / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip())
+
+
+_load_env()
 
 
 class Client:
@@ -65,8 +84,12 @@ def dev_sign_in(name: str) -> Client:
 
 
 def sql(statement: str) -> str:
+    """Run SQL against the app's database (DATABASE_URL_DIRECT from .env)."""
+    url = os.environ.get("DATABASE_URL_DIRECT") or os.environ.get("DATABASE_URL")
+    if not url:
+        raise RuntimeError("DATABASE_URL_DIRECT is not set in .env")
     return subprocess.run(
-        ["docker", "compose", "exec", "-T", "db", "psql", "-U", "clipdesk", "-d", "clipdesk", "-t", "-A", "-F", ",", "-c", statement],
+        ["psql", url, "-t", "-A", "-F", ",", "-c", statement],
         cwd=ROOT, capture_output=True, text=True, check=True,
     ).stdout
 
@@ -109,11 +132,28 @@ def sign_up(email: str = "creator@example.com", password: str = "creator-passwor
 
 def seed_mission(admin: Client, question: str = "Can you outrun five stars on a bicycle?") -> str:
     # Re-writing a card does not reset its status, so clear the pool first.
-    truncate("missions", "assignments", "attempts", "daily_sets")
-    admin.post("/admin/questions", {"questions": [question]})
-    mission_id = admin.get("/admin/pool")["items"][0]["id"]
-    admin.post(f"/admin/pool/{mission_id}/approve", {})
-    return mission_id
+    # The Neon pooler occasionally serves a stale read right after the write,
+    # so poll the pool and retry the whole seed rather than failing the suite.
+    for _ in range(12):
+        truncate("missions", "assignments", "attempts", "daily_sets")
+        admin.post("/admin/questions", {"questions": [question]})
+        items = []
+        for _ in range(10):
+            items = admin.get("/admin/pool")["items"]
+            if items:
+                break
+            time.sleep(0.5)
+        if not items:
+            continue
+        mission_id = items[0]["id"]
+        for _ in range(10):
+            try:
+                admin.post(f"/admin/pool/{mission_id}/approve", {})
+                return mission_id
+            except Exception:
+                time.sleep(0.5)
+        return mission_id
+    raise RuntimeError("could not seed a mission")
 
 
 def upload_recording(client: Client, marks: list[dict], filename: str = "recording.mp4") -> dict:

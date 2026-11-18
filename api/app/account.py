@@ -74,7 +74,8 @@ def results(request: Request):
             )
             rows = cur.fetchall()
             cur.execute(
-                "SELECT m.card->>'mode', COUNT(c.id), COALESCE(SUM(mm.views), 0) "
+                "SELECT m.card->>'mode', COUNT(c.id), COALESCE(SUM(mm.views), 0), "
+                "AVG(mm.avg_view_percentage) "
                 "FROM clips c JOIN assignments a ON a.id = c.assignment_id "
                 "JOIN missions m ON m.id = a.mission_id "
                 "LEFT JOIN posts p ON p.clip_id = c.id "
@@ -95,7 +96,13 @@ def results(request: Request):
             for r in rows
         ],
         "by_type": [
-            {"mode": r[0], "clips": r[1], "views": int(r[2] or 0)} for r in by_type
+            {
+                "mode": r[0],
+                "clips": r[1],
+                "views": int(r[2] or 0),
+                "avg_view_percentage": round(float(r[3]), 2) if r[3] else None,
+            }
+            for r in by_type
         ],
     }
 
@@ -205,9 +212,17 @@ def delete_account(request: Request):
                 (user["id"],),
             )
             clip_ids = [str(r[0]) for r in cur.fetchall()]
+            cur.execute(
+                "SELECT audio_key FROM voice_overs WHERE clip_id = ANY(%s) "
+                "AND audio_key IS NOT NULL",
+                (clip_ids,),
+            )
+            preview_keys = [r[0] for r in cur.fetchall()]
             cur.execute("DELETE FROM users WHERE id = %s", (user["id"],))
 
     store.delete_prefix(f"recordings/{user['id']}/")
     for clip_id in clip_ids:
         store.delete_prefix(f"clips/{clip_id}/")
+    for key in preview_keys:
+        store.delete_prefix(key)
     return {"ok": True}

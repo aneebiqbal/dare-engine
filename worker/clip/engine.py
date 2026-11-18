@@ -1,7 +1,8 @@
 """Clip engine: a mission window in, a finished 9:16 Short out.
 
-Nine steps from the spec: fetch the window, transcribe, pick beats, build the
-hook, lay out, caption, end card, render, write metadata.
+The clip is built from a grammar of beats (cold open, hook, context, payoff,
+button), not a concatenation of fixed blocks. See `grammar.py` and
+`templates.json`.
 """
 from __future__ import annotations
 
@@ -13,15 +14,14 @@ from pathlib import Path
 
 from .beats import select_setup
 from .caption import write_ass, write_srt
-from .layout import filtergraph, pick_layout
+from .grammar import Beat, Template, build_beats, get_template, load_templates, pick_template
+from .layout import filtergraph
 from .policy import detect_letterbox, guard_window, title_flags
 from .transcribe import Word, transcribe
 
 WINDOW_BEFORE = 10.0
 WINDOW_AFTER = 5.0
-HOOK_SECONDS = 2.0
 PAYOFF_SECONDS = 18.0
-END_CARD_SECONDS = 3.0
 
 NORMALIZE_VF = (
     "scale=1920:1080:force_original_aspect_ratio=increase,"
@@ -64,6 +64,8 @@ class Result:
     duration: float
     layout: str
     flags: dict
+    template: str = ""
+    beats: list[Beat] | None = None
     words_abs: list["Word"] | None = None
 
 
@@ -147,6 +149,21 @@ def _strongest_second(words: list[Word], lo: float, hi: float) -> float:
     return float(max(scores.items(), key=lambda kv: (kv[1], -kv[0]))[0])
 
 
+def _resolve_template(
+    template: str | None, template_id: str | None, seed: str
+) -> Template:
+    caption_styles, templates = load_templates()
+    if template_id:
+        return get_template(template_id)
+    if template and any(t.id == template for t in templates):
+        return get_template(template)
+    chosen = pick_template(seed)
+    if template and any(t.layout == template for t in templates):
+        # A layout name from a re-render overrides the rotated template's layout.
+        return dataclasses.replace(chosen, layout=template)
+    return chosen
+
+
 def render_short(
     input_path: str,
     card: dict,
@@ -158,6 +175,7 @@ def render_short(
     llm=None,
     words_abs: list["Word"] | None = None,
     caption_style: str = "word",
+    template_id: str | None = None,
 ) -> Result:
     src = str(input_path)
     out_dir = Path(out_dir)
@@ -188,37 +206,37 @@ def render_short(
                 if win_start <= (w.start + w.end) / 2 < win_end
             ]
 
-        # Spoiler guard: a window with no speech is treated as a cutscene.
         guard_window(words, payoff_start - win_start, payoff_end - win_start)
         letterbox = detect_letterbox(str(window), *_dimensions(str(window)))
 
         rel_payoff_lo = payoff_start - win_start
         rel_payoff_hi = payoff_end - win_start
-        strong = _strongest_second(words, rel_payoff_lo, rel_payoff_hi)
-        strong = min(
-            max(strong, rel_payoff_lo),
-            max(rel_payoff_lo, rel_payoff_hi - HOOK_SECONDS),
-        )
-        setup = select_setup(words, 0.0, rel_payoff_lo, llm)
+        peak = win_start + _strongest_second(words, rel_payoff_lo, rel_payoff_hi)
 
-        parts: list[tuple[Path, float, float]] = []
-        hook = tmp / "hook.mp4"
-        hook_src = win_start + strong
-        _cut(src, str(hook), hook_src, HOOK_SECONDS)
-        parts.append((hook, hook_src, HOOK_SECONDS))
+        seed = f"{card.get('id', '')}:{start:.0f}:{end:.0f}"
+        tpl = _resolve_template(template, template_id, seed)
+        layout = tpl.layout
+        captions = caption_style or tpl.captions
 
-        for i, (s, e) in enumerate(setup):
-            clip = tmp / f"setup{i}.mp4"
-            clip_src = win_start + s
-            _cut(src, str(clip), clip_src, e - s)
-            parts.append((clip, clip_src, e - s))
+        setup = select_setup(words, 0.0, max(0.0, rel_payoff_lo), llm)
+        context_range = None
+        if setup:
+            s, e = setup[0]
+            context_range = (win_start + s, win_start + e)
 
-        payoff = tmp / "payoff.mp4"
-        _cut(src, str(payoff), payoff_start, payoff_end - payoff_start)
-        parts.append((payoff, payoff_start, payoff_end - payoff_start))
+        beats = build_beats(tpl, peak, payoff_start, payoff_end, context_range)
+        for beat in beats:
+            beat.src_start = max(0.0, min(beat.src_start, file_duration - 0.2))
+            beat.length = max(0.4, min(beat.length, file_duration - beat.src_start))
+
+        parts: list[Path] = []
+        for i, beat in enumerate(beats):
+            clip = tmp / f"beat{i}.mp4"
+            _cut(src, str(clip), beat.src_start, beat.length)
+            parts.append(clip)
 
         concat = tmp / "concat.txt"
-        concat.write_text("".join(f"file '{p[0]}'\n" for p in parts))
+        concat.write_text("".join(f"file '{p}'\n" for p in parts))
         timeline = tmp / "timeline.mp4"
         _run(
             [
@@ -231,12 +249,13 @@ def render_short(
             ]
         )
 
-        # Map window-relative word times onto the output timeline.
+        # Map window-relative word times onto the output timeline. Beat source
+        # ranges are disjoint, so captions stay word-synced and in order.
         events: list[tuple[float, float, float, float]] = []
         t = 0.0
-        for _path, src_lo, length in parts:
-            events.append((src_lo, src_lo + length, t, t + length))
-            t += length
+        for beat in beats:
+            events.append((beat.src_start, beat.src_start + beat.length, t, t + beat.length))
+            t += beat.length
         total = t
 
         mapped: list[Word] = []
@@ -248,23 +267,23 @@ def render_short(
                     offset = (st - slo) / (shi - slo) * (ohi - olo)
                     mapped.append(Word(olo + offset, olo + offset + (en - st), w.text))
                     break
+        mapped.sort(key=lambda w: w.start)
 
         mission_num = str(card.get("id", "")).replace("m_", "")
         end_lines = [f"MISSION {mission_num}" if mission_num else "MISSION"]
         if result_value:
             end_lines.append(str(result_value))
-        end_start = max(0.0, total - END_CARD_SECONDS)
+        end_start = max(0.0, total - tpl.button_seconds)
 
-        layout = template or pick_layout(
-            f"{card.get('id', '')}:{start:.0f}:{end:.0f}", _is_landscape(src)
-        )
         ass_path = tmp / "burn.ass"
+        hook_dur = min(tpl.hook_seconds, beats[-1].length) if beats else 2.0
         write_ass(
-            str(ass_path), card.get("hook_text", ""), HOOK_SECONDS,
-            mapped if caption_style != "none" else [], end_lines, end_start, total,
+            str(ass_path), card.get("hook_text", ""), hook_dur,
+            mapped if captions != "none" else [], end_lines, end_start, total,
+            caption_style=captions,
         )
         srt_path = out_dir / "captions.srt"
-        write_srt(str(srt_path), mapped)
+        write_srt(str(srt_path), mapped, caption_style=captions)
 
         out_path = out_dir / "short.mp4"
         vf = f"{filtergraph(layout)};[v]subtitles=filename={ass_path}[outv]"
@@ -296,6 +315,10 @@ def render_short(
             "description": f"{card.get('question', '')}\n\nMission {mission_num}.",
             "tags": ["clipdesk", "missions", card.get("mode", "")],
             "layout": layout,
+            "template": tpl.id,
+            "caption_style": captions,
+            "beats": [{"kind": b.kind, "src_start": round(b.src_start, 2),
+                       "length": round(b.length, 2)} for b in beats],
             "duration_seconds": round(duration, 3),
             "result": result_value,
             "encoder": detect_encoder(),
@@ -313,5 +336,7 @@ def render_short(
             duration=duration,
             layout=layout,
             flags=letterbox,
+            template=tpl.id,
+            beats=beats,
             words_abs=words_abs,
         )

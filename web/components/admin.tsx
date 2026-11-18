@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
   api,
@@ -9,12 +10,14 @@ import {
   type Invite,
   type Job,
   type PoolEntry,
+  type SystemLoad,
   type User,
 } from "@/lib/api";
 import {
   Badge,
   Button,
   Card,
+  Dialog,
   Field,
   Input,
   Notice,
@@ -60,7 +63,9 @@ export function AdminOverview() {
   const [usage, setUsage] = useState<AiUsage[]>([]);
   const [storage, setStorage] = useState<{ driver: string; bytes: number } | null>(null);
   const [setup, setSetup] = useState<{ name: string; ok: boolean; detail: string }[]>([]);
+  const [health, setHealth] = useState<SystemLoad | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
@@ -71,8 +76,9 @@ export function AdminOverview() {
       api.adminAiUsage(),
       api.adminStorage(),
       api.adminSetup(),
+      api.studioSystem(),
     ])
-      .then(([u, i, j, p, a, s, st]) => {
+      .then(([u, i, j, p, a, s, st, h]) => {
         setUsers(u.items);
         setInvites(i.items);
         setJobs(j.items);
@@ -80,60 +86,110 @@ export function AdminOverview() {
         setUsage(a.items);
         setStorage(s);
         setSetup(st.checks);
+        setHealth(h);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
+      .finally(() => setLoading(false));
   }, []);
 
   const failed = jobs.filter((j) => j.state === "failed").length;
   const running = jobs.filter((j) => j.state === "running" || j.state === "queued").length;
   const fallback = usage.filter((u) => u.fallback).length;
+  const tokens = usage.reduce((n, u) => n + u.prompt_tokens + u.completion_tokens, 0);
+  const avgLatency = usage.length
+    ? Math.round(usage.reduce((n, u) => n + u.latency_ms, 0) / usage.length)
+    : null;
+  const activeJobs = jobs.filter(
+    (j) => j.state === "failed" || j.state === "running" || j.state === "queued",
+  );
 
   return (
     <div className="grid gap-6" data-tour="admin-overview">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card><Stat label="Users" value={users.length} /></Card>
-        <Card><Stat label="Invites" value={invites.length} hint={`${invites.filter((i) => !i.used && !i.revoked).length} open`} /></Card>
-        <Card><Stat label="Jobs" value={running} hint={`${failed} failed`} /></Card>
-        <Card><Stat label="Pool" value={pool.length} hint="awaiting review" /></Card>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card><Stat label="AI calls" value={usage.length} hint={`${fallback} fallbacks`} /></Card>
-        <Card>
-          <Stat
-            label="Storage"
-            value={storage ? `${(storage.bytes / 1_000_000).toFixed(1)} MB` : "—"}
-            hint={storage?.driver}
-          />
-        </Card>
-        <Card>
-          <Stat
-            label="Setup"
-            value={`${setup.filter((c) => c.ok).length}/${setup.length}`}
-            hint="checks passing"
-          />
-        </Card>
-        <Card>
-          <Stat label="Failed jobs" value={failed} hint={failed ? "needs attention" : "clear"} />
-        </Card>
-      </div>
-      {error && <Notice tone="warn">{error}</Notice>}
+      <PageState loading={loading} error={error} empty={false}>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Link href="/admin/users"><Card><Stat label="Users" value={users.length} /></Card></Link>
+          <Link href="/admin/invites">
+            <Card>
+              <Stat label="Invites" value={invites.length} hint={`${invites.filter((i) => !i.used && !i.revoked).length} open`} />
+            </Card>
+          </Link>
+          <Link href="/admin/jobs"><Card><Stat label="Jobs" value={running} hint={`${failed} failed`} /></Card></Link>
+          <Link href="/admin/pool"><Card><Stat label="Dares awaiting review" value={pool.length} /></Card></Link>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Link href="/admin/ai">
+            <Card>
+              <Stat label="AI calls" value={usage.length} hint={`${fallback} fallbacks`} />
+            </Card>
+          </Link>
+          <Card>
+            <Stat
+              label="Storage"
+              value={storage ? `${(storage.bytes / 1_000_000).toFixed(1)} MB` : "—"}
+              hint={storage?.driver}
+            />
+          </Card>
+          <Link href="/admin/setup">
+            <Card>
+              <Stat
+                label="Setup"
+                value={`${setup.filter((c) => c.ok).length}/${setup.length}`}
+                hint="checks passing"
+              />
+            </Card>
+          </Link>
+          <Card>
+            <Stat
+              label="System"
+              value={health && Number.isFinite(health.cpu_percent) ? `${Math.round(health.cpu_percent)}%` : "—"}
+              hint={
+                health && Number.isFinite(health.memory_percent)
+                  ? `CPU · ${Math.round(health.memory_percent)}% memory`
+                  : "unavailable"
+              }
+            />
+          </Card>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card><Stat label="Tokens" value={tokens.toLocaleString()} hint="prompt + completion" /></Card>
+          <Card>
+            <Stat label="Avg. latency" value={avgLatency != null ? `${avgLatency} ms` : "—"} hint="per AI call" />
+          </Card>
+          <Card>
+            <Stat
+              label="GPU"
+              value={
+                health?.gpu && Number.isFinite(health.gpu.utilization_percent)
+                  ? `${Math.round(health.gpu.utilization_percent)}%`
+                  : "—"
+              }
+              hint={
+                health?.gpu && Number.isFinite(health.gpu.memory_used_mb)
+                  ? `${health.gpu.memory_used_mb}/${health.gpu.memory_total_mb} MB`
+                  : "not detected"
+              }
+            />
+          </Card>
+          <Card>
+            <Stat label="Failed jobs" value={failed} hint={failed ? "needs attention" : "clear"} />
+          </Card>
+        </div>
+      </PageState>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <div className="flex flex-col gap-3">
-            <h2 className="text-base font-medium">Recent jobs</h2>
-            {jobs.filter((j) => j.state === "failed" || j.state === "running" || j.state === "queued").length === 0 ? (
+            <h2 className="text-base font-medium">Job queue</h2>
+            {activeJobs.length === 0 ? (
               <p className="text-sm text-muted">No active or failed jobs.</p>
             ) : (
-              jobs
-                .filter((j) => j.state === "failed" || j.state === "running" || j.state === "queued")
-                .slice(0, 5)
-                .map((j) => (
-                  <div key={j.id} className="flex items-center justify-between text-sm">
-                    <span>{j.kind}</span>
-                    <Badge tone={j.state === "failed" ? "danger" : "muted"}>{j.state}</Badge>
-                  </div>
-                ))
+              activeJobs.slice(0, 6).map((j) => (
+                <div key={j.id} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="truncate">{j.kind}</span>
+                  <span className="text-muted">{j.stage ?? "—"}</span>
+                  <Badge tone={j.state === "failed" ? "danger" : "muted"}>{j.state}</Badge>
+                </div>
+              ))
             )}
           </div>
         </Card>
@@ -146,7 +202,9 @@ export function AdminOverview() {
               usage.slice(0, 5).map((u) => (
                 <div key={u.id} className="flex items-center justify-between text-sm">
                   <span>{u.page} · {u.kind}</span>
-                  <span className="text-muted">{u.latency_ms} ms</span>
+                  <span className="text-muted">
+                    {u.prompt_tokens + u.completion_tokens} tokens · {u.latency_ms} ms
+                  </span>
                 </div>
               ))
             )}
@@ -195,7 +253,11 @@ export function AdminUsers() {
               <Td>{u.email}</Td>
               <Td>{u.display_name}</Td>
               <Td>
-                <Select value={u.role} onChange={(e) => void setRole(u.id, e.target.value)}>
+                <Select
+                  aria-label={`Role for ${u.email ?? u.display_name ?? u.id}`}
+                  value={u.role}
+                  onChange={(e) => void setRole(u.id, e.target.value)}
+                >
                   <option value="creator">creator</option>
                   <option value="admin">admin</option>
                 </Select>
@@ -234,8 +296,22 @@ export function AdminInvites() {
   }
 
   async function revoke(id: string) {
-    await api.adminRevokeInvite(id).catch(() => {});
-    await reload();
+    try {
+      await api.adminRevokeInvite(id);
+      await reload();
+      toast("Invite revoked", "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not revoke", "danger");
+    }
+  }
+
+  async function copy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("Copied", "success");
+    } catch {
+      toast("Copy failed", "danger");
+    }
   }
 
   return (
@@ -260,7 +336,16 @@ export function AdminInvites() {
         <Table head={["Code", "Email", "Created", "State", "Actions"]}>
           {items.map((i) => (
             <Tr key={i.id}>
-              <Td><code>{i.code}</code></Td>
+              <Td>
+                <button
+                  type="button"
+                  onClick={() => void copy(i.code)}
+                  className="text-accent hover:underline"
+                  title="Copy code"
+                >
+                  <code>{i.code}</code>
+                </button>
+              </Td>
               <Td>{i.email ?? "—"}</Td>
               <Td>{i.created_at.slice(0, 10)}</Td>
               <Td>
@@ -281,19 +366,28 @@ export function AdminInvites() {
   );
 }
 
+type PoolReview = {
+  merged: { question: string; count: number }[];
+  policy_flags: { question: string; reason: string }[];
+  fallback: boolean;
+};
+
 export function AdminPool() {
   const { items, loading, error, reload } = useList(api.pool);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [review, setReview] = useState<{ merged: { question: string; count: number }[]; policy_flags: { question: string; reason: string }[]; fallback: boolean } | null>(null);
+  const [review, setReview] = useState<PoolReview | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [assignFor, setAssignFor] = useState<PoolEntry | null>(null);
+  const [assignee, setAssignee] = useState("");
   const toast = useToast();
 
-  async function write() {
-    const questions = text.split("\n").map((q) => q.trim()).filter(Boolean);
-    if (!questions.length) return;
+  async function write(questions?: string[]) {
+    const list = questions ?? text.split("\n").map((q) => q.trim()).filter(Boolean);
+    if (!list.length) return;
     setBusy(true);
     try {
-      await api.writeCards(questions);
+      await api.writeCards(list);
       setText("");
       await reload();
       toast("Cards written", "success");
@@ -318,13 +412,45 @@ export function AdminPool() {
   }
 
   async function approve(id: string) {
-    await api.approve(id);
-    await reload();
+    try {
+      await api.approve(id);
+      await reload();
+      toast("Dare approved", "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not approve", "danger");
+    }
   }
 
   async function reject(id: string) {
-    await api.reject(id);
-    await reload();
+    try {
+      await api.reject(id);
+      await reload();
+      toast("Dare rejected", "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not reject", "danger");
+    }
+  }
+
+  async function openAssign(entry: PoolEntry) {
+    setAssignFor(entry);
+    setAssignee("");
+    try {
+      const res = await api.adminUsers("?page_size=100");
+      setUsers(res.items.filter((u) => u.role !== "admin"));
+    } catch {
+      setUsers([]);
+    }
+  }
+
+  async function assign() {
+    if (!assignFor || !assignee) return;
+    try {
+      await api.assign(assignFor.id, assignee);
+      toast("Dare assigned", "success");
+      setAssignFor(null);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not assign", "danger");
+    }
   }
 
   return (
@@ -333,14 +459,19 @@ export function AdminPool() {
         <div className="flex flex-col gap-4">
           <Textarea
             data-testid="questions"
+            aria-label="Audience questions, one per line"
             rows={5}
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={"One question per line.\nCan you outrun five stars on a bicycle?"}
           />
           <div className="flex flex-wrap gap-2">
-            <Button data-testid="write-cards" onClick={write} disabled={busy}>Write cards</Button>
-            <Button variant="outline" onClick={reviewQuestions} disabled={busy}>Review with AI</Button>
+            <Button data-testid="write-cards" onClick={() => void write()} disabled={busy}>
+              Write cards
+            </Button>
+            <Button variant="outline" onClick={reviewQuestions} disabled={busy}>
+              Review with AI
+            </Button>
           </div>
         </div>
       </Card>
@@ -349,7 +480,14 @@ export function AdminPool() {
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <div className="flex flex-col gap-2">
-              <Badge tone="accent">Merged</Badge>
+              <div className="flex items-center justify-between">
+                <Badge tone="accent">Merged</Badge>
+                {review.merged.length > 0 && (
+                  <Button size="sm" variant="outline" onClick={() => void write(review.merged.map((m) => m.question))} disabled={busy}>
+                    Write merged as cards
+                  </Button>
+                )}
+              </div>
               {review.merged.map((m, i) => (
                 <div key={i} className="flex justify-between text-sm">
                   <span>{m.question}</span>
@@ -377,17 +515,29 @@ export function AdminPool() {
         </div>
       )}
 
-      <PageState loading={loading} error={error} empty={items.length === 0}>
+      <PageState
+        loading={loading}
+        error={error}
+        empty={items.length === 0}
+        emptyTitle="No dares awaiting review"
+        emptyBody="Write cards from audience questions to fill the pool."
+      >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {items.map((entry) => (
             <Card key={entry.id}>
               <div className="flex h-full flex-col gap-3">
-                <Badge tone="accent">{entry.id}</Badge>
+                <div className="flex items-center justify-between">
+                  <Badge tone="accent">{entry.id}</Badge>
+                  <Badge tone={entry.state === "candidate" ? "muted" : "success"}>{entry.state}</Badge>
+                </div>
                 <h3 className="text-base font-medium leading-snug">{entry.card?.question ?? "Untitled"}</h3>
                 <p className="text-sm text-muted">{entry.card?.hook_text}</p>
                 <div className="mt-auto flex gap-2 pt-2">
                   <Button size="sm" data-testid="approve-button" onClick={() => void approve(entry.id)}>
                     Approve
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => void openAssign(entry)}>
+                    Assign
                   </Button>
                   <Button size="sm" variant="danger" onClick={() => void reject(entry.id)}>
                     Reject
@@ -398,6 +548,31 @@ export function AdminPool() {
           ))}
         </div>
       </PageState>
+
+      <Dialog
+        open={Boolean(assignFor)}
+        onClose={() => setAssignFor(null)}
+        title={`Assign ${assignFor?.id ?? ""}`}
+      >
+        <div className="flex flex-col gap-4">
+          <Select aria-label="Gamer" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
+            <option value="">Choose a gamer…</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.display_name ?? u.email ?? u.id}
+              </option>
+            ))}
+          </Select>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setAssignFor(null)}>
+              Cancel
+            </Button>
+            <Button onClick={assign} disabled={!assignee || busy}>
+              Assign dare
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }
@@ -432,11 +607,12 @@ export function AdminJobs() {
   }
   return (
     <PageState loading={loading} error={error} empty={items.length === 0}>
-      <Table head={["Kind", "State", "Attempts", "Retry", "Error", "Updated", "Actions"]}>
+      <Table head={["Kind", "State", "Stage", "Attempts", "Retry", "Error", "Updated", "Actions"]}>
         {items.map((j) => (
           <Tr key={j.id}>
             <Td>{j.kind}</Td>
             <Td><Badge tone={j.state === "failed" ? "danger" : j.state === "done" ? "success" : "muted"}>{j.state}</Badge></Td>
+            <Td>{j.stage ?? "—"}</Td>
             <Td>{j.attempts}</Td>
             <Td>{j.retry_count}</Td>
             <Td className="max-w-[20rem] truncate" title={j.error ?? ""}>{j.error ?? "—"}</Td>
@@ -458,18 +634,39 @@ export function AdminJobs() {
 export function AdminAi() {
   const { items, loading, error } = useList(api.adminAiUsage);
   const [config, setConfig] = useState<AiConfig | null>(null);
+  const [configError, setConfigError] = useState<string | null>(null);
   useEffect(() => {
-    api.adminAiConfig().then(setConfig).catch(() => {});
+    api.adminAiConfig().then(setConfig).catch(() => setConfigError("Could not load the AI configuration."));
   }, []);
+  const tokens = items.reduce((n, u) => n + u.prompt_tokens + u.completion_tokens, 0);
+  const avg = items.length
+    ? Math.round(items.reduce((n, u) => n + u.latency_ms, 0) / items.length)
+    : null;
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card><Stat label="Provider" value={config?.provider ?? "—"} /></Card>
-        <Card><Stat label="Model" value={config?.model || "—"} /></Card>
-        <Card><Stat label="Key present" value={config ? (config.key_present ? "yes" : "no") : "—"} /></Card>
-        <Card><Stat label="Base URL" value={config?.base_url ?? "—"} /></Card>
-      </div>
-      <PageState loading={loading} error={error} empty={items.length === 0}>
+      <PageState loading={false} error={configError} empty={false}>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <Stat label="Provider" value={config?.provider ?? "—"} hint={config ? (config.configured ? "configured" : "not configured") : undefined} />
+          </Card>
+          <Card><Stat label="Model" value={config?.model || "—"} /></Card>
+          <Card><Stat label="Key present" value={config ? (config.key_present ? "yes" : "no") : "—"} /></Card>
+          <Card><Stat label="Base URL" value={config?.base_url ?? "—"} /></Card>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card><Stat label="Calls" value={items.length} /></Card>
+          <Card><Stat label="Tokens" value={tokens.toLocaleString()} hint="prompt + completion" /></Card>
+          <Card><Stat label="Avg. latency" value={avg != null ? `${avg} ms` : "—"} /></Card>
+          <Card><Stat label="Fallbacks" value={items.filter((u) => u.fallback).length} /></Card>
+        </div>
+      </PageState>
+      <PageState
+        loading={loading}
+        error={error}
+        empty={items.length === 0}
+        emptyTitle="No AI calls yet"
+        emptyBody="Calls are recorded when a page uses the AI."
+      >
         <Table head={["When", "Page", "Kind", "Provider", "Model", "Tokens", "Latency", "Fallback"]}>
           {items.map((u) => (
             <Tr key={u.id}>
@@ -497,11 +694,13 @@ export function AdminAudit() {
         {items.map((a) => (
           <Tr key={a.id}>
             <Td>{a.created_at.slice(0, 19).replace("T", " ")}</Td>
-            <Td>{a.actor_id?.slice(0, 8) ?? "—"}</Td>
+            <Td>{a.actor_name ?? a.actor_id?.slice(0, 8) ?? "—"}</Td>
             <Td>{a.action}</Td>
             <Td>{a.target_type ? `${a.target_type}:${a.target_id}` : "—"}</Td>
             <Td className="max-w-[20rem] truncate" title={JSON.stringify(a.meta)}>
-              {JSON.stringify(a.meta)}
+              {Object.entries(a.meta ?? {})
+                .map(([k, v]) => `${k}=${typeof v === "string" ? v : JSON.stringify(v)}`)
+                .join(" · ") || "—"}
             </Td>
           </Tr>
         ))}
@@ -513,6 +712,7 @@ export function AdminAudit() {
 export function AdminSetup() {
   const [checks, setChecks] = useState<{ name: string; ok: boolean; detail: string }[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState<AiConfig | null>(null);
   const [storage, setStorage] = useState<{ driver: string; bytes: number } | null>(null);
 
@@ -523,31 +723,39 @@ export function AdminSetup() {
         setConfig(c);
         setStorage(st);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
     <div className="grid gap-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card><Stat label="Provider" value={config?.provider ?? "—"} /></Card>
-        <Card><Stat label="Model" value={config?.model || "—"} /></Card>
-        <Card><Stat label="Key present" value={config ? (config.key_present ? "yes" : "no") : "—"} /></Card>
-        <Card><Stat label="Storage" value={storage ? `${(storage.bytes / 1_000_000).toFixed(1)} MB` : "—"} /></Card>
-      </div>
-      {error && <Notice tone="warn">{error}</Notice>}
-      <Card>
-        <div className="flex flex-col gap-3">
-          {checks?.map((c) => (
-            <div key={c.name} className="flex items-center justify-between gap-4">
-              <span className="text-sm">
-                <Badge tone={c.ok ? "success" : "danger"}>{c.ok ? "PASS" : "FAIL"}</Badge>{" "}
-                {c.name}
-              </span>
-              <span className="text-xs text-muted">{c.detail}</span>
-            </div>
-          ))}
+      <PageState
+        loading={loading}
+        error={error}
+        empty={checks !== null && checks.length === 0}
+        emptyTitle="No checks"
+        emptyBody="The setup checks did not return anything."
+      >
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card><Stat label="Provider" value={config?.provider ?? "—"} /></Card>
+          <Card><Stat label="Model" value={config?.model || "—"} /></Card>
+          <Card><Stat label="Key present" value={config ? (config.key_present ? "yes" : "no") : "—"} /></Card>
+          <Card><Stat label="Storage" value={storage ? `${(storage.bytes / 1_000_000).toFixed(1)} MB` : "—"} /></Card>
         </div>
-      </Card>
+        <Card>
+          <div className="flex flex-col gap-3">
+            {checks?.map((c) => (
+              <div key={c.name} className="flex items-center justify-between gap-4">
+                <span className="text-sm">
+                  <Badge tone={c.ok ? "success" : "danger"}>{c.ok ? "PASS" : "FAIL"}</Badge>{" "}
+                  {c.name}
+                </span>
+                <span className="text-xs text-muted">{c.detail}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </PageState>
     </div>
   );
 }

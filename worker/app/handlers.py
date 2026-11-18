@@ -6,6 +6,7 @@ import pathlib
 import tempfile
 
 from clip.engine import Result, render_short
+from clip.llm import get_llm
 from clip.transcribe import Word
 from clip.tts import speak
 from clip.voice import mix_voice_over
@@ -30,13 +31,16 @@ def _run_ffmpeg(cmd: list[str]) -> None:
         raise RuntimeError(f"ffmpeg failed: {proc.stderr[-1500:]}")
 
 
-def _stage(clip_id: str, stage: str, progress: int, error: str | None = None) -> None:
+def _stage(clip_id: str, stage: str, progress: int, error: str | None = None,
+           job_id: str | None = None) -> None:
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE clips SET stage = %s, progress = %s, error = %s WHERE id = %s",
                 (stage, progress, error, clip_id),
             )
+    if job_id:
+        jobs.set_stage(job_id, stage)
 
 
 def _clip_row(clip_id: str):
@@ -68,7 +72,7 @@ def render_clip(payload: dict) -> None:
 
     with tempfile.TemporaryDirectory(prefix="render-") as tmp:
         tmp = pathlib.Path(tmp)
-        _stage(clip_id, "fetch", STAGES["fetch"])
+        _stage(clip_id, "fetch", STAGES["fetch"], job_id=payload.get("_job_id"))
 
         if payload.get("recording_dir"):
             directory = pathlib.Path(payload["recording_dir"])
@@ -103,9 +107,9 @@ def render_clip(payload: dict) -> None:
         if cached:
             words_abs = [Word(float(w["start"]), float(w["end"]), w["text"]) for w in cached]
 
-        _stage(clip_id, "transcribe", STAGES["transcribe"])
-        _stage(clip_id, "select", STAGES["select"])
-        _stage(clip_id, "render", STAGES["render"])
+        _stage(clip_id, "transcribe", STAGES["transcribe"], job_id=payload.get("_job_id"))
+        _stage(clip_id, "select", STAGES["select"], job_id=payload.get("_job_id"))
+        _stage(clip_id, "render", STAGES["render"], job_id=payload.get("_job_id"))
 
         card = payload["card"]
         result: Result = render_short(
@@ -116,9 +120,10 @@ def render_clip(payload: dict) -> None:
             str(tmp / "out"),
             payload.get("result", ""),
             payload.get("layout") or layout,
-            None,
+            get_llm(),
             words_abs=words_abs,
             caption_style=payload.get("caption_style") or caption_style or "word",
+            template_id=payload.get("template_id"),
         )
 
         out_path = result.out_path
@@ -169,6 +174,42 @@ def render_clip(payload: dict) -> None:
                         payload.get("voice"),
                         clip_id,
                     ),
+                )
+        if payload.get("_job_id"):
+            jobs.set_stage(payload["_job_id"], "store")
+
+
+@jobs.register("detect_moments")
+def detect_moments(payload: dict) -> None:
+    """Part A: score the whole recording and store ranked candidate windows."""
+    from clip.detect import detect_compute_path, detect_moments as run_detection
+
+    recording_id = payload["recording_id"]
+    key = payload["storage_key"]
+    top_n = int(payload.get("top_n", 5))
+    # Store the path before the expensive pass so the studio shows which
+    # compute path is live, not only after the candidates land.
+    compute = detect_compute_path()
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE studio_recordings SET whisper_device=%s, "
+                "whisper_compute_type=%s, encoder=%s WHERE id=%s",
+                (compute.whisper_device, compute.whisper_compute_type,
+                 compute.encoder, recording_id),
+            )
+    with tempfile.TemporaryDirectory(prefix="detect-") as tmp:
+        path = str(pathlib.Path(tmp) / "recording.mp4")
+        storage.get_file(key, path)
+        candidates, _ = run_detection(path, top_n=top_n)
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            for c in candidates:
+                cur.execute(
+                    "INSERT INTO studio_candidates "
+                    "(recording_id, start_seconds, end_seconds, score, reasons) "
+                    "VALUES (%s, %s, %s, %s, %s)",
+                    (recording_id, c.start, c.end, c.score, json.dumps(c.reasons)),
                 )
 
 

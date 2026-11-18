@@ -3,9 +3,11 @@ PYTHON := $(VENV)/bin/python
 
 # Tests run with the test-only development sign-in enabled. The default run
 # (docker compose up) keeps DEV_AUTH_ENABLED off.
-TEST_ENV := DEV_AUTH_ENABLED=true NEXT_PUBLIC_DEV_AUTH=1
+# Tests run on the recorded AI provider; set LLM_PROVIDER=openai in .env for a
+# live local run.
+TEST_ENV := DEV_AUTH_ENABLED=true NEXT_PUBLIC_DEV_AUTH=1 LLM_PROVIDER=recorded
 
-.PHONY: up down logs accept test check web-accept screens doctor create-admin voice contract types
+.PHONY: up down logs accept test check web-accept screens budgets doctor create-admin voice cleanup contract types
 
 up:
 	docker compose up -d --wait --build
@@ -28,9 +30,13 @@ accept: $(VENV)/bin/python
 test: $(VENV)/bin/python
 	$(VENV)/bin/python -m pytest tests -v
 
-# Fail if the mock layer leaks into application code.
+# Fail if the mock layer leaks into app code, or a GPL/AGPL dep is in the core.
 check: $(VENV)/bin/python
-	$(VENV)/bin/python -m pytest tests/unit/test_no_mock.py -v
+	$(VENV)/bin/python -m pytest tests/unit/test_no_mock.py tests/unit/test_licence.py -v
+
+# Print the licence audit on its own.
+licence: $(VENV)/bin/python
+	$(VENV)/bin/python tests/licence_check.py
 
 # Web page flows and accessibility against the real backend.
 web-accept: $(VENV)/bin/python
@@ -44,6 +50,10 @@ screens: $(VENV)/bin/python
 	$(VENV)/bin/python tests/screenshots/a11y.py
 	NEXT_PUBLIC_API_MOCK=0 docker compose up -d --wait --build
 
+# Web performance budgets on the five most-used pages.
+budgets: $(VENV)/bin/python
+	$(VENV)/bin/python tests/screenshots/budgets.py
+
 # Environment and connection checks. Prints PASS/FAIL, never a value.
 doctor:
 	docker compose exec -T api python -m app.doctor
@@ -52,9 +62,14 @@ doctor:
 create-admin:
 	docker compose exec -T api python -m app.create_admin
 
-# Download the local TTS voice model (Piper, MIT).
+# OPTIONAL voice-over add-on (GPL piper-tts). Installs into the running worker
+# and downloads the voice model. Not part of the default build.
 voice:
-	docker compose exec -T worker python -m app.voice $(if $(VOICE),$(VOICE),en_US-amy-medium)
+	docker compose exec -T worker sh -c "pip install -q -r /app/requirements-voice.txt && python -m app.voice $(if $(VOICE),$(VOICE),en_US-amy-medium)"
+
+# Delete recordings and previews past the retention window.
+cleanup:
+	docker compose exec -T api python -c "from app.retention import sweep; print(sweep())"
 
 # Regenerate the OpenAPI contract from the implemented routes.
 contract:

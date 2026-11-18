@@ -12,8 +12,8 @@ def _voice_ready() -> bool:
     import subprocess
 
     result = subprocess.run(
-        ["docker", "compose", "exec", "-T", "worker", "test", "-f",
-         "/data/voices/en_US-amy-medium.onnx"],
+        ["docker", "compose", "exec", "-T", "worker", "sh", "-c",
+         "command -v piper >/dev/null 2>&1 && test -f /data/voices/en_US-amy-medium.onnx"],
         capture_output=True,
     )
     return result.returncode == 0

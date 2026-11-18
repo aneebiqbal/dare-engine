@@ -15,6 +15,7 @@ from .community import router as community_router
 from .config import settings
 from .hooks import router as hooks_router
 from .missions import router as missions_router
+from .studio import router as studio_router
 from .tours import router as tours_router
 from .users import csrf_protect
 
@@ -25,6 +26,12 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("DEV_AUTH_ENABLED must never be set in production")
     db.migrate()
     storage.ensure_bucket()
+    try:
+        from .retention import sweep
+
+        sweep()
+    except Exception:
+        pass  # retention must never block startup
     yield
 
 
@@ -55,6 +62,7 @@ for router in (
     account_router,
     admin_router,
     ai_router,
+    studio_router,
     tours_router,
 ):
     app.include_router(router, dependencies=[Depends(csrf_protect)])

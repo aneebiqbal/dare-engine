@@ -25,6 +25,7 @@ const ADMIN: [string, string, string][] = [
   ["/admin/users", "Users", "users"],
   ["/admin/invites", "Invites", "mail"],
   ["/admin/pool", "Pool", "layers"],
+  ["/admin/studio", "Studio", "film"],
   ["/admin/templates", "Templates", "layout"],
   ["/admin/jobs", "Jobs", "queue"],
   ["/admin/ai", "AI usage", "spark"],
@@ -47,8 +48,10 @@ export function AppShell({ user, children }: { user: Me; children: ReactNode }) 
     return () => window.removeEventListener("clipdesk:tour", open);
   }, []);
 
-  // First sign-in: open the tour unless it was finished or skipped.
+  // First sign-in: open the tour on the dashboard unless it was finished or
+  // skipped. It does not follow the user to every page.
   useEffect(() => {
+    if (pathname !== "/") return;
     const tourId = user.role === "admin" ? "admin" : "creator";
     api
       .tours()
@@ -57,11 +60,35 @@ export function AppShell({ user, children }: { user: Me; children: ReactNode }) 
         if (!progress || (!progress.completed && !progress.skipped)) setTourOpen(true);
       })
       .catch(() => {});
-  }, [user.role]);
+  }, [user.role, pathname]);
 
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen && !accountOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMobileOpen(false);
+        setAccountOpen(false);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [mobileOpen, accountOpen]);
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    const onDown = (e: MouseEvent) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement && target.closest("[data-account-menu]"))) {
+        setAccountOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [accountOpen]);
 
   const links = useMemo(() => {
     const all = user.role === "admin" ? [...CREATOR, ...ADMIN] : CREATOR;
@@ -86,7 +113,7 @@ export function AppShell({ user, children }: { user: Me; children: ReactNode }) 
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? "» Expand sidebar" : "« Collapse sidebar"}
           className="hidden rounded-full p-2 text-muted ring-surface transition hover:text-text md:block"
         >
           {collapsed ? "»" : "«"}
@@ -139,6 +166,12 @@ export function AppShell({ user, children }: { user: Me; children: ReactNode }) 
 
   return (
     <div className="flex min-h-[100dvh]">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:text-accent-contrast"
+      >
+        Skip to content
+      </a>
       {/* Desktop sidebar */}
       <aside
         className={`hidden shrink-0 border-r border-border bg-surface transition-[width] duration-300 ease-out md:block ${
@@ -150,7 +183,12 @@ export function AppShell({ user, children }: { user: Me; children: ReactNode }) 
 
       {/* Mobile sidebar */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
+        <div
+          className="fixed inset-0 z-40 md:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu"
+        >
           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
           <aside className="absolute left-0 top-0 h-full w-64 border-r border-border bg-surface">
             {sidebar}
@@ -177,7 +215,7 @@ export function AppShell({ user, children }: { user: Me; children: ReactNode }) 
               className="w-full rounded-full bg-surface px-4 py-2 text-sm text-text ring-surface outline-none transition placeholder:text-muted focus:bg-surface-2"
             />
           </label>
-          <div className="relative ml-auto">
+          <div className="relative ml-auto" data-account-menu>
             <button
               type="button"
               data-tour="account-menu"
@@ -186,10 +224,13 @@ export function AppShell({ user, children }: { user: Me; children: ReactNode }) 
               aria-expanded={accountOpen}
               className="flex items-center gap-2 rounded-full bg-surface px-3 py-1.5 text-sm ring-surface transition hover:bg-surface-2"
             >
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-soft text-[10px] font-semibold text-accent">
+              <span
+                aria-hidden="true"
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-soft text-[10px] font-semibold text-accent"
+              >
                 {(user.display_name || user.email || "?").slice(0, 1).toUpperCase()}
               </span>
-              <span className="hidden sm:inline">{user.display_name || user.email}</span>
+              <span className="truncate">{user.display_name || user.email}</span>
             </button>
             {accountOpen && (
               <div
@@ -229,7 +270,9 @@ export function AppShell({ user, children }: { user: Me; children: ReactNode }) 
           </div>
         </header>
 
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 sm:py-8">{children}</main>
+        <main id="main-content" className="min-w-0 flex-1 px-4 py-6 sm:px-8 sm:py-8">
+          {children}
+        </main>
       </div>
 
       {tourOpen && <Tour tourId={user.role === "admin" ? "admin" : "creator"} onClose={() => setTourOpen(false)} />}

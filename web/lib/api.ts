@@ -19,7 +19,10 @@ import type {
   ReviewResult,
   Settings,
   Stream,
+  StudioCandidate,
+  StudioRecording,
   Suggestion,
+  SystemLoad,
   Today,
   TourProgress,
   User,
@@ -47,7 +50,10 @@ export type {
   ReviewResult,
   Settings,
   Stream,
+  StudioCandidate,
+  StudioRecording,
   Suggestion,
+  SystemLoad,
   Today,
   TourProgress,
   User,
@@ -147,6 +153,7 @@ export const api = {
   writeCards: (questions: string[]) => post("/admin/questions", { questions }),
   approve: (id: string) => post(`/admin/pool/${id}/approve`, {}),
   reject: (id: string) => post(`/admin/pool/${id}/reject`, {}),
+  assign: (id: string, user_id: string) => post(`/admin/pool/${id}/assign`, { user_id }),
   poolReview: (questions: string[]) =>
     post<{
       merged: { question: string; count: number }[];
@@ -166,12 +173,14 @@ export const api = {
   voicePreview: (id: string, voice?: string) =>
     post<{ id: string; state: string }>(`/clips/${id}/voice-preview`, { voice }),
   voiceOverStatus: (id: string) => get<VoiceOver>(`/voice-overs/${id}`),
+  voiceOverAudioUrl: (id: string) => `${base()}/voice-overs/${id}/audio`,
   approveClip: (id: string) => post<{ id: string; state: string }>(`/clips/${id}/approve`, {}),
   postClip: (id: string) => post<{ id: string; state: string }>(`/clips/${id}/post`, {}),
   createExport: (id: string, fields: Record<string, unknown>) =>
     post<{ id: string }>(`/clips/${id}/export`, fields),
   downloadClipUrl: (id: string) => `${base()}/clips/${id}/download`,
   downloadExportUrl: (id: string) => `${base()}/clips/${id}/export`,
+  thumbnailUrl: (id: string) => `${base()}/clips/${id}/thumbnail`,
   reviewClip: (id: string) => post<ReviewResult>("/ai/clip-review", { clip_id: id }),
   exportCopy: (id: string) => post<ClipExport>("/ai/export", { clip_id: id }),
 
@@ -244,6 +253,38 @@ export const api = {
   ),
   adminTemplates: (params = "") => get<List<unknown>>(`/admin/templates${params}`),
 
+  // --- studio -----------------------------------------------------------
+  studioUpload: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const headers: Record<string, string> = {};
+    const csrf = csrfToken();
+    if (csrf) headers["X-CSRF-Token"] = csrf;
+    return fetch(`${base()}/studio/upload`, {
+      method: "POST",
+      headers,
+      body: form,
+    }).then(async (r) => {
+      if (!r.ok) throw new ApiError(r.status, await r.text());
+      return r.json();
+    });
+  },
+  studioDetect: (recording_id: string, top_n = 5) =>
+    post("/studio/detect", { recording_id, top_n }),
+  studioRecording: (id: string) => get<StudioRecording>(`/studio/recordings/${id}`),
+  studioGenerate: (recording_id: string, mission_id: string, windows: Record<string, unknown>[]) =>
+    post<{ clips: string[]; count: number }>("/studio/generate", {
+      recording_id,
+      mission_id,
+      windows,
+    }),
+  studioSystem: () => get<SystemLoad>("/studio/system"),
+  studioTemplates: () =>
+    get<{ caption_styles: Record<string, unknown>; templates: { id: string }[] }>(
+      "/studio/templates",
+    ),
+  studioRecordingUrl: (id: string) => `${base()}/studio/recordings/${id}/file`,
+
   // --- community -------------------------------------------------------
   leaderboard: (id: string, params = "") =>
     get<List<{ rank: number; user_id: string; result_value: number | null; clip_id: string | null }>>(
@@ -251,5 +292,8 @@ export const api = {
     ),
   publicMission: (slug: string) =>
     get<{ slug: string; card: MissionCard; attempts: unknown[] }>(`/m/${slug}`),
-  creator: (id: string) => get(`/creators/${id}`),
+  creator: (id: string) =>
+    get<List<{ mission_id: string; result_value: number | null; clip_id: string | null; card: { question?: string } }>>(
+      `/creators/${id}`,
+    ),
 };

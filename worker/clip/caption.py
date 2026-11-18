@@ -1,4 +1,8 @@
-"""Burn-in captions: an ASS file for FFmpeg/libass, and an SRT sidecar."""
+"""Burn-in captions: an ASS file for FFmpeg/libass, and an SRT sidecar.
+
+Three caption styles (word, line, pop) are chosen so consecutive clips differ.
+Captions are word-synced and kept clear of the platform's bottom UI zone.
+"""
 from __future__ import annotations
 
 from .transcribe import Word
@@ -15,6 +19,8 @@ ScaledBorderAndShadow: yes
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Hook,DejaVu Sans,110,&H00FFFFFF,&H000000FF,&H00000000,&H60000000,-1,0,0,0,100,100,0,0,1,4,2,5,240,240,900,1
 Style: Word,DejaVu Sans,84,&H0000FFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,3,0,2,180,180,260,1
+Style: Line,DejaVu Sans,64,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,3,0,2,180,180,320,1
+Style: Pop,DejaVu Sans,96,&H0000FFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,4,0,2,180,180,200,1
 Style: End,DejaVu Sans,76,&H00FFFFFF,&H000000FF,&H00000000,&H60000000,-1,0,0,0,100,100,0,0,1,3,1,5,180,180,700,1
 
 [Events]
@@ -22,6 +28,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
 
 EVENT = "Dialogue: 0,{start},{end},{style},{name},0,0,0,,{text}\n"
+
+# Bottom margins keep captions clear of the platform's UI zone.
+STYLES = {
+    "word": {"ass": "Word", "per": "word", "max_words": 1},
+    "line": {"ass": "Line", "per": "phrase", "max_words": 4},
+    "pop": {"ass": "Pop", "per": "word", "max_words": 1},
+}
 
 
 def _ass_time(seconds: float) -> str:
@@ -36,6 +49,22 @@ def _ass_text(text: str) -> str:
     return text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}").replace("\n", "\\N")
 
 
+def group_words(words: list[Word], per: str, max_words: int = 4) -> list[Word]:
+    """Group words into caption blocks: one word, or a short phrase."""
+    if per == "word" or max_words <= 1:
+        return words
+    groups: list[Word] = []
+    current: list[Word] = []
+    for w in words:
+        current.append(w)
+        if len(current) >= max_words or (w.end - current[0].start) > 2.5:
+            groups.append(Word(current[0].start, current[-1].end, " ".join(c.text for c in current)))
+            current = []
+    if current:
+        groups.append(Word(current[0].start, current[-1].end, " ".join(c.text for c in current)))
+    return groups
+
+
 def write_ass(
     path: str,
     hook_text: str,
@@ -44,7 +73,9 @@ def write_ass(
     end_lines: list[str],
     end_start: float,
     total_dur: float,
+    caption_style: str = "word",
 ) -> None:
+    style = STYLES.get(caption_style, STYLES["word"])
     lines = [HEADER]
     lines.append(
         EVENT.format(
@@ -55,12 +86,12 @@ def write_ass(
             text=_ass_text(hook_text),
         )
     )
-    for w in words:
+    for w in group_words(words, style["per"], style["max_words"]):
         lines.append(
             EVENT.format(
                 start=_ass_time(w.start),
                 end=_ass_time(w.end),
-                style="Word",
+                style=style["ass"],
                 name="",
                 text=_ass_text(w.text),
             )
@@ -88,9 +119,10 @@ def _srt_time(seconds: float) -> str:
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
 
-def write_srt(path: str, words: list[Word]) -> None:
+def write_srt(path: str, words: list[Word], caption_style: str = "word") -> None:
+    style = STYLES.get(caption_style, STYLES["word"])
     blocks = []
-    for i, w in enumerate(words, 1):
+    for i, w in enumerate(group_words(words, style["per"], style["max_words"]), 1):
         blocks.append(
             f"{i}\n{_srt_time(w.start)} --> {_srt_time(w.end)}\n{w.text}\n"
         )

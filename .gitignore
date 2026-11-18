@@ -30,6 +30,7 @@ next-env.d.ts
 *.wav
 *.zip
 !fixtures/.gitkeep
+!fixtures/*.mp4
 !tests/**/*.mp4
 !tests/**/*.wav
 

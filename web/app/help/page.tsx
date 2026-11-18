@@ -8,7 +8,7 @@ export default async function HelpPage() {
   const user = await requireUser();
   return (
     <AppPage user={user} eyebrow="Help" title="Guide and tours">
-      <Help />
+      <Help role={user.role} />
     </AppPage>
   );
 }

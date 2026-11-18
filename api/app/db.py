@@ -2,10 +2,24 @@ import os
 from contextlib import closing, contextmanager
 
 import psycopg
+from psycopg_pool import ConnectionPool
 
 from .config import settings
 
 MIGRATIONS = os.path.join(os.path.dirname(__file__), "migrations")
+
+# Each request used to open a fresh TLS connection to Neon (~2 s), which
+# dominated every page's LCP. The pool also detects connections the server has
+# closed, which a naive reuse would turn into a 500.
+_pool = ConnectionPool(
+    settings.database_url,
+    min_size=1,
+    max_size=8,
+    timeout=30,
+    max_idle=60,
+    max_lifetime=300,
+    kwargs={"autocommit": False},
+)
 
 
 def connect(direct: bool = False):
@@ -19,12 +33,16 @@ def connect(direct: bool = False):
 
 @contextmanager
 def session(direct: bool = False):
-    conn = connect(direct)
-    try:
+    if direct:
+        conn = psycopg.connect(settings.direct_url)
+        try:
+            yield conn
+            conn.commit()
+        finally:
+            conn.close()
+        return
+    with _pool.connection() as conn:
         yield conn
-        conn.commit()
-    finally:
-        conn.close()
 
 
 def migrate() -> None:

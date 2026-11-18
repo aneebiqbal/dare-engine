@@ -135,6 +135,18 @@ All return a `fallback` boolean and, when true, a `notice`.
 | POST | `/tours/{tour_id}` | session | `{step_index,completed,skipped}` |
 | DELETE | `/tours/{tour_id}` | session | reset |
 
+## Studio — `api/app/studio.py` (router-level `require_admin`)
+
+| Method | Path | Role | Notes |
+| --- | --- | --- | --- |
+| POST | `/studio/upload` | admin | multipart recording; probes duration/width/height, stores under `recordings/{user_id}/studio-…` |
+| POST | `/studio/detect` | admin | queues a `detect_moments` job; returns `{state:"queued"}` |
+| GET | `/studio/recordings/{recording_id}` | admin | recording specs, compute path, ranked candidates |
+| GET | `/studio/recordings/{recording_id}/file` | admin | streams the source (temp copy removed after) |
+| POST | `/studio/generate` | admin | accepted windows → real clips via `_create_clips` |
+| GET | `/studio/templates` | admin | `worker/clip/templates.json` copied into the image |
+| GET | `/studio/system` | admin | real CPU / memory / GPU load from the API container |
+
 ## Relay hooks — `api/app/hooks.py` (CSRF-exempt)
 
 | Method | Path | Role | Notes |

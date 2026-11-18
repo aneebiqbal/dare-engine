@@ -49,6 +49,10 @@ class CardIn(BaseModel):
     card: dict
 
 
+class AssignIn(BaseModel):
+    user_id: str
+
+
 def _card(row) -> dict:
     return {"id": row[0], "card": row[1], "score": row[2], "state": row[3]}
 
@@ -68,13 +72,14 @@ def write_cards(request: Request, payload: QuestionsIn):
         cards = [
             {
                 "id": f"m_{2000 + i:04d}",
-                "question": q,
-                "hook_text": q,
+                "question": q[:200],
+                # The schema caps hook_text at 40 chars.
+                "hook_text": q[:40],
                 "setup": "Play the mission in free roam.",
                 "win_condition": "Complete the mission and record the result.",
                 "result_type": "pass_fail",
                 "est_minutes": 8,
-                "title_options": [q],
+                "title_options": [q[:100]],
                 "mode": "free_roam",
                 "status": "unverified",
                 "evidence": {"askers": 0, "source_video_ids": []},
@@ -151,6 +156,30 @@ def reject(request: Request, mission_id: str):
     return {"id": mission_id, "state": "rejected"}
 
 
+@router.post("/admin/pool/{mission_id}/assign", dependencies=[Depends(require_admin)])
+def assign(request: Request, mission_id: str, payload: AssignIn):
+    """Give a approved dare to one gamer's Today."""
+    user = current_user(request)
+    date = datetime.date.today()
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM users WHERE id = %s", (payload.user_id,))
+            if cur.fetchone() is None:
+                raise HTTPException(404, "user not found")
+            cur.execute("SELECT id FROM missions WHERE id = %s", (mission_id,))
+            if cur.fetchone() is None:
+                raise HTTPException(404, "mission not found")
+            cur.execute(
+                "INSERT INTO assignments (user_id, mission_id, date, state) "
+                "VALUES (%s, %s, %s, 'assigned') "
+                "ON CONFLICT DO NOTHING RETURNING id",
+                (payload.user_id, mission_id, date),
+            )
+            row = cur.fetchone()
+    audit(user["id"], "pool.assign", "mission", mission_id, {"user_id": payload.user_id})
+    return {"id": str(row[0]) if row else None, "mission_id": mission_id, "state": "assigned"}
+
+
 @router.get("/missions/{mission_id}")
 def get_mission(mission_id: str):
     with db.session() as conn:
@@ -192,23 +221,49 @@ def today(request: Request):
             )
             rows = cur.fetchall()
             cur.execute(
-                "SELECT mission_id, state FROM assignments "
+                "SELECT id, mission_id, state FROM assignments "
                 "WHERE user_id = %s AND date = %s",
                 (user["id"], date),
             )
-            accepted = {r[0]: r[1] for r in cur.fetchall()}
+            assignment_rows = cur.fetchall()
+            cur.execute(
+                "SELECT m.card->>'mode' FROM clips c "
+                "JOIN assignments a ON a.id = c.assignment_id "
+                "JOIN missions m ON m.id = a.mission_id "
+                "WHERE a.user_id = %s GROUP BY 1 ORDER BY count(*) DESC LIMIT 1",
+                (user["id"],),
+            )
+            preferred = cur.fetchone()
+    accepted = {r[1]: r[2] for r in assignment_rows}
+    assignments = [
+        {"id": str(r[0]), "mission_id": r[1], "state": r[2]} for r in assignment_rows
+    ]
 
     if not rows:
-        return {"date": date.isoformat(), "daily": None, "picks": [], "accepted": accepted}
+        return {
+            "date": date.isoformat(),
+            "daily": None,
+            "picks": [],
+            "accepted": accepted,
+            "assignments": assignments,
+        }
 
     pick = int(hashlib.sha256(date.isoformat().encode()).hexdigest(), 16) % len(rows)
     daily = _card(rows[pick])
-    picks = [_card(r) for r in rows[:3]]
+
+    preferred_mode = preferred[0] if preferred else None
+    rest = [r for r in rows if r[0] != daily["id"]]
+    if preferred_mode:
+        rest.sort(key=lambda r: (r[1].get("mode") != preferred_mode, r[0]))
+    # With a single approved dare there is nothing else to pick; keep the daily
+    # in the list so Today still has a card to act on.
+    picks = [_card(r) for r in (rest[:3] or rows[:3])]
     return {
         "date": date.isoformat(),
         "daily": daily["card"],
         "picks": [p["card"] for p in picks],
         "accepted": accepted,
+        "assignments": assignments,
     }
 
 

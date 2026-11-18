@@ -14,6 +14,9 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY worker/app /app/app
 COPY worker/clip /app/clip
+COPY shared/llm.py /app/llm_shared.py
+# Optional, GPL-licensed voice-over dependency. Not installed by default.
+COPY worker/requirements-voice.txt /app/requirements-voice.txt
 
 EXPOSE 8001
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]

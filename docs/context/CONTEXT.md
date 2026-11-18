@@ -21,13 +21,14 @@ Argon2id, server sessions and CSRF; sign-up is invite-only.
 | Feature | Status |
 | --- | --- |
 | Accounts, sessions, CSRF, roles, invites, lockout, reset | **working locally** (10 tests) |
-| Managed PostgreSQL (Neon/Aiven) | **missing** (no URL) |
+| Managed PostgreSQL (Neon) | **connected** (project `clipdesk`, pooled + direct in `.env`) |
 | Migrations on an empty DB | **working locally** (26 tables) |
 | Job queue, backoff, errors | **working locally** (kill/recovery test) |
 | Mission cards from questions | **stand-in only** (recorded AI) |
-| Live AI | **missing** (no key) |
+| Live AI | **blocked** (key present, account has no balance/quota: 402/429) |
 | Upload → render → Short | **stand-in only** (1.4 MB synthetic fixture) |
-| Real gameplay fixture | **missing** |
+| Admin clip studio (auto moments + grammar) | **built, tested on the stand-in and a trailer** |
+| Real gameplay fixture | **missing** (only a publisher trailer) |
 | Voice-over with the real Piper model | **working locally** (2 tests) |
 | Local storage | **working locally** |
 | S3 storage | **built, unproven** |
@@ -60,12 +61,15 @@ Argon2id, server sessions and CSRF; sign-up is invite-only.
 
 ## Five things to know first
 
-1. **Nothing has run on a managed database or with live AI.** No URL, no key.
-2. **The real gameplay fixture is missing**, so M1/M3/M4 are not accepted.
-3. **`piper-tts` 1.8.0 is GPL-3.0-or-later**, while `docs/decisions.md` says MIT.
-4. **No retention/cleanup**: recordings, clips, relay segments and upload
-   staging accumulate; an 8-hour upload needs ~65 GB.
-5. **The session token is stored in plaintext** and `SESSION_SECRET` is unused.
+1. **Managed Postgres is connected** (Neon); live AI is blocked on account
+   credit, and the real gameplay fixture is missing.
+2. **The real gameplay fixture is missing**, so M1/M2 are not accepted.
+3. **Voice-over is an optional GPL add-on**, off by default; the core has no
+   GPL code and a CI licence check enforces it.
+4. **Retention exists**: recordings go after 7 days, staging and previews are
+   cleaned; an 8-hour upload still needs a large disk.
+5. **Sessions are hashed with `SESSION_SECRET`**, upload routes are
+   authenticated, and logins are rate-limited per email and IP.
 
 ## Verify before relying on this
 

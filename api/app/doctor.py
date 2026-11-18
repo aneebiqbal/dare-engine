@@ -83,13 +83,19 @@ def run_checks() -> list[dict]:
         with urllib.request.urlopen("http://worker:8001/healthz/ready", timeout=5) as resp:
             worker = json.load(resp)
         checks.append(_check("worker reachable", True))
+        # Voice-over is an optional, GPL-licensed add-on; not installed is not a
+        # failure of the default build.
         checks.append(_check(
-            "local TTS command",
-            bool(worker.get("tts")),
-            settings.tts_command if worker.get("tts") else f"{settings.tts_command} not found",
+            "local TTS command (optional)",
+            True,
+            settings.tts_command if worker.get("tts") else f"{settings.tts_command} not installed — run `make voice`",
         ))
         voice_model = os.path.join(settings.tts_model_dir, f"{settings.tts_voice}.onnx")
-        checks.append(_check("voice model present", bool(worker.get("voice_model")), voice_model))
+        checks.append(_check(
+            "voice model (optional)",
+            True,
+            voice_model if worker.get("voice_model") else f"{voice_model} not downloaded — run `make voice`",
+        ))
     except Exception as exc:
         checks.append(_check("worker reachable", False, type(exc).__name__))
         checks.append(_check("local TTS command", False, "worker unreachable"))

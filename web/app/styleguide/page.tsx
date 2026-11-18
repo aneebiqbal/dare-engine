@@ -10,8 +10,13 @@ import {
   EmptyState,
   Field,
   Input,
+  Notice,
   PageState,
+  Progress,
+  Select,
   Skeleton,
+  Stat,
+  StatusDot,
   Table,
   Tabs,
   Textarea,
@@ -68,6 +73,33 @@ export default function Styleguide() {
           </Field>
         </div>
         <Textarea rows={3} placeholder="Description" />
+        <Field label="Choice">
+          <Select>
+            <option value="one">One</option>
+            <option value="two">Two</option>
+          </Select>
+        </Field>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm uppercase tracking-[0.2em] text-muted">Status</h2>
+        <div className="flex flex-wrap gap-6">
+          <span className="flex items-center gap-2 text-sm"><StatusDot tone="success" label="Ready" /> Ready</span>
+          <span className="flex items-center gap-2 text-sm"><StatusDot tone="danger" label="Failed" /> Failed</span>
+          <span className="flex items-center gap-2 text-sm"><StatusDot tone="accent" label="Live" /> Live</span>
+          <span className="flex items-center gap-2 text-sm"><StatusDot label="Idle" /> Idle</span>
+        </div>
+        <Progress value={64} label="Render progress" />
+        <Notice>Rendering uses the local FFmpeg pipeline.</Notice>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm uppercase tracking-[0.2em] text-muted">Stat tile</h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card><Stat label="Views" value="1,204" hint="last 30 days" /></Card>
+          <Card><Stat label="Clips" value="12" /></Card>
+          <Card><Stat label="Next step" value="Review" hint="1 ready" /></Card>
+        </div>
       </section>
 
       <section className="flex flex-col gap-4">

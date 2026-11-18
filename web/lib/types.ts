@@ -31,6 +31,7 @@ export type Today = {
   daily: MissionCard | null;
   picks: MissionCard[];
   accepted: Record<string, string>;
+  assignments?: { id: string; mission_id: string; state: string }[];
 };
 
 export type PoolEntry = {
@@ -67,6 +68,7 @@ export type Clip = {
   export_tags: string[] | null;
   transcript: { start: number; end: number; text: string }[] | null;
   download_url: string | null;
+  thumb_url?: string | null;
 };
 
 export type Mark = {
@@ -98,6 +100,7 @@ export type HistoryEntry = {
   clip_id: string | null;
   clip_state: string | null;
   duration_seconds: number | null;
+  question?: string | null;
 };
 
 export type Results = {
@@ -108,7 +111,7 @@ export type Results = {
     avg_view_percentage: number | null;
     source: string;
   }[];
-  by_type: { mode: string; clips: number; views: number }[];
+  by_type: { mode: string; clips: number; views: number; avg_view_percentage?: number | null }[];
 };
 
 export type Settings = {
@@ -203,6 +206,7 @@ export type Job = {
   error: string | null;
   payload: Record<string, unknown>;
   updated_at: string;
+  stage?: string | null;
 };
 
 export type AuditEntry = {
@@ -213,6 +217,7 @@ export type AuditEntry = {
   target_id: string | null;
   meta: Record<string, unknown>;
   created_at: string;
+  actor_name?: string | null;
 };
 
 export type AiUsage = {
@@ -235,4 +240,42 @@ export type AiConfig = {
   model: string;
   key_present: boolean;
   configured: boolean;
+};
+
+export type StudioCandidate = {
+  id: string;
+  start: number;
+  end: number;
+  score: number;
+  reasons: string[];
+  state: string;
+  template_id: string | null;
+  clip_id: string | null;
+};
+
+export type StudioRecording = {
+  recording: {
+    id: string;
+    filename: string;
+    duration_seconds: number;
+    width: number;
+    height: number;
+  };
+  compute: {
+    whisper_device: string | null;
+    whisper_compute_type: string | null;
+    encoder: string | null;
+    gpu: boolean;
+  };
+  candidates: StudioCandidate[];
+};
+
+export type SystemLoad = {
+  cpu_percent: number;
+  memory_percent: number;
+  gpu: {
+    utilization_percent: number;
+    memory_used_mb: number;
+    memory_total_mb: number;
+  } | null;
 };

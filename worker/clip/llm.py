@@ -1,51 +1,42 @@
-"""Gemini over its REST API, so no vendor SDK is needed.
+"""The worker's AI client: the same shared OpenAI-compatible client as the API.
 
-The key is read from GEMINI_API_KEY and never logged. If a call fails, the key is
-stripped from the error before it reaches a log.
+Returns None when no key is configured, so callers fall back to word density.
 """
 from __future__ import annotations
 
-import json
-import os
-import urllib.error
-import urllib.request
-
-DEFAULT_MODEL = "gemini-2.0-flash"
-TIMEOUT = 60
+from app.config import settings
 
 
-class GeminiLLM:
-    def __init__(self, api_key: str, model: str = DEFAULT_MODEL):
-        self._key = api_key
-        self._model = model
+def _log_usage(**kw) -> None:
+    """Best-effort usage logging; never let it break a render."""
+    try:
+        from app import db
 
-    def complete_json(self, system: str, user: str, schema: dict | None = None) -> dict:
-        prompt = f"{system}\n\n{user}\n\nReturn JSON only."
-        if schema:
-            prompt += f"\nSchema: {json.dumps(schema)}"
-        body = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"responseMimeType": "application/json"},
-        }
-        url = (
-            "https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{self._model}:generateContent?key={self._key}"
-        )
-        req = urllib.request.Request(
-            url, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"}
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-                data = json.load(resp)
-        except urllib.error.HTTPError as exc:
-            raise RuntimeError(f"Gemini HTTP {exc.code}") from None
-        except urllib.error.URLError as exc:
-            raise RuntimeError(f"Gemini unreachable: {exc.reason}") from None
-        text = data["candidates"][0]["content"]["parts"][0]["text"]
-        return json.loads(text)
+        with db.session() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO ai_usage (user_id, page, kind, provider, model, "
+                    "prompt_tokens, completion_tokens, latency_ms, fallback) "
+                    "VALUES (NULL, 'clips', %s, %s, %s, %s, %s, %s, %s)",
+                    (
+                        kw["kind"], kw["provider"], kw["model"],
+                        kw["prompt_tokens"], kw["completion_tokens"],
+                        kw["latency_ms"], kw["fallback"],
+                    ),
+                )
+    except Exception:
+        pass
 
 
 def get_llm():
-    """None when no key is configured, so callers fall back."""
-    key = os.environ.get("GEMINI_API_KEY", "")
-    return GeminiLLM(key) if key else None
+    if (settings.llm_provider or "").lower() != "openai" or not settings.llm_api_key:
+        return None
+    from llm_shared import OpenAICompatibleLLM
+
+    return OpenAICompatibleLLM(
+        settings.llm_base_url,
+        settings.llm_api_key,
+        settings.llm_model,
+        settings.llm_timeout,
+        log_usage=_log_usage,
+    )

@@ -102,16 +102,60 @@ the two differ in either direction.
 | `DATABASE_URL` pooled + `DATABASE_URL_DIRECT` direct | Neon's PgBouncer is transaction mode and breaks DDL and the worker's row locks; Aiven's URI is direct. | — |
 | Local-disk storage by default, S3 behind `STORAGE_DRIVER` | The mock S3 container is not part of the default run. | — |
 | OpenAI-compatible chat client (`LLM_BASE_URL`/`LLM_API_KEY`/`LLM_MODEL`) | One client for OpenCode Zen and xAI Grok by changing three values; verified against both providers' docs. | — |
-| Piper for voice-over | Local, no paid speech service. Piper is MIT; `rhasspy/piper-voices` declares MIT, individual voice cards vary. | MIT |
+| Voice-over as an optional add-on | The installed `piper-tts` 1.8.0 is **GPL-3.0-or-later** (the old MIT `rhasspy/piper` is archived). It is not in the default build; `make voice` installs it into the worker on demand. | GPL-3.0 (optional, off by default) |
 | Export package (zip) only | No YouTube/TikTok/Instagram API this sprint. | — |
 | FFmpeg `sidechaincompress` ducking | Game audio dips only while the voice bed speaks. | LGPL (see above) |
 | `piper-tts>=1.8.0` | `1.2.0` pins `piper-phonemize~=1.1.0`, which has no wheels on this platform. | MIT |
 
-- **Voice-over licence.** Piper is MIT. The voice model repository declares MIT
-  at the repo level; the individual voice card is the authority. The UI tells
-  the creator that their own voice is safer for monetisation.
+- **Voice-over licence.** The `piper-tts` PyPI package is GPL-3.0-or-later
+  (metadata: `License: GPL-3.0-or-later`, home page `OHF-voice/piper1-gpl`). The
+  old `rhasspy/piper` was MIT but is archived. The voice model repository
+  declares MIT at the repo level; individual voice cards vary. Because the core
+  must stay free of GPL code, voice-over is a clearly separated optional add-on:
+  `worker/requirements.txt` has no voice dependency, `worker/requirements-voice.txt`
+  holds it, and `make voice` installs it into the running worker. The CI licence
+  check (`tests/licence_check.py`) fails if a GPL/AGPL package appears in the core
+  requirements. The UI tells the creator that their own voice is safer for
+  monetisation.
 - **AI usage.** Every call logs provider, model, tokens, latency and whether a
   fallback was used. The admin sees the provider and model and whether a key is
   present, never the key.
 - **Dev sign-in.** Off unless `DEV_AUTH_ENABLED=true`; the API refuses to start
   with it in production. Tests set it.
+
+## Sprint 1 decisions
+
+| Choice | Reason | Licence |
+| --- | --- | --- |
+| One shared client in `shared/llm.py`, copied into both images | The worker's beat selection and the API must use the same code; the legacy Gemini path is removed. | MIT (our code) |
+| Session tokens stored as HMAC-SHA256 with `SESSION_SECRET` | A database dump no longer yields usable sessions. | — |
+| Upload chunk routes require a session | The `upload_id` is a capability, not an authorisation. | — |
+| Retention sweep on startup and `make cleanup` | An 8-hour recording cannot fill the disk; raw recordings go after 7 days, previews too. | — |
+| Voice-over as an optional add-on | `piper-tts` is GPL-3.0; the core stays free of GPL code and `make voice` installs it on demand. | GPL (optional) |
+| `tests/licence_check.py` in CI | Confirms no GPL/AGPL package in the core requirements. | — |
+
+## Sprint 7 decisions — automatic moments and a clip grammar
+
+| Choice | Reason | Licence |
+| --- | --- | --- |
+| Detector scores transcript + audio + scene cuts, cheapest signal first | One pass over the file; only the top candidates need the expensive video work. | — |
+| CUDA Whisper when `ctranslate2` reports a GPU, else CPU int8 | Uses the GPU when present, never assumes one; the path is logged and shown. | MIT |
+| Clip grammar in `worker/clip/templates.json` | Templates are added without code; 5 visual templates and 3 caption styles. | — |
+| Cold open first, then hook text, context flash-back, payoff | Opens on the moment, never a slow lead-in; the payoff stays the longest beat. | — |
+| Captions re-mapped onto disjoint beat ranges | The old hook/setup/payoff concat mapped words out of order; word-sync is now monotonic. | — |
+| Studio runs in the worker, storage stays local | No cloud render, no upload of the source or the clips. | — |
+
+- **Kept:** `transcribe.py`, `layout.py` filtergraphs, `caption.py` ASS/SRT,
+  `policy.py` spoiler/letterbox guard, `voice.py` ducking, the job queue and the
+  local storage driver.
+- **Replaced:** the fixed hook + setup + payoff concatenation in `engine.py` with
+  the beat grammar, and the caption time mapping (the old one produced
+  out-of-order captions when the hook was cut from the middle of speech).
+- **Local only.** The studio uploads a recording to the API container's local
+  storage, the worker reads it from the shared volume, and every temp directory
+  (upload, playback, detect, render) is removed after use. Nothing leaves the
+  machine. The source recording stays the user's to keep on the SSD.
+- **Retention.** `api/app/retention.py` still sweeps raw recordings and previews
+  after `RECORDING_RETENTION_DAYS`; studio recordings live under
+  `recordings/<user_id>/studio-…` so the same sweep covers them.
+

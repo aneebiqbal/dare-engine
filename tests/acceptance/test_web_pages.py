@@ -87,8 +87,8 @@ def test_w2_today_and_go_live(browser, size):
         page.click('[data-testid="accept-button"]')
         page.wait_for_selector('[data-testid="accepted"]', timeout=15000)
 
-        page.goto(f"{WEB}/live", wait_until="networkidle")
-        page.wait_for_selector("text=Your stream address", timeout=15000)
+        page.goto(f"{WEB}/live", wait_until="domcontentloaded")
+        page.wait_for_selector("text=Stream key", timeout=15000)
         assert page.evaluate("document.body.innerText.includes('••••••')")
         page.click("text=Reveal")
         page.wait_for_selector("text=Copy key", timeout=15000)

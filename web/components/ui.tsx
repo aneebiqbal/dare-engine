@@ -5,7 +5,9 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useMemo,
+  useRef,
   useState,
   type ButtonHTMLAttributes,
   type HTMLAttributes,
@@ -194,28 +196,67 @@ export function Dialog({
   title: string;
   children: ReactNode;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const previousFocus = useRef<Element | null>(null);
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    previousFocus.current = document.activeElement;
+    const panel = panelRef.current;
+    const focusables = panel?.querySelector<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    (focusables ?? panel)?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab" || !panel) return;
+      const items = Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
+        ),
+      );
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      if (previousFocus.current instanceof HTMLElement) previousFocus.current.focus();
+    };
   }, [open, onClose]);
 
   if (!open) return null;
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-lg bg-surface p-1.5 ring-surface"
+        ref={panelRef}
+        tabIndex={-1}
+        className="w-full max-w-md rounded-lg bg-surface p-1.5 ring-surface outline-none"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
       >
         <div className="rounded-[calc(2rem-0.375rem)] bg-surface-2 p-6">
-          <h2 className="mb-4 text-lg font-semibold">{title}</h2>
+          <h2 id={titleId} className="mb-4 text-lg font-semibold">
+            {title}
+          </h2>
           {children}
         </div>
       </div>
@@ -262,18 +303,25 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 export function Table({
   head,
+  caption,
   children,
 }: {
   head: ReactNode[];
+  caption?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg bg-surface p-1.5 ring-surface">
+    <div className="overflow-x-auto rounded-lg bg-surface p-1.5 ring-surface" tabIndex={0}>
       <table className="w-full text-left text-sm">
+        {caption && <caption className="sr-only">{caption}</caption>}
         <thead>
           <tr className="border-b border-border">
             {head.map((h, i) => (
-              <th key={i} className="px-4 py-3 text-xs uppercase tracking-[0.2em] text-muted">
+              <th
+                key={i}
+                scope="col"
+                className="px-4 py-3 text-xs uppercase tracking-[0.2em] text-muted"
+              >
                 {h}
               </th>
             ))}
@@ -413,16 +461,27 @@ export function PageState({
   loading,
   error,
   empty,
+  emptyTitle = "Nothing here yet",
+  emptyBody = "This will fill up as you go.",
+  emptyAction,
   children,
 }: {
   loading?: boolean;
   error?: string | null;
   empty?: boolean;
+  emptyTitle?: string;
+  emptyBody?: string;
+  emptyAction?: ReactNode;
   children?: ReactNode;
 }) {
   if (loading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+      <div
+        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        aria-busy="true"
+        role="status"
+        aria-label="Loading"
+      >
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-48" />
         ))}
@@ -431,11 +490,38 @@ export function PageState({
   }
   if (error) {
     return (
-      <EmptyState title="Something went wrong" body={error} icon="!" />
+      <div role="alert">
+        <EmptyState title="Something went wrong" body={error} icon="!" />
+      </div>
     );
   }
   if (empty) {
-    return <EmptyState title="Nothing here yet" body="This will fill up as you go." />;
+    return <EmptyState title={emptyTitle} body={emptyBody} action={emptyAction} />;
   }
   return <>{children}</>;
+}
+
+export function StatusDot({
+  tone = "muted",
+  label,
+  className = "",
+}: {
+  tone?: "muted" | "accent" | "success" | "danger";
+  label?: string;
+  className?: string;
+}) {
+  const tones = {
+    muted: "bg-muted",
+    accent: "bg-accent",
+    success: "bg-success",
+    danger: "bg-danger",
+  }[tone];
+  return (
+    <span
+      className={`inline-block h-1.5 w-1.5 rounded-full ${tones} ${className}`}
+      role="status"
+      aria-label={label ?? tone}
+      title={label}
+    />
+  );
 }

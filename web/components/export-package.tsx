@@ -53,13 +53,22 @@ export function ExportPackage({ clip }: { clip: Clip }) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,24rem)_1fr]">
         <div className="mx-auto w-full max-w-[24rem]">
           <div className="overflow-hidden rounded-lg bg-black ring-surface">
-            <div className="flex aspect-[9/16] items-center justify-center bg-gradient-to-b from-surface-2 to-black p-6 text-center">
-              <span className="text-sm text-muted">{clip.layout ?? "Short"}</span>
-            </div>
+            {clip.thumb_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={api.thumbnailUrl(clip.id)}
+                alt={`Preview of ${clip.title ?? "this clip"}`}
+                className="aspect-[9/16] w-full object-cover"
+              />
+            ) : (
+              <div className="flex aspect-[9/16] items-center justify-center bg-surface-2 p-6 text-center">
+                <span className="text-sm text-muted">{clip.layout ?? "Short"}</span>
+              </div>
+            )}
           </div>
           {clip.download_url && (
             <a
-              href={clip.download_url}
+              href={api.downloadClipUrl(clip.id)}
               className="mt-4 block rounded-full py-3 text-center text-sm font-medium text-accent ring-surface transition hover:bg-surface-2"
             >
               Download video only

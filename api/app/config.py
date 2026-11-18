@@ -53,6 +53,8 @@ class Settings(BaseSettings):
 
     # --- Uploads ---------------------------------------------------------
     upload_tmp_dir: str = "/tmp/clipdesk-uploads"
+    # Days to keep a raw recording after its clips were made.
+    recording_retention_days: int = 7
 
     # --- Relay -----------------------------------------------------------
     # Optional shared secret for relay hooks; the stream key is always checked.

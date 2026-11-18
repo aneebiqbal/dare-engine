@@ -1,0 +1,54 @@
+{
+  "caption_styles": {
+    "word": { "style": "Word", "fontsize": 84, "margin_v": 260, "per": "word" },
+    "line": { "style": "Line", "fontsize": 64, "margin_v": 320, "per": "phrase" },
+    "pop": { "style": "Pop", "fontsize": 96, "margin_v": 200, "per": "word" }
+  },
+  "templates": [
+    {
+      "id": "cold_open",
+      "hook_seconds": 2.0,
+      "cold_open": 1.0,
+      "context_seconds": 3.0,
+      "button_seconds": 1.0,
+      "layout": "blur_fit",
+      "captions": "word"
+    },
+    {
+      "id": "center",
+      "hook_seconds": 2.0,
+      "cold_open": 1.5,
+      "context_seconds": 0.0,
+      "button_seconds": 0.5,
+      "layout": "center_crop",
+      "captions": "line"
+    },
+    {
+      "id": "punch",
+      "hook_seconds": 2.0,
+      "cold_open": 0.5,
+      "context_seconds": 0.0,
+      "button_seconds": 1.0,
+      "layout": "blur_fit",
+      "captions": "pop"
+    },
+    {
+      "id": "clean",
+      "hook_seconds": 2.0,
+      "cold_open": 1.0,
+      "context_seconds": 2.0,
+      "button_seconds": 1.0,
+      "layout": "fit_height",
+      "captions": "word"
+    },
+    {
+      "id": "wide",
+      "hook_seconds": 2.0,
+      "cold_open": 1.0,
+      "context_seconds": 3.0,
+      "button_seconds": 0.5,
+      "layout": "center_crop",
+      "captions": "line"
+    }
+  ]
+}

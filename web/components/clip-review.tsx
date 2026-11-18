@@ -146,17 +146,41 @@ export function ClipReview({ clip }: { clip: Clip }) {
       <div className="flex flex-col gap-4">
         <div className="mx-auto w-full max-w-[24rem]">
           <div className="overflow-hidden rounded-lg bg-black ring-surface">
-            <div className="flex aspect-[9/16] items-center justify-center bg-gradient-to-b from-surface-2 to-black p-6 text-center">
-              <span className="text-sm text-muted">
-                {current.layout ?? "Preview"} · {current.state}
-              </span>
-            </div>
+            {current.download_url ? (
+              <video
+                controls
+                src={api.downloadClipUrl(clip.id)}
+                className="aspect-[9/16] w-full object-contain"
+                aria-label={`Preview of ${current.title ?? "this clip"}`}
+                data-testid="clip-preview"
+              />
+            ) : current.thumb_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={api.thumbnailUrl(clip.id)}
+                alt={`Preview of ${current.title ?? "this clip"}`}
+                className="aspect-[9/16] w-full object-cover"
+                data-testid="clip-preview"
+              />
+            ) : (
+              <div className="flex aspect-[9/16] items-center justify-center bg-surface-2 p-6 text-center">
+                <span className="text-sm text-muted">
+                  {current.layout ?? "Preview"} · {current.state}
+                </span>
+              </div>
+            )}
           </div>
-          {current.state !== "ready" && <Progress value={current.progress} className="mt-3" />}
+          {current.state !== "ready" && (
+            <Progress
+              value={current.progress}
+              label={`Render progress for ${current.title ?? "this clip"}`}
+              className="mt-3"
+            />
+          )}
           {current.error && <Notice tone="warn">{current.error}</Notice>}
           {current.download_url && (
             <a
-              href={current.download_url}
+              href={api.downloadClipUrl(clip.id)}
               className="mt-4 block rounded-full py-3 text-center text-sm font-medium text-accent ring-surface transition hover:bg-surface-2"
             >
               Download video
@@ -195,7 +219,12 @@ export function ClipReview({ clip }: { clip: Clip }) {
               </Button>
             </div>
             {preview?.audio_url && (
-              <audio controls src={preview.audio_url} className="w-full" data-testid="voice-preview" />
+              <audio
+                controls
+                src={api.voiceOverAudioUrl(preview.id)}
+                className="w-full"
+                data-testid="voice-preview"
+              />
             )}
           </div>
         </Card>

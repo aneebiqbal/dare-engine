@@ -1,0 +1,5 @@
+# OPTIONAL voice-over dependency. This package is GPL-3.0-or-later.
+# It is NOT installed in the default build. To enable voice-over:
+#   make voice
+# The core app contains no GPL code.
+piper-tts>=1.8.0

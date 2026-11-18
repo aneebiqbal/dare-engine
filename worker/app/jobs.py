@@ -59,6 +59,16 @@ def claim(worker_id: str):
             return row
 
 
+def set_stage(job_id, stage: str) -> None:
+    with closing(_connect()) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE jobs SET stage = %s, updated_at = now() WHERE id = %s",
+                (stage, job_id),
+            )
+        conn.commit()
+
+
 def finish(job_id, state: str) -> None:
     with closing(_connect()) as conn:
         with conn.cursor() as cur:

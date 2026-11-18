@@ -120,3 +120,20 @@ gameplay file has been processed. Not verified beyond the stand-in.
   decode the whole file — but the file is still copied in full first.
 - **No resumable upload across a server restart:** chunk parts live in the API
   container's `/tmp`, not in shared storage; a restart loses them.
+
+## Sprint 7 — automatic moments and a clip grammar
+
+The admin studio (`/admin/studio`) turns a recording into clips with no
+timestamps. `worker/clip/detect.py` scores the whole file once — transcript word
+density, configurable marker phrases, per-second RMS against a rolling
+baseline, scene-cut density and silence-then-burst — ranks 12 s windows, merges
+overlaps and centres each on its peak. It reports the compute path (CUDA Whisper
+when `ctranslate2` sees a GPU, else CPU int8); the worker stores that path before
+the expensive pass so the studio shows it live.
+
+`worker/clip/grammar.py` + `worker/clip/templates.json` build each clip from a
+beat template: cold open (the payoff's peak) → hook text → optional context
+flash-back → payoff → result stamp. The payoff is the longest beat. Captions are
+re-mapped onto the disjoint beat ranges, so word sync stays monotonic. The API
+image copies `templates.json` to `/app/app/clip_templates.json` for
+`GET /studio/templates`.

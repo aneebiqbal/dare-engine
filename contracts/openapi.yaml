@@ -232,6 +232,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /admin/pool/{mission_id}/assign:
+    post:
+      summary: Assign
+      description: Give a approved dare to one gamer's Today.
+      operationId: assign_admin_pool__mission_id__assign_post
+      parameters:
+      - name: mission_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Mission Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /missions/{mission_id}:
     get:
       summary: Get Mission
@@ -779,6 +809,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /clips/{clip_id}/thumbnail:
+    get:
+      summary: Thumbnail
+      operationId: thumbnail_clips__clip_id__thumbnail_get
+      parameters:
+      - name: clip_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Clip Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /clips/{clip_id}/export:
     post:
       summary: Create Export
@@ -1243,6 +1296,16 @@ paths:
           content:
             application/json:
               schema: {}
+  /admin/cleanup:
+    post:
+      summary: Cleanup
+      operationId: cleanup_admin_cleanup_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /ai/suggest:
     post:
       summary: Suggest
@@ -1407,6 +1470,143 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /studio/upload:
+    post:
+      summary: Upload
+      operationId: upload_studio_upload_post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_studio_upload_post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /studio/detect:
+    post:
+      summary: Detect
+      operationId: detect_studio_detect_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /studio/recordings/{recording_id}/file:
+    get:
+      summary: Recording File
+      operationId: recording_file_studio_recordings__recording_id__file_get
+      parameters:
+      - name: recording_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Recording Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /studio/recordings/{recording_id}:
+    get:
+      summary: Recording Detail
+      operationId: recording_detail_studio_recordings__recording_id__get
+      parameters:
+      - name: recording_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Recording Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /studio/generate:
+    post:
+      summary: Generate
+      operationId: generate_studio_generate_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /studio/templates:
+    get:
+      summary: Templates
+      operationId: templates_studio_templates_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /studio/system:
+    get:
+      summary: System Load
+      description: Real CPU, memory and GPU load, never a fake gauge.
+      operationId: system_load_studio_system_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /tours:
     get:
       summary: All Progress
@@ -1564,6 +1764,25 @@ paths:
               schema: {}
 components:
   schemas:
+    AssignIn:
+      properties:
+        user_id:
+          type: string
+          title: User Id
+      type: object
+      required:
+      - user_id
+      title: AssignIn
+    Body_upload_studio_upload_post:
+      properties:
+        file:
+          type: string
+          format: binary
+          title: File
+      type: object
+      required:
+      - file
+      title: Body_upload_studio_upload_post
     Body_upload_uploads_post:
       properties:
         file:

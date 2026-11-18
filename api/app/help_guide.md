@@ -11,8 +11,8 @@ sent with their original timestamps when you are back online.
 
 ## How do I upload a recording instead of streaming?
 Open **Clips → Upload**, choose the recording, add one entry per mission with a
-start and end time, then upload. The file is uploaded in chunks, so a dropped
-connection resumes instead of restarting.
+start and end time, then upload. The file is uploaded in chunks; if a drop
+happens, choose the file again and upload from the start.
 
 ## How do I turn a mission into a Short?
 Each Start/Done pair creates one render job. Watch the stage (fetch, transcribe,

@@ -4,10 +4,12 @@ from __future__ import annotations
 import datetime
 import json
 import pathlib
+import shutil
 import tempfile
 import uuid
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from starlette.background import BackgroundTask
 
 from . import db, storage
 from .paging import envelope, order_clause, parse
@@ -40,6 +42,7 @@ def _clip(row) -> dict:
         "export_tags": row[16],
         "transcript": row[17],
         "download_url": f"/clips/{row[0]}/download" if row[2] else None,
+        "thumb_url": f"/clips/{row[0]}/thumbnail" if row[2] else None,
     }
 
 
@@ -116,14 +119,16 @@ def _upload_dir(upload_id: str) -> pathlib.Path:
 
 
 @router.post("/uploads/start")
-def upload_start(payload: dict):
+def upload_start(request: Request, payload: dict):
+    current_user(request)
     upload_id = uuid.uuid4().hex
     _upload_dir(upload_id)
     return {"upload_id": upload_id, "chunk_size": CHUNK_SIZE}
 
 
 @router.get("/uploads/{upload_id}")
-def upload_status(upload_id: str):
+def upload_status(request: Request, upload_id: str):
+    current_user(request)
     directory = _upload_dir(upload_id)
     parts = sorted(
         (int(p.stem) for p in directory.glob("*.part")),
@@ -134,6 +139,7 @@ def upload_status(upload_id: str):
 
 @router.put("/uploads/{upload_id}/chunks/{index}")
 async def upload_chunk(upload_id: str, index: int, request: Request):
+    current_user(request)
     body = await request.body()
     path = _upload_dir(upload_id) / f"{index}.part"
     path.write_bytes(body)
@@ -156,7 +162,10 @@ def upload_complete(upload_id: str, request: Request, payload: dict):
     with open(assembled, "wb") as out:
         for part in parts:
             out.write(part.read_bytes())
-    return _finalize_upload(user, filename, assembled, items, upload_id)
+    try:
+        return _finalize_upload(user, filename, assembled, items, upload_id)
+    finally:
+        shutil.rmtree(directory, ignore_errors=True)
 
 
 @router.post("/uploads")
@@ -170,13 +179,77 @@ async def upload(request: Request, file: UploadFile = File(...), marks: str = Fo
     if not items:
         raise HTTPException(422, "no marks supplied")
     suffix = pathlib.Path(file.filename or "recording.mp4").suffix or ".mp4"
-    tmp = pathlib.Path(tempfile.mkdtemp(prefix="upload-"))
-    local = tmp / f"recording{suffix}"
-    # Stream to disk in chunks; never hold the whole file in memory.
-    with open(local, "wb") as out:
-        while chunk := await file.read(CHUNK_SIZE):
-            out.write(chunk)
-    return _finalize_upload(user, file.filename or "recording.mp4", local, items, uuid.uuid4().hex)
+    with tempfile.TemporaryDirectory(prefix="upload-") as tmp:
+        local = pathlib.Path(tmp) / f"recording{suffix}"
+        # Stream to disk in chunks; never hold the whole file in memory.
+        with open(local, "wb") as out:
+            while chunk := await file.read(CHUNK_SIZE):
+                out.write(chunk)
+        return _finalize_upload(
+            user, file.filename or "recording.mp4", local, items, uuid.uuid4().hex
+        )
+
+
+def _create_clips(cur, user, key, items):
+    """One stream, one assignment/mark pair, clip and render job per window."""
+    today = datetime.date.today()
+    created = []
+    cur.execute(
+        "INSERT INTO streams (user_id, stream_key_hash, storage_prefix) "
+        "VALUES (%s, %s, %s) RETURNING id",
+        (user["id"], "local-upload", key),
+    )
+    stream_id = cur.fetchone()[0]
+    for item in items:
+        mission_id = item["mission_id"]
+        cur.execute(
+            "INSERT INTO assignments (user_id, mission_id, date, state) "
+            "VALUES (%s, %s, %s, 'accepted') RETURNING id",
+            (user["id"], mission_id, today),
+        )
+        assignment_id = cur.fetchone()[0]
+        cur.execute(
+            "INSERT INTO marks (assignment_id, stream_id, kind, stream_time) "
+            "VALUES (%s, %s, 'start', %s)",
+            (assignment_id, stream_id, float(item["start"])),
+        )
+        cur.execute(
+            "INSERT INTO marks (assignment_id, stream_id, kind, stream_time, result) "
+            "VALUES (%s, %s, 'done', %s, %s)",
+            (assignment_id, stream_id, float(item["end"]), item.get("result")),
+        )
+        cur.execute(
+            "INSERT INTO clips (assignment_id, state, stage, recording_key, "
+            "source_start, source_end) VALUES (%s, 'queued', 'queued', %s, %s, %s) "
+            "RETURNING id",
+            (assignment_id, key, float(item["start"]), float(item["end"])),
+        )
+        clip_id = cur.fetchone()[0]
+        result = item.get("result")
+        try:
+            result_value = float(result) if result not in (None, "", "pass", "fail") else None
+        except ValueError:
+            result_value = None
+        cur.execute(
+            "INSERT INTO attempts (mission_id, user_id, result_value, clip_id) "
+            "VALUES (%s, %s, %s, %s)",
+            (mission_id, user["id"], result_value, clip_id),
+        )
+        cur.execute("SELECT card FROM missions WHERE id = %s", (mission_id,))
+        card = cur.fetchone()[0]
+        _enqueue_render(
+            cur,
+            clip_id=str(clip_id),
+            assignment_id=str(assignment_id),
+            card=card,
+            start=float(item["start"]),
+            end=float(item["end"]),
+            result=item.get("result", ""),
+            recording_key=key,
+            template_id=item.get("template_id"),
+        )
+        created.append(str(clip_id))
+    return str(stream_id), created
 
 
 def _finalize_upload(user, filename: str, local: pathlib.Path, items: list, upload_id: str) -> dict:
@@ -184,66 +257,10 @@ def _finalize_upload(user, filename: str, local: pathlib.Path, items: list, uplo
         raise HTTPException(401, "not signed in")
     key = f"recordings/{user['id']}/{upload_id}{pathlib.Path(filename).suffix or '.mp4'}"
     storage.put_file(key, str(local))
-
-    today = datetime.date.today()
-    created = []
     with db.session() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO streams (user_id, stream_key_hash, storage_prefix) "
-                "VALUES (%s, %s, %s) RETURNING id",
-                (user["id"], "local-upload", key),
-            )
-            stream_id = cur.fetchone()[0]
-            for item in items:
-                mission_id = item["mission_id"]
-                cur.execute(
-                    "INSERT INTO assignments (user_id, mission_id, date, state) "
-                    "VALUES (%s, %s, %s, 'accepted') RETURNING id",
-                    (user["id"], mission_id, today),
-                )
-                assignment_id = cur.fetchone()[0]
-                cur.execute(
-                    "INSERT INTO marks (assignment_id, stream_id, kind, stream_time) "
-                    "VALUES (%s, %s, 'start', %s)",
-                    (assignment_id, stream_id, float(item["start"])),
-                )
-                cur.execute(
-                    "INSERT INTO marks (assignment_id, stream_id, kind, stream_time, result) "
-                    "VALUES (%s, %s, 'done', %s, %s)",
-                    (assignment_id, stream_id, float(item["end"]), item.get("result")),
-                )
-                cur.execute(
-                    "INSERT INTO clips (assignment_id, state, stage, recording_key, "
-                    "source_start, source_end) VALUES (%s, 'queued', 'queued', %s, %s, %s) "
-                    "RETURNING id",
-                    (assignment_id, key, float(item["start"]), float(item["end"])),
-                )
-                clip_id = cur.fetchone()[0]
-                result = item.get("result")
-                try:
-                    result_value = float(result) if result not in (None, "", "pass", "fail") else None
-                except ValueError:
-                    result_value = None
-                cur.execute(
-                    "INSERT INTO attempts (mission_id, user_id, result_value, clip_id) "
-                    "VALUES (%s, %s, %s, %s)",
-                    (mission_id, user["id"], result_value, clip_id),
-                )
-                cur.execute("SELECT card FROM missions WHERE id = %s", (mission_id,))
-                card = cur.fetchone()[0]
-                _enqueue_render(
-                    cur,
-                    clip_id=str(clip_id),
-                    assignment_id=str(assignment_id),
-                    card=card,
-                    start=float(item["start"]),
-                    end=float(item["end"]),
-                    result=item.get("result", ""),
-                    recording_key=key,
-                )
-                created.append(str(clip_id))
-    return {"stream_id": str(stream_id), "clips": created, "count": len(created)}
+            stream_id, created = _create_clips(cur, user, key, items)
+    return {"stream_id": stream_id, "clips": created, "count": len(created)}
 
 
 # ---------------------------------------------------------------------- clips
@@ -296,15 +313,17 @@ def update_clip(request: Request, clip_id: str, payload: dict):
     for key in ("title", "layout", "caption_style", "voice_over", "voice", "export_title", "export_description", "export_tags"):
         if key in payload:
             fields[key] = payload[key]
-    if not fields:
+    template_id = payload.get("template_id")
+    if not fields and not template_id:
         raise HTTPException(422, "nothing to update")
     with db.session() as conn:
         with conn.cursor() as cur:
             _owned_clip(cur, request, clip_id)
-            set_clause = ", ".join(f"{k} = %s" for k in fields)
-            cur.execute(f"UPDATE clips SET {set_clause} WHERE id = %s", (*fields.values(), clip_id))
-            # A layout or caption change re-renders in place.
-            if "layout" in fields or "caption_style" in fields:
+            if fields:
+                set_clause = ", ".join(f"{k} = %s" for k in fields)
+                cur.execute(f"UPDATE clips SET {set_clause} WHERE id = %s", (*fields.values(), clip_id))
+            # A template, layout or caption change re-renders in place.
+            if template_id or "layout" in fields or "caption_style" in fields:
                 cur.execute(
                     "SELECT c.recording_key, c.source_start, c.source_end, m.card, "
                     "c.trim_start, c.trim_end, c.voice_over, c.voice "
@@ -327,6 +346,7 @@ def update_clip(request: Request, clip_id: str, payload: dict):
                         caption_style=fields.get("caption_style"),
                         voice_over=bool(row[6]),
                         voice=row[7],
+                        template_id=template_id,
                     )
     return {"id": clip_id, **fields}
 
@@ -484,7 +504,10 @@ def voice_over_audio(request: Request, voice_over_id: str):
     storage.get_file(row[0], str(tmp))
     from fastapi.responses import FileResponse
 
-    return FileResponse(tmp, media_type="audio/wav", filename="preview.wav")
+    return FileResponse(
+        tmp, media_type="audio/wav", filename="preview.wav",
+        background=BackgroundTask(shutil.rmtree, tmp.parent),
+    )
 
 
 @router.post("/clips/{clip_id}/approve")
@@ -523,7 +546,29 @@ def download(request: Request, clip_id: str):
     storage.get_file(row[0], str(tmp))
     from fastapi.responses import FileResponse
 
-    return FileResponse(tmp, media_type="video/mp4", filename=f"{clip_id}.mp4")
+    return FileResponse(
+        tmp, media_type="video/mp4", filename=f"{clip_id}.mp4",
+        background=BackgroundTask(shutil.rmtree, tmp.parent),
+    )
+
+
+@router.get("/clips/{clip_id}/thumbnail")
+def thumbnail(request: Request, clip_id: str):
+    user = current_user(request)
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            _owned_clip(cur, request, clip_id)
+    key = f"clips/{clip_id}/thumb.jpg"
+    if not storage.exists(key):
+        raise HTTPException(404, "no thumbnail yet")
+    tmp = pathlib.Path(tempfile.mkdtemp()) / "thumb.jpg"
+    storage.get_file(key, str(tmp))
+    from fastapi.responses import FileResponse
+
+    return FileResponse(
+        tmp, media_type="image/jpeg", filename=f"{clip_id}.jpg",
+        background=BackgroundTask(shutil.rmtree, tmp.parent),
+    )
 
 
 @router.post("/clips/{clip_id}/export")
@@ -597,7 +642,10 @@ def download_export(request: Request, clip_id: str):
         zf.write(tmp / "metadata.json", "metadata.json")
     from fastapi.responses import FileResponse
 
-    return FileResponse(zip_path, media_type="application/zip", filename=f"{clip_id}-package.zip")
+    return FileResponse(
+        zip_path, media_type="application/zip", filename=f"{clip_id}-package.zip",
+        background=BackgroundTask(shutil.rmtree, tmp),
+    )
 
 
 @router.post("/streams")
@@ -635,6 +683,7 @@ def _enqueue_render(
     voice: str | None = None,
     trim_start: float | None = None,
     trim_end: float | None = None,
+    template_id: str | None = None,
 ) -> None:
     key = f"render:{clip_id}:{start}:{end}:{layout}:{caption_style}:{voice_over}:{voice}"
     cur.execute(
@@ -657,6 +706,7 @@ def _enqueue_render(
                     "voice": voice,
                     "trim_start": trim_start,
                     "trim_end": trim_end,
+                    "template_id": template_id,
                 }
             ),
             key,
@@ -703,16 +753,27 @@ def _enqueue_relay_clip(cur, user_id: str, assignment_id: str, payload: dict) ->
 def history(request: Request):
     user = current_user(request)
     page, size, sort, order = parse(request, "created_at")
+    q = request.query_params.get("q", "").strip()
+    where = "a.user_id = %s"
+    params: list = [user["id"]]
+    if q:
+        where += " AND (a.mission_id ILIKE %s OR m.card->>'question' ILIKE %s)"
+        params += [f"%{q}%", f"%{q}%"]
     with db.session() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT count(*) FROM assignments WHERE user_id = %s", (user["id"],))
+            cur.execute(
+                f"SELECT count(*) FROM assignments a JOIN missions m ON m.id = a.mission_id WHERE {where}",
+                params,
+            )
             total = cur.fetchone()[0]
             cur.execute(
                 "SELECT a.mission_id, a.date, a.state, c.id, c.state, c.duration_seconds, "
-                "(SELECT result_value FROM attempts WHERE clip_id = c.id LIMIT 1) "
-                "FROM assignments a LEFT JOIN clips c ON c.assignment_id = a.id "
-                "WHERE a.user_id = %s ORDER BY a.created_at DESC LIMIT %s OFFSET %s",
-                (user["id"], size, (page - 1) * size),
+                "(SELECT result_value FROM attempts WHERE clip_id = c.id LIMIT 1), "
+                "m.card->>'question' "
+                "FROM assignments a JOIN missions m ON m.id = a.mission_id "
+                f"LEFT JOIN clips c ON c.assignment_id = a.id WHERE {where} "
+                "ORDER BY a.created_at DESC LIMIT %s OFFSET %s",
+                params + [size, (page - 1) * size],
             )
             return envelope(
                 [
@@ -724,6 +785,7 @@ def history(request: Request):
                         "clip_id": str(r[3]) if r[3] else None,
                         "clip_state": r[4],
                         "duration_seconds": r[5],
+                        "question": r[7],
                     }
                     for r in cur.fetchall()
                 ],

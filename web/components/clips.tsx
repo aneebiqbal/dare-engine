@@ -101,7 +101,7 @@ export function Clips({ initial }: { initial: Clip[] }) {
         <div className="flex flex-col gap-4" data-tour="clips-upload">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-medium">Upload a recording</h2>
-            <Badge tone="muted">Resumable · chunked</Badge>
+            <Badge tone="muted">Chunked upload</Badge>
           </div>
           <div className="grid gap-4 md:grid-cols-[1fr_2fr]">
             <Field label="Recording">
@@ -208,7 +208,7 @@ export function Clips({ initial }: { initial: Clip[] }) {
               ))}
             </div>
           </div>
-          {uploading !== null && <Progress value={uploading} />}
+          {uploading !== null && <Progress value={uploading} label="Upload progress" />}
           {uploadError && <Notice tone="warn">{uploadError}</Notice>}
           <div>
             <Button onClick={upload} disabled={uploading !== null} data-testid="upload-button">
@@ -229,8 +229,18 @@ export function Clips({ initial }: { initial: Clip[] }) {
                   </Badge>
                   <span className="text-xs text-muted">{clip.stage ?? ""}</span>
                 </div>
+                {clip.thumb_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={api.thumbnailUrl(clip.id)}
+                    alt=""
+                    className="h-32 w-full rounded-xl object-cover"
+                  />
+                )}
                 <h3 className="text-base font-medium leading-snug">{clip.title ?? "Untitled"}</h3>
-                {clip.state !== "ready" && clip.progress > 0 && <Progress value={clip.progress} />}
+                {clip.state !== "ready" && clip.progress > 0 && (
+                  <Progress value={clip.progress} label={`Render progress for ${clip.title ?? "this clip"}`} />
+                )}
                 {clip.error && <Notice tone="warn">{clip.error}</Notice>}
                 <p className="text-xs text-muted">
                   {clip.duration_seconds ? `${clip.duration_seconds.toFixed(1)}s` : "—"}
@@ -246,7 +256,7 @@ export function Clips({ initial }: { initial: Clip[] }) {
                   </a>
                   {clip.download_url && (
                     <a
-                      href={clip.download_url}
+                      href={api.downloadClipUrl(clip.id)}
                       className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
                     >
                       Download

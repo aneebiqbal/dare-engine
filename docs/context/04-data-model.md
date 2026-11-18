@@ -12,6 +12,7 @@ more (see 14).
 | `0001_init.sql` | the Sprint-5 domain tables: users, channels, oauth_tokens, missions, daily_sets, assignments, streams, marks, clips, posts, metrics, attempts, templates, jobs, sessions, stream_segments |
 | `0002_accounts.sql` | email/password columns, invites, password_resets, login_attempts, audit_log, tour_progress, ai_usage, user_settings, clip stage/trim/transcript/voice columns, voice_overs, exports, job error/retry/idempotency |
 | `0003_render_key.sql` | `clips.render_key` for render idempotency |
+| `0004_studio.sql` | `studio_recordings`, `studio_candidates` (Sprint 7 clip studio) |
 
 Verified on an empty database: 26 tables, no errors.
 

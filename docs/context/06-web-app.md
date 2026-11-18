@@ -39,6 +39,7 @@ and `requireAdmin` (redirects to `/`).
 | `/admin/invites` | admin | `AdminInvites` | create/revoke invites | `/admin/invites` |
 | `/admin/pool` | admin | `AdminPool` | type questions, write cards, AI pool review, approve/reject | `/admin/questions`, `/admin/pool`, `/ai/pool-review` |
 | `/admin/templates` | admin | `AdminTemplates` | template table (always empty) | `/admin/templates` |
+| `/admin/studio` | admin | `studio.tsx` `Studio` | upload a recording, Find moments, ranked candidates with score + reason, accept/trim/reject, generate, inline preview, swap template/captions, live compute path + system load | `/studio/upload`, `/studio/detect`, `/studio/recordings/{id}`, `/studio/generate`, `/studio/templates`, `/studio/system` |
 | `/admin/jobs` | admin | `AdminJobs` | job queue with errors and retry | `/admin/jobs`, `/admin/jobs/{id}/retry` |
 | `/admin/ai` | admin | `AdminAi` | provider/model/key presence, usage table | `/admin/ai-config`, `/admin/ai-usage` |
 | `/admin/audit` | admin | `AdminAudit` | audit log | `/admin/audit` |

@@ -1,12 +1,23 @@
 """Current user from a real session cookie, role checks, CSRF and audit."""
 from __future__ import annotations
 
+import hashlib
 import hmac
 
 from fastapi import HTTPException, Request
 
 from . import db
 from .config import settings
+
+
+def hash_token(token: str) -> str:
+    """Sessions store only an HMAC of the token, keyed by SESSION_SECRET.
+
+    A database dump therefore does not contain usable session tokens.
+    """
+    return hmac.new(
+        settings.session_secret.encode(), token.encode(), hashlib.sha256
+    ).hexdigest()
 
 
 def current_user(request: Request) -> dict:
@@ -19,7 +30,7 @@ def current_user(request: Request) -> dict:
                 "SELECT u.id, u.email, u.display_name, u.role "
                 "FROM sessions s JOIN users u ON u.id = s.user_id "
                 "WHERE s.token = %s AND s.expires_at > now()",
-                (token,),
+                (hash_token(token),),
             )
             row = cur.fetchone()
     if row is None:

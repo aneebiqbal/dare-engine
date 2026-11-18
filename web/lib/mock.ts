@@ -227,6 +227,9 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
     return { provider: "recorded", base_url: "https://example.invalid/v1", model: "recorded", key_present: false, configured: false } as T;
   }
   if (method === "GET" && pathname === "/admin/storage") return { driver: "local", bytes: 123456 } as T;
+  if (method === "GET" && pathname === "/studio/system") {
+    return { cpu_percent: 12.5, memory_percent: 41.2, gpu: null } as T;
+  }
   if (method === "GET" && pathname === "/admin/setup") {
     return { checks: [
       { name: "DATABASE_URL set", ok: true, detail: "" },

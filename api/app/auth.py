@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 from . import db
 from .config import settings
-from .users import audit, current_user
+from .users import audit, current_user, hash_token
 
 router = APIRouter()
 
@@ -28,6 +28,7 @@ SESSION_DAYS = 30
 MAX_FAILURES = 10
 LOCK_MINUTES = 15
 RATE_LIMIT = 20
+IP_RATE_LIMIT = 50
 RATE_WINDOW_MINUTES = 15
 
 
@@ -98,7 +99,7 @@ def _new_session(cur, user_id: str) -> str:
     token = secrets.token_urlsafe(32)
     cur.execute(
         "INSERT INTO sessions (token, user_id) VALUES (%s, %s)",
-        (token, user_id),
+        (hash_token(token), user_id),
     )
     return token
 
@@ -165,19 +166,27 @@ def sign_up(payload: SignUp, response: Response):
 
 
 @router.post("/auth/sign-in")
-def sign_in(payload: SignIn, response: Response):
+def sign_in(request: Request, payload: SignIn, response: Response):
     email = payload.email.strip().lower()
+    ip = request.client.host if request.client else None
     now = datetime.datetime.now(datetime.timezone.utc)
     token: str | None = None
     error: tuple[int, str] | None = None
     with db.session() as conn:
         with conn.cursor() as cur:
+            window = now - datetime.timedelta(minutes=RATE_WINDOW_MINUTES)
+            cur.execute(
+                "SELECT count(*) FROM login_attempts WHERE email = %s AND created_at > %s",
+                (email, window),
+            )
+            email_attempts = cur.fetchone()[0]
             cur.execute(
                 "SELECT count(*) FROM login_attempts "
-                "WHERE email = %s AND created_at > %s",
-                (email, now - datetime.timedelta(minutes=RATE_WINDOW_MINUTES)),
+                "WHERE ip = %s AND ok = false AND created_at > %s",
+                (ip, window),
             )
-            if cur.fetchone()[0] >= RATE_LIMIT:
+            ip_attempts = cur.fetchone()[0]
+            if email_attempts >= RATE_LIMIT or ip_attempts >= IP_RATE_LIMIT:
                 error = (429, "too many attempts; try again later")
 
             if error is None:
@@ -189,14 +198,16 @@ def sign_in(payload: SignIn, response: Response):
                 row = cur.fetchone()
                 if row is None:
                     cur.execute(
-                        "INSERT INTO login_attempts (email, ok) VALUES (%s, false)", (email,)
+                        "INSERT INTO login_attempts (email, ip, ok) VALUES (%s, %s, false)",
+                        (email, ip),
                     )
                     error = (401, "invalid email or password")
                 else:
                     user_id, user_hash, failures, locked_until = row
                     if locked_until and locked_until > now:
                         cur.execute(
-                            "INSERT INTO login_attempts (email, ok) VALUES (%s, false)", (email,)
+                            "INSERT INTO login_attempts (email, ip, ok) VALUES (%s, %s, false)",
+                            (email, ip),
                         )
                         error = (423, "account locked; try again later")
                     elif not _verify(user_hash, payload.password):
@@ -209,7 +220,8 @@ def sign_in(payload: SignIn, response: Response):
                             (failures, lock, user_id),
                         )
                         cur.execute(
-                            "INSERT INTO login_attempts (email, ok) VALUES (%s, false)", (email,)
+                            "INSERT INTO login_attempts (email, ip, ok) VALUES (%s, %s, false)",
+                            (email, ip),
                         )
                         error = (401, "invalid email or password")
                     else:
@@ -219,7 +231,8 @@ def sign_in(payload: SignIn, response: Response):
                             (user_id,),
                         )
                         cur.execute(
-                            "INSERT INTO login_attempts (email, ok) VALUES (%s, true)", (email,)
+                            "INSERT INTO login_attempts (email, ip, ok) VALUES (%s, %s, true)",
+                            (email, ip),
                         )
                         token = _new_session(cur, user_id)
     if error is not None:
@@ -235,7 +248,7 @@ def sign_out(request: Request, response: Response):
     if token:
         with db.session() as conn:
             with conn.cursor() as cur:
-                cur.execute("DELETE FROM sessions WHERE token = %s", (token,))
+                cur.execute("DELETE FROM sessions WHERE token = %s", (hash_token(token),))
     response.delete_cookie(settings.session_cookie, path="/")
     return {"ok": True}
 

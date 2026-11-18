@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import dataclasses
-import os
 import threading
 
 _lock = threading.Lock()
@@ -16,15 +15,38 @@ class Word:
     text: str
 
 
+def whisper_compute() -> tuple[str, str]:
+    """CUDA Whisper when a GPU is present, else CPU int8.
+
+    An explicit non-default WHISPER_DEVICE/WHISPER_COMPUTE_TYPE wins, so an
+    operator can pin the path; the default pair means "detect".
+    """
+    from app.config import settings
+
+    device, compute = settings.whisper_device, settings.whisper_compute_type
+    if device == "cpu" and compute == "int8":
+        try:
+            import ctranslate2
+
+            if ctranslate2.get_cuda_device_count() > 0:
+                return "cuda", "float16"
+        except Exception:
+            pass
+    return device, compute
+
+
 def _load():
     global _model
     if _model is None:
         from faster_whisper import WhisperModel
 
+        from app.config import settings
+
+        device, compute = whisper_compute()
         _model = WhisperModel(
-            os.environ.get("WHISPER_MODEL", "small"),
-            device=os.environ.get("WHISPER_DEVICE", "cpu"),
-            compute_type=os.environ.get("WHISPER_COMPUTE_TYPE", "int8"),
+            settings.whisper_model,
+            device=device,
+            compute_type=compute,
         )
     return _model
 
@@ -33,7 +55,7 @@ def transcribe(path: str) -> list[Word]:
     """Word-level timestamps, in seconds from the start of `path`."""
     with _lock:
         segments, _info = _load().transcribe(
-            path, word_timestamps=True, vad_filter=True, beam_size=1
+            path, word_timestamps=True, vad_filter=False, beam_size=1
         )
     words: list[Word] = []
     for seg in segments:

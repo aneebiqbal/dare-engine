@@ -55,19 +55,22 @@ Only `transform` and `opacity` animate. Every transition is disabled under
 
 ## Signature moments
 
-1. **The live mission timer.** On `/remote`, the mission card carries a running
-   timer once Start is tapped: tabular numerals, a one-pixel accent bar that
-   fills with elapsed time, and the connection indicator. It is the screen the
-   creator glances at mid-game, so it is big, high-contrast and legible in
-   peripheral vision.
-2. **The moment a finished Short appears.** The Clips card flips from a skeleton
-   to the thumbnail with a 300 ms rise-and-settle (`translateY` + `opacity`), and
-   a "Ready" badge. The stage (fetch → transcribe → select → render → upload) is
-   visible as a thin progress bar, because waiting is the feeling we are
-   replacing.
+1. **The dare card.** One question, one hook, one win condition, one result
+   type. The card is the unit of the product: it is drawn the same on Today, on
+   the Dashboard, in the admin pool and on the public mission page. The hook is
+   the largest text, the question carries the detail, and the result type is a
+   badge, so a creator can judge a dare at a glance and an editor can scan the
+   pool. The daily dare gets the accent; picks are muted.
+2. **The live job progress.** A render is a queue of real stages (fetch,
+   transcribe, select, render, store). The Clips grid and the clip review show
+   the stage name and a thin accent bar that fills with the real percentage from
+   the worker; the admin job queue shows the same stage per job. Waiting is the
+   feeling we are replacing, so the numbers are the interface, not decoration.
+   When the Short lands, the card rises and settles (`translateY` + `opacity`)
+   and the thumbnail replaces the skeleton.
 3. **The leaderboard.** Rank is a large numeral with the creator's name and
-   result; the top three get the accent, everyone else is muted. The mission
-   mark sits in the corner so the series is recognisable.
+   result; the top three get the accent, everyone else is muted. The dare mark
+   sits in the corner so the series is recognisable.
 
 ## What we do not do
 

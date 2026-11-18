@@ -9,6 +9,7 @@ the `storage-data` volume at `/data/storage` in the api and worker.
 | Location | What | Written by | Retention |
 | --- | --- | --- | --- |
 | `recordings/{user_id}/{upload_id}{suffix}` | the uploaded recording | `api/app/clips.py:_finalize_upload` | until account deletion |
+| `recordings/{user_id}/studio-{id}{suffix}` | studio source recording | `api/app/studio.py:upload` | until account deletion / retention sweep |
 | `clips/{clip_id}/short.mp4` | rendered 1080×1920 H.264 Short | `worker/app/handlers.py` | until account deletion |
 | `clips/{clip_id}/thumb.jpg` | thumbnail | same | same |
 | `clips/{clip_id}/captions.srt` | caption sidecar | same | same |

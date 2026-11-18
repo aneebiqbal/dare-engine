@@ -9,7 +9,7 @@ export default async function HistoryPage() {
   const user = await requireUser();
   let initial: HistoryEntry[] = [];
   try {
-    initial = (await api.history()).items;
+    initial = (await api.history("?page_size=100")).items;
   } catch {
     initial = [];
   }

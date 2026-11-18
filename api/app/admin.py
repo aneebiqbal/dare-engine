@@ -17,7 +17,7 @@ router = APIRouter(dependencies=[Depends(require_admin)])
 USER_SORT = {"created_at": "created_at", "email": "email", "display_name": "display_name", "role": "role"}
 JOB_SORT = {"updated_at": "updated_at", "created_at": "created_at", "state": "state", "kind": "kind"}
 INVITE_SORT = {"created_at": "created_at", "code": "code"}
-AUDIT_SORT = {"created_at": "created_at", "action": "action"}
+AUDIT_SORT = {"created_at": "a.created_at", "action": "a.action"}
 
 
 @router.get("/admin/templates")
@@ -82,6 +82,10 @@ def update_user(request: Request, user_id: str, payload: dict):
             cur.execute("UPDATE users SET role = %s WHERE id = %s RETURNING id", (role, user_id))
             if cur.fetchone() is None:
                 raise HTTPException(404, "user not found")
+            # Losing admin must take effect immediately; gaining it need not
+            # interrupt the user's current session.
+            if role != "admin":
+                cur.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
     audit(user["id"], "user.update_role", "user", user_id, {"role": role})
     return {"id": user_id, "role": role}
 
@@ -179,7 +183,7 @@ def jobs(request: Request):
             cur.execute(f"SELECT count(*) FROM jobs {where}", params)
             total = cur.fetchone()[0]
             cur.execute(
-                "SELECT id, kind, state, attempts, retry_count, error, payload, updated_at "
+                "SELECT id, kind, state, attempts, retry_count, error, payload, updated_at, stage "
                 f"FROM jobs {where} ORDER BY {order_clause(sort, JOB_SORT, 'updated_at', order)} "
                 "LIMIT %s OFFSET %s",
                 params + [size, (page - 1) * size],
@@ -196,6 +200,7 @@ def jobs(request: Request):
                 "error": r[5],
                 "payload": r[6],
                 "updated_at": r[7].isoformat(),
+                "stage": r[8],
             }
             for r in rows
         ],
@@ -212,7 +217,7 @@ def retry_job(request: Request, job_id: str):
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE jobs SET state = 'queued', locked_by = NULL, error = NULL, "
-                "retry_count = 0, available_at = now(), updated_at = now() "
+                "stage = NULL, retry_count = 0, available_at = now(), updated_at = now() "
                 "WHERE id = %s RETURNING id",
                 (job_id,),
             )
@@ -230,8 +235,10 @@ def audit_log(request: Request):
             cur.execute("SELECT count(*) FROM audit_log")
             total = cur.fetchone()[0]
             cur.execute(
-                "SELECT id, actor_id, action, target_type, target_id, meta, created_at "
-                f"FROM audit_log ORDER BY {order_clause(sort, AUDIT_SORT, 'created_at', order)} "
+                "SELECT a.id, a.actor_id, a.action, a.target_type, a.target_id, a.meta, "
+                "a.created_at, u.email, u.display_name "
+                "FROM audit_log a LEFT JOIN users u ON u.id = a.actor_id "
+                f"ORDER BY {order_clause(sort, AUDIT_SORT, 'a.created_at', order)} "
                 "LIMIT %s OFFSET %s",
                 (size, (page - 1) * size),
             )
@@ -246,6 +253,7 @@ def audit_log(request: Request):
                 "target_id": r[4],
                 "meta": r[5],
                 "created_at": r[6].isoformat(),
+                "actor_name": r[8] or r[7],
             }
             for r in rows
         ],
@@ -318,3 +326,10 @@ def setup_status(request: Request):
     from .doctor import run_checks
 
     return {"checks": run_checks()}
+
+
+@router.post("/admin/cleanup")
+def cleanup(request: Request):
+    from .retention import sweep
+
+    return sweep()
