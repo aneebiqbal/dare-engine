@@ -46,15 +46,22 @@ def leaderboard(request: Request, mission_id: str):
             cur.execute("SELECT count(*) FROM attempts WHERE mission_id = %s", (mission_id,))
             total = cur.fetchone()[0]
             cur.execute(
-                "SELECT user_id, result_value, clip_id FROM attempts "
-                f"WHERE mission_id = %s ORDER BY {order_clause(sort, allowed, 'result_value', order)} "
+                "SELECT a.user_id, a.result_value, a.clip_id, u.display_name "
+                "FROM attempts a LEFT JOIN users u ON u.id = a.user_id "
+                f"WHERE a.mission_id = %s ORDER BY {order_clause(sort, allowed, 'result_value', order)} "
                 "LIMIT %s OFFSET %s",
                 (mission_id, size, (page - 1) * size),
             )
             rows = cur.fetchall()
     return envelope(
         [
-            {"rank": i, "user_id": str(r[0]), "result_value": r[1], "clip_id": str(r[2]) if r[2] else None}
+            {
+                "rank": i,
+                "user_id": str(r[0]),
+                "display_name": r[3] or "Creator",
+                "result_value": r[1],
+                "clip_id": str(r[2]) if r[2] else None,
+            }
             for i, r in enumerate(rows, (page - 1) * size + 1)
         ],
         total,

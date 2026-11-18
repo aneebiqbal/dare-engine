@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 export const dynamic = "force-dynamic";
 
 export default async function LeaderboardPage() {
-  let rows: { rank: number; user_id: string; result_value: number | null }[] = [];
+  let rows: { rank: number; user_id: string; display_name: string; result_value: number | null }[] = [];
   let question: string | null = null;
   let error: string | null = null;
   try {
@@ -53,7 +53,7 @@ export default async function LeaderboardPage() {
                   {r.rank}
                 </span>
               </Td>
-              <Td className="font-medium">{r.user_id}</Td>
+              <Td className="font-medium">{r.display_name}</Td>
               <Td>{r.result_value ?? "—"}</Td>
             </Tr>
           ))}
