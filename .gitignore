@@ -37,6 +37,7 @@ next-env.d.ts
 # Test render output and scratch
 m1-render-*/
 render-*/
+ssd-test/
 .pytest-outputs/
 trash/
 

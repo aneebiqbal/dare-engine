@@ -38,10 +38,10 @@ TLS setup that every request used to pay.
 
 | Page | Phone LCP | Desktop LCP | Budget |
 | --- | --- | --- | --- |
-| `/` dashboard | 848 ms | 800 ms | pass |
-| `/today` | 3936 ms | 2548 ms | pass |
-| `/remote` | 2528 ms | 2516 ms | pass |
-| `/clips` | 2612 ms | 2516 ms | pass |
-| `/admin` | 956 ms | 712 ms | pass |
+| `/` dashboard | 924 ms | 692 ms | pass |
+| `/today` | 2808 ms | 2472 ms | pass |
+| `/remote` | 2484 ms | 2448 ms | pass |
+| `/clips` | 2276 ms | 2176 ms | pass |
+| `/admin` | 776 ms | 664 ms | pass |
 
 Measured results: `docs/screens/budgets.json` (rebuilt by `make budgets`).

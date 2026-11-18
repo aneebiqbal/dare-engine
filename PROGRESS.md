@@ -1,5 +1,62 @@
 # Progress
 
+## Completion sprint — one committed, proven application
+
+Status: the accumulated work is committed and the full acceptance suite passes
+on the managed Neon database with the mock off. Three things remain blocked on
+the user.
+
+### Branches (local only — no git remote)
+
+- `sprint-6` — `1fa80dd` "Sprint 1 foundation, clip studio and Sprint 2
+  interface": the accumulated uncommitted work (foundation, connected interface,
+  studio, grammar, tests, docs, screenshots, the trailer stand-in).
+- `completion` — `HEAD`: the tour replay test-id fix, the Part 3 full-flow
+  acceptance test, `docs/BUILD_STATE.md`, and the `ssd-test/` ignore.
+
+### Part 2 milestones
+
+| Milestone | Built | Tested locally | Proven | Blocker |
+| --- | --- | --- | --- | --- |
+| M2 end-to-end UI path | yes | yes | yes (Neon, real accounts) | — |
+| Studio path (Sprint 7) | yes | yes | yes (stand-in + trailer) | real gameplay fixture |
+| M7 community | yes | yes | yes (real attempts) | — |
+| Results and metrics | yes | yes | yes (manual entry) | YouTube API key (collector) |
+| Admin portal | yes | yes | yes | — |
+| Two portals connected, role boundary | yes | yes | yes | — |
+
+### Part 3 — the one full-flow test
+
+`tests/acceptance/test_full_flow.py` walks create admin → invite → creator
+signs up → write + approve + assign → accept → upload + marks → render →
+approve → export zip → metrics → results → leaderboard → role boundary, on the
+managed database with the mock off. **Passed.** Real inputs: Neon, real
+accounts, the real render engine. Stand-in: the 45 s synthetic recording (the
+clip-quality verdict still needs the user's gameplay).
+
+### Part 4 — finish line
+
+1. Everything committed — **true** (two local commits; no remote).
+2. Full-flow test passes on the managed DB — **true**.
+3. Both portals real, connected, role boundary holds — **true**.
+4. Acceptable speed — **true**: `/` 924/692 ms, `/today` 2808/2472 ms,
+   `/remote` 2484/2448 ms, `/clips` 2276/2176 ms, `/admin` 776/664 ms
+   (phone/desktop LCP, budget 5000 ms; TBT 0 ms); one Neon round trip ~670 ms.
+5. `docs/BUILD_STATE.md` matches reality — **true**.
+
+Acceptance: **67 tests, 65 passed, 2 skipped, 0 failed** (the two skips are the
+voice-over tests, off unless the GPL add-on is installed). The suite was run in
+two chunks (53 + 23, with overlap) because the harness loses long shells.
+Unit **36 passed, 1 skipped**; `make check` **2 passed**; `make doctor` **13/13**.
+
+### Blocked on the user
+
+- The user's own gameplay recording with commentary — the only thing that makes
+  the clip-quality verdict meetable.
+- Credit on the AI key — the account returns 402/429, so every AI path runs on
+  the recorded provider.
+- A git remote — commits are local only; nothing to push or review.
+
 ## Sprint 2 — the complete, polished, connected interface
 
 Status: the interface work is built and its own suite is green.

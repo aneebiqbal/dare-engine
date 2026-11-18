@@ -6,8 +6,6 @@ import pytest
 from playwright.sync_api import sync_playwright
 
 from helpers import (
-    API,
-    ROOT,
     dev_sign_in,
     make_admin,
     seed_mission,

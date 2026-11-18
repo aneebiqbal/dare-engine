@@ -78,7 +78,7 @@ export function Help({ role = "creator" }: { role?: string }) {
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <Badge tone="accent">Ask the guide</Badge>
-            <Button variant="ghost" size="sm" onClick={() => replayTour(role)}>
+            <Button variant="ghost" size="sm" data-testid="help-replay-tour" onClick={() => replayTour(role)}>
               Replay tour
             </Button>
           </div>

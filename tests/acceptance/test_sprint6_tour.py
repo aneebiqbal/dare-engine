@@ -39,7 +39,7 @@ def test_tour_runs_keyboard_only_and_can_be_replayed(fresh_user):
 
             # Replay from Help.
             page.goto("http://localhost:3100/help", wait_until="networkidle")
-            page.click("text=Replay tour")
+            page.click('[data-testid="help-replay-tour"]')
             page.locator('[role="dialog"][aria-label="Your first mission"]').wait_for(timeout=15000)
             page.keyboard.press("Escape")
         finally:

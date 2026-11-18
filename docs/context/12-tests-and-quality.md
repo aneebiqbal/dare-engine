@@ -1,19 +1,19 @@
 # 12 — Tests and quality
 
-Results below were captured by running the suites at the end of Sprint 7,
-against the local Docker stack (Postgres container, local storage,
-`LLM_PROVIDER=recorded`, dev sign-in on for the API suites). Another session
-works the same tree concurrently, so the shared Neon `missions` table is
-truncated mid-run; see `PROGRESS.md`.
+Results below were captured at the completion sprint, against the managed Neon
+database, local storage, `LLM_PROVIDER=recorded`, dev sign-in on for the API
+suites, mock off. The suite was run in two chunks because the harness loses long
+shells; the two chunks together cover all 67 tests.
 
 | Suite | Command | Result |
 | --- | --- | --- |
-| API acceptance | `pytest tests/acceptance --ignore=test_web_pages.py -q` | **contended** — studio upload + detect pass; generate is interrupted by a concurrent `missions` truncate |
-| Web flows + a11y | `make web-accept` | **11 passed**; axe **0 serious/critical** on 8 pages × phone/desktop (Sprint 6) |
+| API acceptance | `pytest tests/acceptance --ignore=test_web_pages.py -q` | **65 passed, 2 skipped, 0 failed** (67 collected; skips are voice-over, off unless the GPL add-on is installed) |
+| Web flows + a11y | `make web-accept` | **11 passed**; axe **0 serious/critical** on every creator and admin page × phone/desktop |
 | Unit | `pytest tests/unit -q` | **36 passed, 1 skipped** |
 | Mock-leak + licence | `make check` | **2 passed** |
-| Contract | `pytest tests/acceptance/test_contract.py -q` | **2 passed** (after regenerating `contracts/openapi.yaml`) |
-| Doctor | `make doctor` | **11/13** (fails: `LLM_API_KEY present`, `LLM_MODEL set`) |
+| Contract | `pytest tests/acceptance/test_contract.py -q` | **2 passed** |
+| Web budgets | `make budgets` | **PASS** — LCP < 5000 ms and TBT < 200 ms on the five most-used pages |
+| Doctor | `make doctor` | **13/13** |
 | Migrations on an empty DB | ad-hoc | **26 tables**, no errors |
 
 ## Acceptance tests (`tests/acceptance/`)
