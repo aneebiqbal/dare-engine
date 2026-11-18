@@ -59,20 +59,24 @@ Unit **36 passed, 1 skipped**; `make check` **2 passed**; `make doctor` **13/13*
 
 ## Sprint 2 — the complete, polished, connected interface
 
-Status: the interface work is built and its own suite is green.
-`tests/acceptance/test_sprint2_interface.py` — **11 passed** (the admin→gamer
-loop, error/loading/empty states, page flows at both widths, the styleguide in
-both themes). `test_m2_missions.py` — **5 passed**. `make check` — 2 passed;
-unit tests — 31 passed, 1 skipped. `make web-accept` — **11 passed**; axe-core — **0 serious/critical on every
-creator and admin page at 390 px and 1280 px** (`docs/screens/a11y.json`).
-`make budgets` — **pass** on the five most-used pages; the numbers are in
-`docs/performance.md` and `docs/screens/budgets.json`. The full acceptance suite
-on the managed Neon database — **64 passed, 2 skipped** (run in three chunks:
-45 + 14 + 5; the two skips are the voice-over tests, off unless the GPL add-on
-is installed). `tests/screenshots/capture.py` wrote 116 screenshots
-(29 pages × phone/desktop × light/dark) into `docs/screens/`. The shared Neon
-database is also used by another session, which makes the long suites flaky
-when both run at once.
+Status: **built and green on the managed Neon database.**
+
+| Suite | Result |
+| --- | --- |
+| `tests/acceptance/test_sprint2_interface.py` | **11 passed** |
+| `test_m2_missions.py` | **5 passed** |
+| full acceptance (`make accept`, three chunks) | **64 passed, 2 skipped** |
+| `test_web_pages.py` | **11 passed** |
+| `make check` | **2 passed** |
+| unit tests | **36 passed, 1 skipped** |
+| axe-core, every creator and admin page, 390 px + 1280 px | **0 serious/critical** (`docs/screens/a11y.json`) |
+| `make budgets`, five most-used pages | **pass** (`docs/screens/budgets.json`) |
+
+The two acceptance skips are the voice-over tests, off unless the GPL add-on is
+installed. `tests/screenshots/capture.py` wrote 116 screenshots (29 pages ×
+phone/desktop × light/dark) into `docs/screens/`. The shared Neon database is
+also used by another session; the numbers above are from runs made while that
+session was idle.
 
 ### What changed
 
@@ -166,7 +170,10 @@ code imports it.
   AI panel shows its fallback notice.
 - The real gameplay fixture with commentary (`fixtures/stream_10min.mp4`).
 - A Git remote, so the review rule can be satisfied.
-- A person to look at the final screenshots and record a verdict.
+- A person to look at the final screenshots and record a verdict. The
+  screenshots in `docs/screens/` were captured with `NEXT_PUBLIC_API_MOCK=1` so
+  every page shows a filled state; the app itself never uses the mock layer
+  (`make check` fails if it does).
 
 ## Sprint 7 — automatic moments and a clip grammar
 
