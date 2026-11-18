@@ -75,21 +75,28 @@ export function AdminOverview() {
       api.pool(),
       api.adminAiUsage(),
       api.adminStorage(),
-      api.adminSetup(),
-      api.studioSystem(),
     ])
-      .then(([u, i, j, p, a, s, st, h]) => {
+      .then(([u, i, j, p, a, s]) => {
         setUsers(u.items);
         setInvites(i.items);
         setJobs(j.items);
         setPool(p.items);
         setUsage(a.items);
         setStorage(s);
-        setSetup(st.checks);
-        setHealth(h);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
+  }, []);
+
+  // The doctor checks and the live system probe are slow (seconds); stream them
+  // in after the main dashboard so nothing waits on them.
+  useEffect(() => {
+    Promise.all([api.adminSetup(), api.studioSystem().catch(() => null)])
+      .then(([st, h]) => {
+        setSetup(st.checks);
+        setHealth(h);
+      })
+      .catch(() => {});
   }, []);
 
   const failed = jobs.filter((j) => j.state === "failed").length;

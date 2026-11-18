@@ -70,6 +70,39 @@ export class ApiError extends Error {
 const SERVER_BASE = process.env.API_URL ?? "http://api:8000";
 export const MOCK = process.env.NEXT_PUBLIC_API_MOCK === "1";
 
+// Slow, stable endpoints cached in the browser. Never cache anything polled for
+// freshness (studio candidates, clip render state).
+const CLIENT_CACHE: [RegExp, number][] = [
+  [/^\/admin\/setup$/, 60_000],
+  [/^\/help\/guide$/, 60_000],
+  [/^\/tours$/, 30_000],
+  [/^\/me$/, 30_000],
+];
+const clientCache = new Map<string, { at: number; value: unknown }>();
+
+function cacheTtl(path: string): number | undefined {
+  return typeof window === "undefined"
+    ? undefined
+    : CLIENT_CACHE.find(([re]) => re.test(path))?.[1];
+}
+
+// Server components: cache the slow, stable reads so warm navigations are
+// instant. Mutations go through the /api proxy, which calls clearApiCache().
+const SERVER_CACHE: [RegExp, number][] = [
+  [/^\/admin\/setup$/, 60_000],
+  [/^\/help\/guide$/, 60_000],
+  [/^\/today$/, 15_000],
+  [/^\/results$/, 15_000],
+  [/^\/history$/, 15_000],
+  [/^\/tours$/, 30_000],
+  [/^\/me$/, 30_000],
+];
+const serverCache = new Map<string, { at: number; value: unknown }>();
+
+export function clearApiCache() {
+  serverCache.clear();
+}
+
 function base() {
   return typeof window === "undefined" ? SERVER_BASE : "/api";
 }
@@ -89,11 +122,26 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   if (body) headers["Content-Type"] = "application/json";
   const csrf = csrfToken();
   if (csrf) headers["X-CSRF-Token"] = csrf;
+  const ttl = cacheTtl(path);
+  if (method === "GET" && ttl) {
+    const hit = clientCache.get(path);
+    if (hit && Date.now() - hit.at < ttl) return hit.value as T;
+  }
+  let session = "";
   if (typeof window === "undefined") {
     const { cookies } = await import("next/headers");
     const store = await cookies();
-    const token = store.get("clipdesk_session")?.value;
-    if (token) headers["Cookie"] = `clipdesk_session=${token}`;
+    session = store.get("clipdesk_session")?.value ?? "";
+    if (session) headers["Cookie"] = `clipdesk_session=${session}`;
+  }
+  const serverTtl =
+    typeof window === "undefined"
+      ? SERVER_CACHE.find(([re]) => re.test(path))?.[1]
+      : undefined;
+  if (method === "GET" && serverTtl) {
+    const key = `${session}:${path}`;
+    const hit = serverCache.get(key);
+    if (hit && Date.now() - hit.at < serverTtl) return hit.value as T;
   }
   const res = await fetch(`${base()}${path}`, {
     method,
@@ -111,7 +159,16 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     }
     throw new ApiError(res.status, detail);
   }
-  return (await res.json()) as T;
+  const data = (await res.json()) as T;
+  if (method === "GET" && ttl) {
+    if (clientCache.size > 200) clientCache.clear();
+    clientCache.set(path, { at: Date.now(), value: data });
+  }
+  if (method === "GET" && serverTtl) {
+    if (serverCache.size > 200) serverCache.clear();
+    serverCache.set(`${session}:${path}`, { at: Date.now(), value: data });
+  }
+  return data;
 }
 
 const get = <T>(path: string) => request<T>("GET", path);

@@ -2,15 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
-/* One token file for colour, type, spacing, radius and motion. */
+/* One token file for colour, type, spacing, radius and motion.
+   Identity: "Volt" — OLED black, electric volt + deep violet, broadcast type. */
 :root {
-  --bg: #fdfbf7;
+  --bg: #f6f6f1;
   --surface: #ffffff;
-  --surface-2: #f4f1ea;
-  --border: rgb(20 19 17 / 0.08);
-  --text: #141311;
-  --muted: rgb(20 19 17 / 0.58);
+  --surface-2: #efefe7;
+  --border: rgb(16 16 20 / 0.08);
+  --text: #101014;
+  --muted: rgb(16 16 20 / 0.58);
   --accent: #4f46e5;
+  --accent-2: #7c6cff;
   --accent-soft: rgb(79 70 229 / 0.1);
   --accent-contrast: #ffffff;
   --danger: #c2410c;
@@ -35,18 +37,19 @@
 }
 
 .dark {
-  --bg: #050505;
-  --surface: #0e0e0e;
-  --surface-2: rgb(255 255 255 / 0.04);
-  --border: rgb(255 255 255 / 0.09);
-  --text: #fafafa;
-  --muted: rgb(250 250 250 / 0.58);
-  --accent: #818cf8;
-  --accent-soft: rgb(129 140 248 / 0.14);
-  --accent-contrast: #050505;
-  --danger: #fb923c;
-  --success: #34d399;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 16px 40px -16px rgb(0 0 0 / 0.7);
+  --bg: #06070a;
+  --surface: #0d0f14;
+  --surface-2: rgb(255 255 255 / 0.05);
+  --border: rgb(255 255 255 / 0.1);
+  --text: #f5f7fa;
+  --muted: rgb(245 247 250 / 0.56);
+  --accent: #c8ff3d;
+  --accent-2: #8b7cff;
+  --accent-soft: rgb(200 255 61 / 0.12);
+  --accent-contrast: #06070a;
+  --danger: #ff6b6b;
+  --success: #4ade80;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 20px 48px -20px rgb(0 0 0 / 0.85);
 }
 
 @layer base {
@@ -56,15 +59,94 @@
     transition: background-color 400ms var(--ease), color 400ms var(--ease);
   }
 
+  .dark body {
+    background:
+      radial-gradient(1100px 560px at 85% -10%, rgb(139 124 255 / 0.14), transparent 62%),
+      radial-gradient(900px 520px at -12% 8%, rgb(200 255 61 / 0.09), transparent 58%),
+      var(--bg);
+    background-attachment: fixed;
+  }
+
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
     border-radius: var(--radius-sm);
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-contrast);
   }
 }
 
 @layer components {
   .ring-surface {
     box-shadow: inset 0 0 0 1px var(--border);
+  }
+
+  /* Signature moments: a volt edge and a soft glow. */
+  .signature {
+    position: relative;
+    overflow: hidden;
+  }
+  .signature::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  }
+  .glow {
+    box-shadow:
+      inset 0 0 0 1px var(--border),
+      0 0 0 1px var(--accent-soft),
+      0 12px 40px -16px var(--accent-soft);
+  }
+  .text-gradient {
+    background: linear-gradient(92deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-entry {
+    animation: entry 520ms var(--ease) both;
+  }
+  .animate-pop {
+    animation: pop 420ms var(--ease) both;
+  }
+}
+
+@keyframes entry {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

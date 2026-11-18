@@ -270,7 +270,10 @@ export function AppShell({ user, children }: { user: Me; children: ReactNode }) 
           </div>
         </header>
 
-        <main id="main-content" className="min-w-0 flex-1 px-4 py-6 sm:px-8 sm:py-8">
+        <main
+          id="main-content"
+          className="min-w-0 flex-1 animate-entry px-4 py-6 sm:px-8 sm:py-8"
+        >
           {children}
         </main>
       </div>

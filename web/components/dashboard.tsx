@@ -187,14 +187,15 @@ export function Dashboard({ role }: { role: string }) {
 
 function MissionCard({ card }: { card: NonNullable<Today["daily"]> }) {
   return (
-    <Card>
+    <Card className="signature glow">
       <div className="flex h-full flex-col gap-3">
         <div className="flex items-center justify-between">
-          <Badge tone="accent">{card.id}</Badge>
+          <Badge tone="accent">Daily dare</Badge>
           <span className="text-xs text-muted">{card.est_minutes} min</span>
         </div>
-        <h3 className="text-base font-medium leading-snug">{card.question}</h3>
-        <p className="text-sm text-muted">{card.win_condition}</p>
+        <h3 className="text-2xl font-semibold leading-tight tracking-tight">{card.hook_text}</h3>
+        <p className="text-sm text-muted">{card.question}</p>
+        <p className="text-sm">{card.win_condition}</p>
         <Link href={`/missions/${card.id}`} className="mt-auto pt-2 text-sm text-accent hover:underline">
           Edit dare
         </Link>

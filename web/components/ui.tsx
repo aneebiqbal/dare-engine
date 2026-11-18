@@ -420,8 +420,12 @@ export function Progress({
       aria-valuemax={100}
     >
       <div
-        className="h-full rounded-full bg-accent transition-[width] duration-500 ease-out"
-        style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
+        className="h-full rounded-full transition-[width] duration-500 ease-out"
+        style={{
+          width: `${Math.max(0, Math.min(100, value))}%`,
+          background: "linear-gradient(90deg, var(--accent), var(--accent-2))",
+          boxShadow: "0 0 12px var(--accent-soft)",
+        }}
       />
     </div>
   );

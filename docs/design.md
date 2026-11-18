@@ -1,5 +1,20 @@
 # Design direction
 
+## Rebuild sprint — identity: "Volt"
+
+A bold gaming creator tool, not a SaaS dashboard. OLED black with a blue cast,
+one **electric volt** accent (`#C8FF3D`) and a **deep violet** secondary
+(`#8B7CFF`), a fixed radial mesh gradient behind the app, Geist Sans with a
+tight display tracking, and a volt edge + soft glow reserved for the three
+signature moments. Light mode swaps volt for indigo so the accent always clears
+contrast. Motion is one curve, `cubic-bezier(0.22, 1, 0.36, 1)`, only
+`transform` + `opacity`, and everything is disabled under
+`prefers-reduced-motion: reduce`.
+
+Signature moments: the **dare card** (volt edge, glow, the hook set large),
+the **live render progress** (gradient bar with a volt glow), and the
+**leaderboard** (large rank numerals, top three in the gradient).
+
 ## Concept, in three sentences
 
 Clipdesk Missions turns a stream into a series: every mission is a card with a

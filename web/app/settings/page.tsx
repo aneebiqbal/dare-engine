@@ -1,12 +1,14 @@
+import { Suspense } from "react";
+
 import { AppPage } from "@/components/app-page";
 import { Settings } from "@/components/settings";
-import { api, type Settings as SettingsData } from "@/lib/api";
+import { PageState } from "@/components/ui";
+import { api, type Me, type Settings as SettingsData } from "@/lib/api";
 import { requireUser } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage() {
-  const user = await requireUser();
+async function SettingsData({ user }: { user: Me }) {
   let settings: SettingsData | null = null;
   let loadError = false;
   try {
@@ -14,9 +16,16 @@ export default async function SettingsPage() {
   } catch {
     loadError = true;
   }
+  return <Settings user={user} initial={settings} loadError={loadError} />;
+}
+
+export default async function SettingsPage() {
+  const user = await requireUser();
   return (
     <AppPage user={user} eyebrow="Settings" title="Account settings">
-      <Settings user={user} initial={settings} loadError={loadError} />
+      <Suspense fallback={<PageState loading />}>
+        <SettingsData user={user} />
+      </Suspense>
     </AppPage>
   );
 }

@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { clearApiCache } from "@/lib/api";
+
 const API = process.env.API_URL ?? "http://api:8000";
 
 /** Same-origin proxy so the session cookie stays on the web origin. */
 async function proxy(req: NextRequest, method: string) {
   const path = req.nextUrl.pathname.replace(/^\/api/, "") + req.nextUrl.search;
+  if (method !== "GET" && method !== "HEAD") clearApiCache();
   const headers: Record<string, string> = {};
   const cookie = req.headers.get("cookie");
   if (cookie) headers["Cookie"] = cookie;

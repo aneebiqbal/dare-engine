@@ -101,14 +101,22 @@ export function Today({ initial }: { initial: TodayResponse | null }) {
           {cards.map((card) => {
             const state = data?.accepted?.[card.id];
             return (
-              <Card key={card.id}>
+              <Card
+                key={card.id}
+                className={card.id === data?.daily?.id ? "signature glow" : ""}
+              >
                 <div className="flex h-full flex-col gap-3">
                   <div className="flex items-center justify-between">
-                    <Badge tone="accent">{card.id}</Badge>
+                    <Badge tone={card.id === data?.daily?.id ? "accent" : "muted"}>
+                      {card.id === data?.daily?.id ? "Daily dare" : card.id}
+                    </Badge>
                     <span className="text-xs text-muted">{card.est_minutes} min</span>
                   </div>
-                  <h3 className="text-base font-medium leading-snug">{card.question}</h3>
-                  <p className="text-sm text-muted">{card.win_condition}</p>
+                  <h3 className="text-2xl font-semibold leading-tight tracking-tight">
+                    {card.hook_text}
+                  </h3>
+                  <p className="text-sm text-muted">{card.question}</p>
+                  <p className="text-sm">{card.win_condition}</p>
                   <div className="mt-auto flex flex-wrap items-center gap-2 pt-2">
                     {state === "accepted" || state === "swapped" ? (
                       <Badge tone="success" data-testid="accepted">

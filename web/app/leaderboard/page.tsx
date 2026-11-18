@@ -43,9 +43,17 @@ export default async function LeaderboardPage() {
           {rows.map((r) => (
             <Tr key={`${r.rank}-${r.user_id}`}>
               <Td>
-                <Badge tone={r.rank === 1 ? "accent" : "muted"}>#{r.rank}</Badge>
+                <span
+                  className={
+                    r.rank <= 3
+                      ? "text-2xl font-semibold tracking-tight text-gradient"
+                      : "text-2xl font-semibold tracking-tight text-muted"
+                  }
+                >
+                  {r.rank}
+                </span>
               </Td>
-              <Td>{r.user_id}</Td>
+              <Td className="font-medium">{r.user_id}</Td>
               <Td>{r.result_value ?? "—"}</Td>
             </Tr>
           ))}
