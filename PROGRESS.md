@@ -35,6 +35,10 @@ and is flagged as a fallback; live source keys and AI credit are still missing.
 - `make doctor` — **14/14**.
 - New unit tests `tests/unit/test_research.py` — **7 passed**.
 - `make check` (licence + no-mock) — **passed**.
+- `tests/acceptance/test_games_research.py` + `test_contract.py` +
+  `test_research.py` together — **11 passed**.
+- `tests/acceptance/test_sprint2_interface.py` — **11 passed** (regression on
+  the pool sources and the leaderboard display name).
 - `tests/acceptance/test_games_research.py` — **2 passed** on the real stack:
   create game → research → 3 sourced candidates (2 youtube, 2 reddit, 1 news
   from the sample feed) → approve → assign → the creator's Today shows the
