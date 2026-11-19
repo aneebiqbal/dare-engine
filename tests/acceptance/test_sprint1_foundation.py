@@ -165,7 +165,7 @@ def test_deleting_an_account_removes_voice_over_previews():
     key = f"voice-overs/test-{clip_id}/preview.wav"
     subprocess.run(
         ["docker", "compose", "exec", "-T", "api", "python", "-c",
-         "from worker_app import storage; import pathlib;"
+         "from app import storage; import pathlib;"
          f"p=pathlib.Path('/tmp/preview.wav');p.write_text('x');storage.put_file('{key}','/tmp/preview.wav')"],
         cwd=ROOT, check=True, capture_output=True,
     )

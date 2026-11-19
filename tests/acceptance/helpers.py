@@ -171,7 +171,7 @@ def upload_recording(client: Client, marks: list[dict], filename: str = "recordi
 def storage_keys() -> set[str]:
     out = subprocess.run(
         ["docker", "compose", "exec", "-T", "api", "python", "-c",
-         "from worker_app import storage; print('\\n'.join(storage.list_keys()))"],
+         "from app import storage; print('\\n'.join(storage.list_keys()))"],
         cwd=ROOT, capture_output=True, text=True, check=True,
     )
     return {line for line in out.stdout.splitlines() if line.strip()}
