@@ -86,9 +86,9 @@ def _schema(kind: str) -> dict | None:
                 "est_minutes": {"type": "integer", "minimum": 1, "maximum": 30},
                 "title_options": {"type": "array", "minItems": 1, "maxItems": 3, "items": {"type": "string", "minLength": 5, "maxLength": 100}},
                 "mode": {"type": "string", "enum": ["free_roam", "race", "mission_replay"]},
-                "source_urls": {"type": "array", "minItems": 1, "maxItems": 5, "items": {"type": "string", "minLength": 1}},
+                "source_ids": {"type": "array", "minItems": 1, "maxItems": 5, "items": {"type": "string", "minLength": 1}},
             },
-            "required": ["question", "hook_text", "setup", "win_condition", "result_type", "est_minutes", "title_options", "mode", "source_urls"],
+            "required": ["question", "hook_text", "setup", "win_condition", "result_type", "est_minutes", "title_options", "mode", "source_ids"],
         }
         return {"type": "object", "properties": {"ideas": {"type": "array", "items": idea, "maxItems": 10}}, "required": ["ideas"]}
     return None

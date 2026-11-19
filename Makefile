@@ -7,7 +7,7 @@ PYTHON := $(VENV)/bin/python
 # live local run.
 TEST_ENV := DEV_AUTH_ENABLED=true NEXT_PUBLIC_DEV_AUTH=1 LLM_PROVIDER=recorded
 
-.PHONY: up down logs accept test check web-accept screens budgets doctor create-admin voice cleanup contract types research
+.PHONY: up down logs accept test check web-accept screens budgets doctor create-admin voice cleanup contract types research setup-engine research-local
 
 up:
 	docker compose up -d --wait --build
@@ -83,3 +83,15 @@ types:
 # Run today's research for every enabled game that has not run yet.
 research:
 	docker compose exec -T api python -c "from app.research import daily_research; print(daily_research())"
+
+# One-time local engine: Ollama with a local open-weight model on this Mac.
+# No cloud, no key, no credit. Models are Chinese open weights by default.
+ENGINE_MODEL ?= qwen3:8b
+setup-engine:
+	@command -v ollama >/dev/null 2>&1 || { echo "Install Ollama first: https://ollama.com/download"; exit 1; }
+	ollama pull $(ENGINE_MODEL)
+	@echo "Set in .env: LLM_PROVIDER=openai LLM_BASE_URL=http://localhost:11434/v1 LLM_API_KEY=ollama LLM_MODEL=$(ENGINE_MODEL)"
+
+# Prove the research brain against the local model (no Docker needed).
+research-local:
+	.venv/bin/python local/research_local.py

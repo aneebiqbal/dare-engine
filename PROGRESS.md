@@ -77,6 +77,44 @@ and is flagged as a fallback; live source keys and AI credit are still missing.
    MPS game-aware detection with a CPU fallback) and the word-synced caption
    engine; measure seconds-per-clip.
 
+## Local models + cleanup sprint
+
+Status: **local Chinese open-weight models are wired in and the machine is
+stopped and cleaned.**
+
+### Local models (the user's choice: local open-source, no cloud)
+
+- **Ollama 0.40 is on the host** with `qwen3.8:27b-mlx` (Qwen3.5 27.8B, nvfp4,
+  MLX, vision + tools + thinking), `qwen2.5-coder:14b`, `qwen2.5-coder-16k`
+  and `kimi-k2.6:cloud`. Ollama serves the OpenAI chat format, so the existing
+  `shared/llm.py` client works with **no code change** — only `.env`.
+- `.env.example` documents the local block: `LLM_PROVIDER=openai`,
+  `LLM_BASE_URL=http://localhost:11434/v1`, `LLM_API_KEY=ollama`,
+  `LLM_MODEL=qwen3:8b`.
+- `make setup-engine ENGINE_MODEL=...` pulls a model and prints the `.env`
+  lines. `make research-local` runs the real `api/app/research.py` pipeline
+  against Ollama (`local/research_local.py`) — no Docker, no key.
+- `docs/local-models.md` records the wiring, the models and the limitation:
+  **Metal is host-only**, so a Linux container cannot run MLX/Ollama; the
+  container reaches a host model at `host.docker.internal:11434`. Transcription
+  is still `faster-whisper` CPU in the container — the remaining P3 work.
+- **Accuracy fix.** The brain now cites sources by short id (`s1`, `s2`, …), not
+  by long URL. A 27B model copies ids reliably and mangles URLs; an unknown id
+  is dropped. Same schema validated, same filter.
+- **Ran:** `make research-local` → `qwen3.8:27b-mlx` produced **3 ideas, each
+  citing real sample-feed sources, fallback=false**. The local path is proven
+  end to end (prompt → schema → citation filter → stored-shape ideas).
+
+### Cleanup (the user asked for it)
+
+- Stack stopped (`make down`); both Android emulators killed; Colima stopped.
+- Docker pruned: **20.19 GB reclaimed** (build cache 17.4 GB + images). Volumes
+  kept (they hold local recordings).
+- Repo artifacts removed: `m1-render-*` (except the two named review dirs),
+  `ssd-test/`, `web/.next/`, `.pytest_cache/`. Repo 1.1 GB → 948 MB.
+- Not touched (the user chose "nothing"): Docker Desktop data (63 GB), Android
+  SDK/AVDs (44 GB), Xcode (24 GB), `~/Desktop/not active` (30 GB), caches.
+
 ## Completion sprint — one committed, proven application
 
 Status: the accumulated work is committed and the full acceptance suite passes

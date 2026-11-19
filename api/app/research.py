@@ -231,24 +231,37 @@ def gather_sources(game: dict) -> tuple[list[dict], bool]:
 # --- Idea generation ------------------------------------------------------
 
 def generate_ideas(game: dict, sources: list[dict]) -> tuple[list[dict], bool]:
-    """Return (ideas, fallback). Each idea carries only verified source URLs."""
+    """Return (ideas, fallback). Each idea carries only verified source URLs.
+
+    Sources are cited by short id (`s1`, `s2`, …), not by long URL: models copy
+    short ids reliably and mangle long URLs, and an id that is not in the feed
+    is dropped.
+    """
     if not sources:
         return [], False
+    labelled = [{**s, "id": f"s{i + 1}"} for i, s in enumerate(sources)]
     prompt = (
-        f"Game: {game['name']}\n\nSources (cite only these exact URLs):\n"
-        + json.dumps(sources, ensure_ascii=False)
+        f"Game: {game['name']}\n\nSources (cite their id exactly, e.g. s1):\n"
+        + json.dumps(
+            [
+                {"id": s["id"], "kind": s["kind"], "title": s["title"], "url": s["url"]}
+                for s in labelled
+            ],
+            ensure_ascii=False,
+        )
     )
     result, fallback = run_ai({"id": None}, "research", "research", SYSTEM, prompt)
     if fallback or not result:
         return [], True
 
-    known = {s["url"]: s for s in sources}
+    known = {s["id"]: s for s in labelled}
     ideas = []
     for raw in (result or {}).get("ideas", []):
         raw = dict(raw)
-        cited = [u for u in raw.pop("source_urls", []) if u in known]
-        if not cited:
+        cited_ids = [i for i in raw.pop("source_ids", []) if i in known]
+        if not cited_ids:
             continue  # accuracy: an idea with no real source is not shown
+        cited = [known[i]["url"] for i in cited_ids]
         card = {
             "question": raw.get("question", ""),
             "hook_text": raw.get("hook_text", ""),

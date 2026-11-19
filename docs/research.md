@@ -20,10 +20,11 @@ presented as live.
 ## Pipeline
 
 1. `gather_sources(game)` fetches and de-duplicates the sources.
-2. The one AI client (`shared/llm.py`) is asked for ideas and must cite exact
-   source URLs. The response is validated against a schema.
-3. Each idea's citations are checked against the fetched feed. An idea with no
-   real source is dropped — it is never shown.
+2. The one AI client (`shared/llm.py`) is asked for ideas and must cite source
+   ids (`s1`, `s2`, …) from the feed. The response is validated against a schema.
+   Ids, not URLs: a model copies a short id reliably and mangles a long URL.
+3. Each idea's ids are resolved against the fetched feed. An idea with no real
+   source is dropped — it is never shown.
 4. Surviving ideas are stored as `missions` rows (`status='candidate'`,
    `game_id`) plus `mission_sources` rows, and a `research_runs` row records the
    source counts, idea count and whether it was a fallback.

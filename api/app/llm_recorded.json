@@ -354,10 +354,7 @@
           "Five stars, one bicycle, no brakes"
         ],
         "mode": "free_roam",
-        "source_urls": [
-          "https://www.youtube.com/watch?v=sample-gta-2",
-          "https://www.reddit.com/r/GTAV/comments/sample-gta-4/"
-        ]
+        "source_ids": ["s2", "s4"]
       },
       {
         "question": "What is the funniest way to lose a five-star wanted level?",
@@ -370,9 +367,7 @@
           "What is the funniest way to lose a five-star wanted level?"
         ],
         "mode": "free_roam",
-        "source_urls": [
-          "https://www.reddit.com/r/GTAV/comments/sample-gta-3/"
-        ]
+        "source_ids": ["s3"]
       },
       {
         "question": "Can you survive a five-star wanted level on foot for three minutes?",
@@ -385,10 +380,7 @@
           "Can you survive a five-star wanted level on foot?"
         ],
         "mode": "free_roam",
-        "source_urls": [
-          "https://www.youtube.com/watch?v=sample-gta-1",
-          "https://www.polygon.com/sample-gta-5"
-        ]
+        "source_ids": ["s1", "s5"]
       }
     ]
   }

@@ -13,6 +13,7 @@ Last updated after the research-brain sprint.
 | Games: admin grid, RAWG search, profile, enable/disable | yes | yes | yes (recorded RAWG fallback) | RAWG key for live search |
 | Research brain: YouTube + Reddit + news → sourced ideas | yes | yes | partial (sample feed, recorded AI) | source keys + AI credit |
 | Idea accuracy: citations stored and shown, schema-validated | yes | yes | yes (sample feed) | live sources |
+| Local open-weight models (Ollama: Qwen / Kimi, Metal) | yes | yes | yes (host, no cloud) | — |
 | Admin approval gate + assign + gamer Today | yes | yes | yes (real accounts) | — |
 | Generated idea card image (SVG, no remote image) | yes | yes | yes | — |
 | Mission cards from typed questions (AI) | yes | yes (recorded provider) | no | AI key credit |

@@ -75,7 +75,7 @@ def test_generate_ideas_drops_an_uncited_idea(monkeypatch):
                 "est_minutes": 5,
                 "title_options": ["A real cited idea?"],
                 "mode": "free_roam",
-                "source_urls": [sample[0]["url"]],
+                "source_ids": ["s1"],
             },
             {
                 "question": "An uncited idea?",
@@ -86,7 +86,7 @@ def test_generate_ideas_drops_an_uncited_idea(monkeypatch):
                 "est_minutes": 5,
                 "title_options": ["An uncited idea?"],
                 "mode": "free_roam",
-                "source_urls": ["https://example.com/not-in-the-feed"],
+                "source_ids": ["s99"],
             },
         ]
     }
