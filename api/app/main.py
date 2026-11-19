@@ -13,6 +13,7 @@ from .auth import router as auth_router
 from .clips import router as clips_router
 from .community import router as community_router
 from .config import settings
+from .games import router as games_router
 from .hooks import router as hooks_router
 from .missions import router as missions_router
 from .studio import router as studio_router
@@ -32,6 +33,10 @@ async def lifespan(app: FastAPI):
         sweep()
     except Exception:
         pass  # retention must never block startup
+    if settings.research_enabled:
+        from .research import start_scheduler
+
+        start_scheduler()
     yield
 
 
@@ -62,6 +67,7 @@ for router in (
     account_router,
     admin_router,
     ai_router,
+    games_router,
     studio_router,
     tours_router,
 ):

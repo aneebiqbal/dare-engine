@@ -56,6 +56,20 @@ class Settings(BaseSettings):
     # Days to keep a raw recording after its clips were made.
     recording_retention_days: int = 7
 
+    # --- Research brain ---------------------------------------------------
+    # All optional: with no keys the brain runs on the recorded sample feed and
+    # marks its output as a fallback. Never a secret in a log or response.
+    rawg_api_key: str = ""
+    youtube_api_key: str = ""
+    reddit_client_id: str = ""
+    reddit_client_secret: str = ""
+    reddit_username: str = ""
+    reddit_password: str = ""
+    reddit_user_agent: str = "clipdesk-research/0.1"
+    research_enabled: bool = True
+    research_hour: int = 5
+    research_timezone: str = "UTC"
+
     # --- Relay -----------------------------------------------------------
     # Optional shared secret for relay hooks; the stream key is always checked.
     relay_hook_secret: str = ""

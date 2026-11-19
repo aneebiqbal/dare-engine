@@ -13,7 +13,11 @@ from .users import current_user
 
 router = APIRouter()
 
+# Docker copies contracts next to the app package; the repo keeps them at the
+# root. Resolve whichever exists so the app also runs from a local checkout.
 CONTRACTS = pathlib.Path(__file__).resolve().parents[1] / "contracts"
+if not CONTRACTS.exists():
+    CONTRACTS = pathlib.Path(__file__).resolve().parents[2] / "contracts"
 CARD_SCHEMA = json.loads((CONTRACTS / "mission-card.schema.json").read_text())
 GUIDE = (pathlib.Path(__file__).resolve().parent / "help_guide.md").read_text()
 
@@ -69,6 +73,24 @@ def _schema(kind: str) -> dict | None:
         }
     if kind == "help":
         return {"type": "object", "properties": {"answer": {"type": "string"}}, "required": ["answer"]}
+    if kind == "research":
+        idea = {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "question": {"type": "string", "minLength": 10, "maxLength": 200},
+                "hook_text": {"type": "string", "minLength": 3, "maxLength": 40},
+                "setup": {"type": "string", "minLength": 5, "maxLength": 300},
+                "win_condition": {"type": "string", "minLength": 5, "maxLength": 300},
+                "result_type": {"type": "string", "enum": ["time_seconds", "star_count", "pass_fail", "distance_meters", "cash_dollars"]},
+                "est_minutes": {"type": "integer", "minimum": 1, "maximum": 30},
+                "title_options": {"type": "array", "minItems": 1, "maxItems": 3, "items": {"type": "string", "minLength": 5, "maxLength": 100}},
+                "mode": {"type": "string", "enum": ["free_roam", "race", "mission_replay"]},
+                "source_urls": {"type": "array", "minItems": 1, "maxItems": 5, "items": {"type": "string", "minLength": 1}},
+            },
+            "required": ["question", "hook_text", "setup", "win_condition", "result_type", "est_minutes", "title_options", "mode", "source_urls"],
+        }
+        return {"type": "object", "properties": {"ideas": {"type": "array", "items": idea, "maxItems": 10}}, "required": ["ideas"]}
     return None
 
 

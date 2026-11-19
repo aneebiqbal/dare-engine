@@ -48,12 +48,15 @@ set. Every kept page reads real data; the only mocked data is behind
 | `/admin/audit` | Audit log. | Reviews admin actions. | Setup status |
 | `/admin/setup` | Setup status (same checks as `make doctor`). | Confirms every key and connection. | Setup status |
 
-## Missing from the target set (built with the research brain)
+## Added with the research brain
 
-| Target page | Status |
-| --- | --- |
-| Games grid | **missing** — `/admin/games` |
-| Game profile (today's ideas + approval + assigned gamers) | **missing** — `/admin/games/[id]` |
+| Route | Why it exists | User does | Target |
+| --- | --- | --- | --- |
+| `/admin/games` | Games grid. | Adds a game from RAWG, enables/disables it, runs research. | Games grid |
+| `/admin/games/[id]` | Game profile. | Reviews today's sourced ideas, approves/rejects/assigns, sees runs. | Game profile |
+
+The idea pool (`/admin/pool`) now filters by game and shows each idea's real
+sources; the dare editor (`/missions/[id]`) shows them too.
 
 ## Trimmed
 

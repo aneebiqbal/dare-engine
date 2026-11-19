@@ -339,5 +339,57 @@
   },
   "help": {
     "answer": "Open Today, accept a mission, then use the Remote page to tap Start and Done."
+  },
+  "research": {
+    "ideas": [
+      {
+        "question": "Can you outrun five stars on a bicycle?",
+        "hook_text": "5 STARS. ONE BICYCLE.",
+        "setup": "Start in free roam on a bicycle with no wanted level, then trigger a five-star wanted level and try to lose it without leaving the bike.",
+        "win_condition": "Lose the wanted level without leaving the bicycle.",
+        "result_type": "time_seconds",
+        "est_minutes": 8,
+        "title_options": [
+          "Can you outrun five stars on a bicycle?",
+          "Five stars, one bicycle, no brakes"
+        ],
+        "mode": "free_roam",
+        "source_urls": [
+          "https://www.youtube.com/watch?v=sample-gta-2",
+          "https://www.reddit.com/r/GTAV/comments/sample-gta-4/"
+        ]
+      },
+      {
+        "question": "What is the funniest way to lose a five-star wanted level?",
+        "hook_text": "LOSE 5 STARS FAST.",
+        "setup": "Start a five-star wanted level in free roam and try the strangest escape route you can find.",
+        "win_condition": "Lose the wanted level and record the route you took.",
+        "result_type": "pass_fail",
+        "est_minutes": 8,
+        "title_options": [
+          "What is the funniest way to lose a five-star wanted level?"
+        ],
+        "mode": "free_roam",
+        "source_urls": [
+          "https://www.reddit.com/r/GTAV/comments/sample-gta-3/"
+        ]
+      },
+      {
+        "question": "Can you survive a five-star wanted level on foot for three minutes?",
+        "hook_text": "FIVE STARS, NO CAR.",
+        "setup": "Trigger a five-star wanted level with no vehicle nearby and stay on foot.",
+        "win_condition": "Survive for three minutes without entering a vehicle.",
+        "result_type": "time_seconds",
+        "est_minutes": 8,
+        "title_options": [
+          "Can you survive a five-star wanted level on foot?"
+        ],
+        "mode": "free_roam",
+        "source_urls": [
+          "https://www.youtube.com/watch?v=sample-gta-1",
+          "https://www.polygon.com/sample-gta-5"
+        ]
+      }
+    ]
   }
 }

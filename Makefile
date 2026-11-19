@@ -7,7 +7,7 @@ PYTHON := $(VENV)/bin/python
 # live local run.
 TEST_ENV := DEV_AUTH_ENABLED=true NEXT_PUBLIC_DEV_AUTH=1 LLM_PROVIDER=recorded
 
-.PHONY: up down logs accept test check web-accept screens budgets doctor create-admin voice cleanup contract types
+.PHONY: up down logs accept test check web-accept screens budgets doctor create-admin voice cleanup contract types research
 
 up:
 	docker compose up -d --wait --build
@@ -79,3 +79,7 @@ contract:
 # Regenerate the typed web client from the contract.
 types:
 	cd web && npx --yes openapi-typescript ../contracts/openapi.yaml -o lib/api-types.ts
+
+# Run today's research for every enabled game that has not run yet.
+research:
+	docker compose exec -T api python -c "from app.research import daily_research; print(daily_research())"

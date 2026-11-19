@@ -159,3 +159,16 @@ the two differ in either direction.
   after `RECORDING_RETENTION_DAYS`; studio recordings live under
   `recordings/<user_id>/studio-…` so the same sweep covers them.
 
+## Research-brain decisions
+
+| Choice | Reason | Licence |
+| --- | --- | --- |
+| RAWG for the games database | One API key, no OAuth dance; catalog is large enough for launch. IGDB needs a Twitch app and a token refresh. | — |
+| YouTube Data API + Reddit + gaming-news RSS | Three independent free sources, so one outage does not stop the brain. No Google Trends (closed alpha, against terms). | — |
+| Sources stored in `mission_sources`, not in the card JSONB | The mission-card schema stays stable; an idea with no source row is simply never shown. | — |
+| Every citation checked against the fetched feed | The model cannot invent a URL and have it shown; an idea with no real source is dropped. | — |
+| Daily gate is a database read, not an in-process cron | Idempotent across API replicas and restarts; no extra dependency. The loop checks every 5 minutes. | — |
+| Recorded provider + saved sample feed | The whole pipeline is provable without keys; the run is flagged `fallback`. | — |
+| Card identity is an SVG endpoint | No remote image dependency; the same card is used in the admin queue and the dare editor. | — |
+| Contract path resolves in Docker and in a local checkout | `make contract` and the API unit tests run from the repo root, where `contracts/` is at the root. | — |
+

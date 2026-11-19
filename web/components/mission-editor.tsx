@@ -141,6 +141,28 @@ export function MissionEditor({ initial }: { initial: PoolEntry | null }) {
             <span>Status · {card.status}</span>
           </div>
         </Card>
+        {initial?.sources && initial.sources.length > 0 && (
+          <Card>
+            <div className="flex flex-col gap-2">
+              <Badge tone="accent">Sources</Badge>
+              <ul className="flex flex-col gap-1">
+                {initial.sources.map((s) => (
+                  <li key={s.url} className="text-xs">
+                    <Badge tone="muted">{s.kind}</Badge>{" "}
+                    <a
+                      href={s.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-accent hover:underline"
+                    >
+                      {s.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Card>
+        )}
       </aside>
     </div>
   );

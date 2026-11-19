@@ -34,11 +34,71 @@ export type Today = {
   assignments?: { id: string; mission_id: string; state: string }[];
 };
 
+export type MissionSource = {
+  kind: "youtube" | "reddit" | "news" | string;
+  title: string;
+  url: string;
+  external_id: string | null;
+  published_at: string | null;
+};
+
 export type PoolEntry = {
   id: string;
   card: MissionCard;
   score: number;
   state: "candidate" | "unverified" | "rejected";
+  sources?: MissionSource[];
+};
+
+export type Game = {
+  id: string;
+  slug: string;
+  name: string;
+  external_id: string | null;
+  source: string;
+  genre: string | null;
+  release_date: string | null;
+  art_url: string | null;
+  enabled: boolean;
+  created_at: string;
+  candidates?: number;
+  approved?: number;
+  gamers?: number;
+};
+
+export type GameSearchEntry = {
+  slug: string;
+  name: string;
+  external_id: string | null;
+  genre: string | null;
+  release_date: string | null;
+  art_url: string | null;
+};
+
+export type ResearchRun = {
+  id: string;
+  status: string;
+  source_counts: Record<string, number>;
+  ideas_count: number;
+  fallback: boolean;
+  error: string | null;
+  created_at: string;
+  finished_at: string | null;
+};
+
+export type GameProfile = {
+  game: Game;
+  candidates: PoolEntry[];
+  approved: PoolEntry[];
+  assigned: {
+    assignment_id: string;
+    user_id: string;
+    display_name: string;
+    state: string;
+    date: string;
+    mission_id: string;
+  }[];
+  runs: ResearchRun[];
 };
 
 export type List<T> = {

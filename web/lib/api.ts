@@ -6,6 +6,9 @@ import type {
   Clip,
   ClipExport,
   EditorResult,
+  Game,
+  GameProfile,
+  GameSearchEntry,
   HelpAnswer,
   HistoryEntry,
   Invite,
@@ -15,6 +18,7 @@ import type {
   Me,
   MissionCard,
   PoolEntry,
+  ResearchRun,
   Results,
   ReviewResult,
   Settings,
@@ -37,6 +41,9 @@ export type {
   Clip,
   ClipExport,
   EditorResult,
+  Game,
+  GameProfile,
+  GameSearchEntry,
   HelpAnswer,
   HistoryEntry,
   Invite,
@@ -46,6 +53,7 @@ export type {
   Me,
   MissionCard,
   PoolEntry,
+  ResearchRun,
   Results,
   ReviewResult,
   Settings,
@@ -310,6 +318,27 @@ export const api = {
   ),
   adminTemplates: (params = "") => get<List<unknown>>(`/admin/templates${params}`),
 
+  // --- games / research -------------------------------------------------
+  games: () => get<Game[]>("/games"),
+  adminGames: (params = "") => get<List<Game>>(`/admin/games${params}`),
+  adminGameSearch: (query: string) =>
+    post<{ results: GameSearchEntry[] }>("/admin/games/search", { query }),
+  adminCreateGame: (fields: Record<string, unknown>) =>
+    post<{ id: string; slug: string; name: string }>("/admin/games", fields),
+  adminGame: (id: string) => get<GameProfile>(`/admin/games/${id}`),
+  adminUpdateGame: (id: string, fields: Record<string, unknown>) =>
+    patch<{ id: string; enabled: boolean }>(`/admin/games/${id}`, fields),
+  adminRunResearch: (id: string) =>
+    post<{
+      run_id: string;
+      game_id: string;
+      sources: Record<string, number>;
+      ideas: number;
+      fallback: boolean;
+      latency_ms: number;
+    }>(`/admin/games/${id}/research`, {}),
+  cardImageUrl: (id: string) => `${base()}/missions/${id}/card.svg`,
+
   // --- studio -----------------------------------------------------------
   studioUpload: (file: File) => {
     const form = new FormData();
@@ -344,7 +373,7 @@ export const api = {
 
   // --- community -------------------------------------------------------
   leaderboard: (id: string, params = "") =>
-    get<List<{ rank: number; user_id: string; result_value: number | null; clip_id: string | null }>>(
+    get<List<{ rank: number; user_id: string; display_name: string; result_value: number | null; clip_id: string | null }>>(
       `/missions/${id}/leaderboard${params}`,
     ),
   publicMission: (slug: string) =>

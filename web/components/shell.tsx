@@ -22,6 +22,7 @@ const CREATOR: [string, string, string][] = [
 
 const ADMIN: [string, string, string][] = [
   ["/admin", "Overview", "grid"],
+  ["/admin/games", "Games", "gamepad"],
   ["/admin/users", "Users", "users"],
   ["/admin/invites", "Invites", "mail"],
   ["/admin/pool", "Pool", "layers"],

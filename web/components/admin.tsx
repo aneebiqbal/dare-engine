@@ -30,6 +30,7 @@ import {
   Tr,
   useToast,
 } from "@/components/ui";
+import { Sources } from "./games";
 
 function useList<T>(fetcher: (params?: string) => Promise<{ items: T[]; total: number }>, params = "") {
   const [items, setItems] = useState<T[]>([]);
@@ -539,6 +540,7 @@ export function AdminPool() {
                 </div>
                 <h3 className="text-base font-medium leading-snug">{entry.card?.question ?? "Untitled"}</h3>
                 <p className="text-sm text-muted">{entry.card?.hook_text}</p>
+                <Sources sources={entry.sources} />
                 <div className="mt-auto flex gap-2 pt-2">
                   <Button size="sm" data-testid="approve-button" onClick={() => void approve(entry.id)}>
                     Approve

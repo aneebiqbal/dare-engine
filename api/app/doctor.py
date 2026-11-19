@@ -65,6 +65,18 @@ def run_checks() -> list[dict]:
         bool(settings.llm_model),
         "model id from the provider",
     ))
+    research_keys = bool(
+        settings.youtube_api_key
+        or (settings.reddit_client_id and settings.reddit_client_secret)
+        or settings.rawg_api_key
+    )
+    checks.append(_check(
+        "research sources (optional)",
+        True,
+        "live keys present"
+        if research_keys
+        else "no source keys — the daily brain runs on the saved sample feed",
+    ))
 
     from . import storage
 

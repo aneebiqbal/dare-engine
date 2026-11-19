@@ -1,5 +1,78 @@
 # Progress
 
+## Research-brain sprint — games + sourced daily ideas
+
+Status: **built and green on the real stack.** The games grid, the game profile,
+the daily research brain, sourced ideas, the approval gate and the gamer's Today
+are wired end to end. The brain runs on the recorded provider + saved sample feed
+and is flagged as a fallback; live source keys and AI credit are still missing.
+
+### What was built
+
+- **Games.** Migration `0006_games.sql` (games, `missions.game_id`,
+  `mission_sources`, `research_runs`). `api/app/games.py`: admin grid, RAWG
+  search/create (auto-builds genre/release/art), profile, enable/disable,
+  on-demand research, gamer-facing list. Web: `/admin/games`,
+  `/admin/games/[id]`, "Games" in the admin rail.
+- **Research brain.** `api/app/research.py`: YouTube Data API + Reddit + gaming
+  news RSS → one AI client → schema-validated ideas whose citations are checked
+  against the fetched feed. An idea with no real source is dropped. Stored as
+  candidates with `mission_sources`. A DB-gated daily loop runs it per enabled
+  game; `RESEARCH_ENABLED` / `RESEARCH_HOUR` / `RESEARCH_TIMEZONE` in `.env`.
+- **Card identity.** `GET /missions/{id}/card.svg` renders the idea's card as an
+  SVG (hook, question, win condition, game, id) with no remote image.
+- **Accuracy.** Sources are shown on the game profile, the pool and the dare
+  editor. The admin approval gate is unchanged: nothing reaches a gamer
+  unapproved.
+- **Priority 1 audit.** `docs/pages.md` (one row per route), and the public
+  leaderboard now shows a display name instead of a raw user id.
+- **One env.** `.env.example` gains the research group; `docker-compose.yml`
+  passes every new variable; `make doctor` is 14/14 with a research check that
+  never fails and never prints a key.
+
+### Ran and observed
+
+- `make doctor` — **14/14**.
+- New unit tests `tests/unit/test_research.py` — **7 passed**.
+- `make check` (licence + no-mock) — **passed**.
+- `tests/acceptance/test_games_research.py` — **2 passed** on the real stack:
+  create game → research → 3 sourced candidates (2 youtube, 2 reddit, 1 news
+  from the sample feed) → approve → assign → the creator's Today shows the
+  assigned idea. One earlier run failed on a transient `psql`/Neon error in
+  cleanup; it passed on rerun and on a combined rerun.
+- `tests/acceptance/test_contract.py` — **2 passed** after regenerating
+  `contracts/openapi.yaml` (89 paths).
+- Manual smoke on the real stack: research returned
+  `{"sources":{"youtube":2,"reddit":2,"news":1},"ideas":3,"fallback":true}`
+  in 3.8 s; the card SVG served `image/svg+xml`.
+
+### Real data vs stand-ins
+
+- **Real:** the API, the database, the accounts, the approval/assign flow, the
+  schema validation, the citation check, the SVG renderer.
+- **Stand-in:** the research sources (saved sample feed) and the AI response
+  (recorded provider). Marked `fallback: true`. Not proven on live YouTube /
+  Reddit / news, and not proven with a live AI key.
+
+### Blocked on the user
+
+- `YOUTUBE_API_KEY`, the Reddit app, `RAWG_API_KEY` — live research and live game
+  search.
+- AI key credit — the live idea-writing call.
+- The user's own gameplay recording with commentary — the clip-quality bar.
+- `origin` exists but its URL embeds a GitHub token. Rotate it and use a
+  credential helper; do not push until then.
+
+### Next three tasks
+
+1. **Priority 1c — OBS live view.** Connect the Go-Live page to obs-websocket,
+   show real connection/recording state, and document the preview path.
+2. **Priority 3a — SSD flow.** Detect an external drive, list its videos, load
+   one into the local studio; nothing uploads.
+3. **Priority 3b/3c — local models.** `make setup-engine` (MLX Whisper on Metal,
+   MPS game-aware detection with a CPU fallback) and the word-synced caption
+   engine; measure seconds-per-clip.
+
 ## Completion sprint — one committed, proven application
 
 Status: the accumulated work is committed and the full acceptance suite passes

@@ -3,22 +3,27 @@ from __future__ import annotations
 
 import datetime
 import hashlib
+import html
 import json
 import pathlib
 import re
 
 import jsonschema
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from . import db
 from .ai import run_ai
 from .paging import envelope, order_clause, parse
+from .research import card_with_sources, sources_map
 from .users import audit, current_user, require_admin
 
 router = APIRouter()
 
 CONTRACTS = pathlib.Path(__file__).resolve().parents[1] / "contracts"
+if not CONTRACTS.exists():
+    CONTRACTS = pathlib.Path(__file__).resolve().parents[2] / "contracts"
 CARD_SCHEMA = json.loads((CONTRACTS / "mission-card.schema.json").read_text())
 _ID = re.compile(r"^m_[0-9]{4,}$")
 
@@ -110,18 +115,30 @@ def write_cards(request: Request, payload: QuestionsIn):
 def pool(request: Request):
     page, size, sort, order = parse(request, "created_at")
     status = request.query_params.get("status", "candidate")
+    game_id = request.query_params.get("game_id")
+    where = "m.status = %s"
+    params: list = [status]
+    if game_id:
+        where += " AND m.game_id = %s"
+        params.append(game_id)
     with db.session() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT count(*) FROM missions WHERE status = %s", (status,))
+            cur.execute(f"SELECT count(*) FROM missions m WHERE {where}", params)
             total = cur.fetchone()[0]
             cur.execute(
-                f"SELECT m.id, m.card, m.score, m.status FROM missions m WHERE m.status = %s "
+                f"SELECT m.id, m.card, m.score, m.status FROM missions m WHERE {where} "
                 f"ORDER BY {order_clause(sort, POOL_SORT, 'm.created_at', order)} "
                 f"LIMIT %s OFFSET %s",
-                (status, size, (page - 1) * size),
+                params + [size, (page - 1) * size],
             )
             rows = cur.fetchall()
-    return envelope([_card(r) for r in rows], total, page, size)
+            sources = sources_map(cur, [r[0] for r in rows])
+            items = []
+            for r in rows:
+                entry = _card(r)
+                entry["sources"] = sources.get(r[0], [])
+                items.append(entry)
+    return envelope(items, total, page, size)
 
 
 @router.post("/admin/pool/{mission_id}/approve", dependencies=[Depends(require_admin)])
@@ -180,15 +197,77 @@ def assign(request: Request, mission_id: str, payload: AssignIn):
     return {"id": str(row[0]) if row else None, "mission_id": mission_id, "state": "assigned"}
 
 
+def _wrap(text: str, width: int) -> list[str]:
+    words, lines, line = text.split(), [], ""
+    for word in words:
+        if len(line) + len(word) + 1 > width and line:
+            lines.append(line)
+            line = word
+        else:
+            line = f"{line} {word}".strip()
+    if line:
+        lines.append(line)
+    return lines
+
+
+def _card_svg(card: dict, game_name: str) -> str:
+    """Render the idea's visual identity as an SVG. No remote image."""
+    hook = html.escape(card.get("hook_text", ""))
+    question = html.escape(card.get("question", ""))
+    win = html.escape(card.get("win_condition", ""))
+    mode = html.escape(card.get("mode", ""))
+    title = html.escape((card.get("title_options") or [""])[0])
+    game = html.escape(game_name)
+    mission_id = html.escape(str(card.get("id", "")))
+
+    question_lines = _wrap(question, 26)
+    win_lines = _wrap(win, 30)
+    y = 720
+    question_svg = "".join(
+        f'<text x="90" y="{y + i * 52}" font-size="42" fill="#FAFAFA">{html.escape(l)}</text>'
+        for i, l in enumerate(question_lines)
+    )
+    y += len(question_lines) * 52 + 40
+    win_svg = "".join(
+        f'<text x="90" y="{y + i * 44}" font-size="34" fill="#A3A3A3">{html.escape(l)}</text>'
+        for i, l in enumerate(win_lines)
+    )
+
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+  <rect width="1080" height="1920" fill="#050505"/>
+  <rect x="24" y="24" width="1032" height="1872" rx="48" fill="none" stroke="#C8FF3D" stroke-width="3"/>
+  <text x="90" y="220" font-family="Verdana, sans-serif" font-size="30" letter-spacing="8" fill="#8B7CFF">{game.upper()[:30]}</text>
+  <text x="90" y="330" font-family="Verdana, sans-serif" font-size="96" font-weight="bold" fill="#C8FF3D">{hook.upper()[:28]}</text>
+  <text x="90" y="430" font-family="Verdana, sans-serif" font-size="44" fill="#FAFAFA">{title[:60]}</text>
+  {question_svg}
+  {win_svg}
+  <text x="90" y="1740" font-family="Verdana, sans-serif" font-size="30" letter-spacing="4" fill="#737373">{mode.upper()} · {mission_id}</text>
+</svg>"""
+
+
+@router.get("/missions/{mission_id}/card.svg")
+def mission_card_svg(mission_id: str):
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT m.card, g.name FROM missions m LEFT JOIN games g ON g.id = m.game_id "
+                "WHERE m.id = %s",
+                (mission_id,),
+            )
+            row = cur.fetchone()
+    if row is None:
+        raise HTTPException(404, "mission not found")
+    return Response(content=_card_svg(row[0], row[1] or ""), media_type="image/svg+xml")
+
+
 @router.get("/missions/{mission_id}")
 def get_mission(mission_id: str):
     with db.session() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, card, score, status FROM missions WHERE id = %s", (mission_id,))
-            row = cur.fetchone()
-    if row is None:
+            entry = card_with_sources(cur, mission_id)
+    if not entry:
         raise HTTPException(404, "mission not found")
-    return _card(row)
+    return entry
 
 
 @router.patch("/missions/{mission_id}")
