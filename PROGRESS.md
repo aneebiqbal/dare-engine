@@ -1,5 +1,57 @@
 # Progress
 
+## Polish sprint — one product, end to end
+
+Status: **the journey walks end to end on real data; the owner's visual verdict
+is pending.**
+
+### Part 1 — the flow is one product
+
+- A persistent **Up next** affordance on every step: Today, Go Live, Remote,
+  Clips, Clip review, Studio, Calendar, Results, the games list and the game
+  profile. Each reflects real state and leads to the next real screen;
+  self-referential links were removed.
+- `tests/screenshots/flow.py` (`make flow`) seeds a real game, sourced ideas and
+  an assignment, then the admin runs the real studio (upload → find moments →
+  generate), reviews with commentary, schedules, builds a long-form and records
+  metrics; a creator walks Today → Go Live → Remote with real Start/Done taps.
+  It asserts every step has a real next link and saves 11 screenshots to
+  `docs/screens/flow/`.
+- The studio reopens the latest session on load, so a session is already pointed
+  at.
+
+### Part 2 — signature moments
+
+- One shared `DareCard` (hook, question, win condition, generated card image,
+  sources) on Today, the dashboard and the pool/profile surfaces.
+- The studio shows the real compute path, live system load, ranked candidates
+  with scores and reasons, the finished clip and the next step.
+- Results shows swipe-through, saves/shares per 1k and a data-driven summary;
+  the recorded provider's canned numbers are never presented as real.
+
+### Part 3 — half-built features finished
+
+- Calendar: drag a clip onto a 7-day grid, with the cadence guardrail on the day
+  cells; the queue and the manual-publish label are real.
+- Long-form: optional intro/outro title cards burned by FFmpeg, matched to the
+  clip format.
+- Commentary: a real field in review, fed into the AI export prompt.
+- Models: per-model “Fits this Mac”, real MLX download status, pull/unload/free.
+- SSD: process-and-release deletes the inbox copy after a safe import.
+
+### Part 4 — speed and docs
+
+- `docs/performance.md` reconciled with `docs/screens/budgets.json`.
+- Doc drift fixed: `worker/worker_app` paths, the contract path count (105) and
+  the piper-tts licence.
+- a11y: 0 serious/critical on 30 pages at phone and desktop.
+
+### Owner verdict pending
+
+The honest bar is a human looking at `docs/screens/flow/` and the page
+screenshots. The clip-quality bar and the launch demo still need the owner's own
+gameplay footage.
+
 ## Autonomous build session — model manager, memory discipline, content loop
 
 Status: **P1 model manager, P3 memory discipline and P4 content loop are built
