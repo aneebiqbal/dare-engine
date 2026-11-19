@@ -45,6 +45,7 @@ W_MARKER = 2.0
 W_PEAK = 1.0
 W_SCENE = 0.8
 W_BURST = 1.2
+W_STRIKE = 0.6
 
 
 @dataclasses.dataclass
@@ -87,7 +88,7 @@ def detect_compute_path() -> ComputePath:
     from .engine import detect_encoder
 
     enc = detect_encoder()
-    return ComputePath(device, compute, enc, device == "cuda")
+    return ComputePath(device, compute, enc, device in ("cuda", "mlx"))
 
 
 def _duration(path: str) -> float:
@@ -137,6 +138,36 @@ def _scene_changes(path: str) -> list[float]:
     return [float(m.group(1)) for m in re.finditer(r"pts_time:([0-9.]+)", proc.stderr)]
 
 
+def _frame_stats(path: str) -> list[tuple[float, float]]:
+    """Per-second (mean luma 0-255, contrast 0-255) from 1 fps 32x32 gray frames.
+
+    Cheap: ~1 KB per second. Used so the cold open never lands on a dark or
+    blown-out frame.
+    """
+    proc = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-nostats", "-i", path,
+         "-vf", "fps=1,scale=32:32,format=gray", "-f", "rawvideo", "-"],
+        capture_output=True,
+    )
+    frame = 32 * 32
+    raw = proc.stdout
+    stats: list[tuple[float, float]] = []
+    for i in range(0, len(raw) - frame + 1, frame):
+        block = raw[i:i + frame]
+        mean = sum(block) / frame
+        contrast = math.sqrt(sum((b - mean) ** 2 for b in block) / frame)
+        stats.append((mean, contrast))
+    return stats
+
+
+def _strike(mean: float, contrast: float) -> float:
+    """0..1: a visible, contrasty frame. Dark and blown-out frames score 0."""
+    brightness = mean / 255.0
+    if brightness < 0.08 or brightness > 0.95:
+        return 0.0
+    return max(0.0, min(1.0, (contrast / 255.0) * 2.0)) * (1.0 - abs(brightness - 0.45))
+
+
 def _marker_seconds(words: list[Word]) -> set[int]:
     """Seconds where a marker phrase starts in the transcript."""
     lowered = [w.text.lower().strip(".,!?") for w in words]
@@ -156,6 +187,7 @@ def _score_window(
     energy: list[float],
     scenes: list[float],
     markers: set[int],
+    frames: list[tuple[float, float]] | None = None,
 ) -> tuple[float, list[str]]:
     duration = max(1e-6, end - start)
     lo, hi = int(math.floor(start)), int(math.ceil(end))
@@ -184,12 +216,19 @@ def _score_window(
             burst = 1
             break
 
+    strike = 0.0
+    if frames:
+        lo_f, hi_f = lo, min(hi, len(frames))
+        if hi_f > lo_f:
+            strike = sum(_strike(*frames[i]) for i in range(lo_f, hi_f)) / (hi_f - lo_f)
+
     score = (
         W_SPEECH * speech_score
         + W_MARKER * marker_score
         + W_PEAK * peak_score
         + W_SCENE * scene_score
         + W_BURST * burst
+        + W_STRIKE * strike
         + 0.3 * rise_score
     )
 
@@ -206,13 +245,25 @@ def _score_window(
         reasons.append("quiet then burst")
     if rise_score >= 0.5:
         reasons.append("rising voice")
+    if strike >= 0.08:
+        reasons.append("striking frame")
     if not reasons:
         reasons.append("steady action")
     return score, reasons
 
 
-def _peak_second(words: list[Word], lo: float, hi: float, energy: list[float]) -> float:
-    """The strongest second in a window: commentary density, then loudness."""
+def _peak_second(
+    words: list[Word],
+    lo: float,
+    hi: float,
+    energy: list[float],
+    frames: list[tuple[float, float]] | None = None,
+) -> float:
+    """The strongest second in a window.
+
+    Commentary density first, then visual strikingness: a dark or blown-out
+    second is never chosen as the cold open.
+    """
     scores: dict[int, float] = {}
     for w in words:
         mid = (w.start + w.end) / 2
@@ -220,8 +271,13 @@ def _peak_second(words: list[Word], lo: float, hi: float, energy: list[float]) -
             scores[int(mid)] = scores.get(int(mid), 0.0) + 1.0
     if not scores:
         return (lo + hi) / 2
-    best = max(scores, key=lambda s: (scores[s], energy[s] if s < len(energy) else -80.0))
-    return float(best)
+
+    def key(second: int):
+        strike = _strike(*frames[second]) if frames and second < len(frames) else 0.0
+        loud = energy[second] if second < len(energy) else -80.0
+        return (scores.get(second, 0.0) > 0, strike, scores.get(second, 0.0), loud)
+
+    return float(max(scores, key=key))
 
 
 def detect_moments(path: str, top_n: int = 5) -> tuple[list[Candidate], ComputePath]:
@@ -230,6 +286,7 @@ def detect_moments(path: str, top_n: int = 5) -> tuple[list[Candidate], ComputeP
     words = transcribe(path)
     energy = _audio_energy(path)
     scenes = _scene_changes(path)
+    frames = _frame_stats(path)
     markers = _marker_seconds(words)
     compute = detect_compute_path()
 
@@ -237,11 +294,11 @@ def detect_moments(path: str, top_n: int = 5) -> tuple[list[Candidate], ComputeP
     t = 0.0
     while t + MIN_WINDOW <= duration + 1e-6:
         end = min(duration, t + WINDOW)
-        peak = _peak_second(words, t, end, energy)
+        peak = _peak_second(words, t, end, energy, frames)
         # Centre the window on its peak so the cold open lands on the moment.
         start = max(0.0, min(peak - WINDOW / 2.0, max(0.0, duration - WINDOW)))
         end = min(duration, start + WINDOW)
-        score, reasons = _score_window(start, end, words, energy, scenes, markers)
+        score, reasons = _score_window(start, end, words, energy, scenes, markers, frames)
         candidates.append(Candidate(start, end, score, reasons))
         t += STEP
 

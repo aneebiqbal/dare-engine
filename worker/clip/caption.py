@@ -21,6 +21,7 @@ Style: Hook,DejaVu Sans,110,&H00FFFFFF,&H000000FF,&H00000000,&H60000000,-1,0,0,0
 Style: Word,DejaVu Sans,84,&H0000FFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,3,0,2,180,180,260,1
 Style: Line,DejaVu Sans,64,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,3,0,2,180,180,320,1
 Style: Pop,DejaVu Sans,96,&H0000FFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,4,0,2,180,180,200,1
+Style: Karaoke,DejaVu Sans,84,&H0000FFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,3,0,2,180,180,260,1
 Style: End,DejaVu Sans,76,&H00FFFFFF,&H000000FF,&H00000000,&H60000000,-1,0,0,0,100,100,0,0,1,3,1,5,180,180,700,1
 
 [Events]
@@ -34,6 +35,8 @@ STYLES = {
     "word": {"ass": "Word", "per": "word", "max_words": 1},
     "line": {"ass": "Line", "per": "phrase", "max_words": 4},
     "pop": {"ass": "Pop", "per": "word", "max_words": 1},
+    # Animated word-by-word highlight: each word is a karaoke segment.
+    "karaoke": {"ass": "Karaoke", "per": "karaoke", "max_words": 4},
 }
 
 
@@ -65,6 +68,27 @@ def group_words(words: list[Word], per: str, max_words: int = 4) -> list[Word]:
     return groups
 
 
+def karaoke_groups(words: list[Word], max_words: int = 4) -> list[list[Word]]:
+    groups: list[list[Word]] = []
+    current: list[Word] = []
+    for w in words:
+        current.append(w)
+        if len(current) >= max_words or (w.end - current[0].start) > 3.0:
+            groups.append(current)
+            current = []
+    if current:
+        groups.append(current)
+    return groups
+
+
+def karaoke_text(group: list[Word]) -> str:
+    """One ASS event whose words highlight in sequence with `\\k` tags."""
+    return " ".join(
+        f"{{\\k{max(1, int(round((w.end - w.start) * 100)))}}}{_ass_text(w.text)}"
+        for w in group
+    )
+
+
 def write_ass(
     path: str,
     hook_text: str,
@@ -86,16 +110,28 @@ def write_ass(
             text=_ass_text(hook_text),
         )
     )
-    for w in group_words(words, style["per"], style["max_words"]):
-        lines.append(
-            EVENT.format(
-                start=_ass_time(w.start),
-                end=_ass_time(w.end),
-                style=style["ass"],
-                name="",
-                text=_ass_text(w.text),
+    if style["per"] == "karaoke":
+        for group in karaoke_groups(words, style["max_words"]):
+            lines.append(
+                EVENT.format(
+                    start=_ass_time(group[0].start),
+                    end=_ass_time(group[-1].end),
+                    style=style["ass"],
+                    name="",
+                    text=karaoke_text(group),
+                )
             )
-        )
+    else:
+        for w in group_words(words, style["per"], style["max_words"]):
+            lines.append(
+                EVENT.format(
+                    start=_ass_time(w.start),
+                    end=_ass_time(w.end),
+                    style=style["ass"],
+                    name="",
+                    text=_ass_text(w.text),
+                )
+            )
     if end_lines:
         lines.append(
             EVENT.format(

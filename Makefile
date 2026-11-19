@@ -7,7 +7,7 @@ PYTHON := $(VENV)/bin/python
 # live local run.
 TEST_ENV := DEV_AUTH_ENABLED=true NEXT_PUBLIC_DEV_AUTH=1 LLM_PROVIDER=recorded
 
-.PHONY: up down logs accept test check web-accept screens budgets doctor create-admin voice cleanup contract types research setup-engine research-local ssd-bridge
+.PHONY: up down logs accept test check web-accept screens budgets doctor create-admin voice cleanup contract types research setup-engine research-local ssd-bridge mlx-bridge
 
 up:
 	docker compose up -d --wait --build
@@ -84,13 +84,24 @@ types:
 research:
 	docker compose exec -T api python -c "from app.research import daily_research; print(daily_research())"
 
-# One-time local engine: Ollama with a local open-weight model on this Mac.
-# No cloud, no key, no credit. Models are Chinese open weights by default.
+# One-time local engine on this Mac: Ollama for the AI client, MLX Whisper for
+# transcription. No cloud, no key, no credit.
 ENGINE_MODEL ?= qwen3:8b
+MLX_MODEL ?= mlx-community/whisper-large-v3-mlx
 setup-engine:
 	@command -v ollama >/dev/null 2>&1 || { echo "Install Ollama first: https://ollama.com/download"; exit 1; }
 	ollama pull $(ENGINE_MODEL)
-	@echo "Set in .env: LLM_PROVIDER=openai LLM_BASE_URL=http://localhost:11434/v1 LLM_API_KEY=ollama LLM_MODEL=$(ENGINE_MODEL)"
+	python3 -m venv $(HOME)/.clipdesk-engine
+	$(HOME)/.clipdesk-engine/bin/pip install -q --upgrade pip
+	$(HOME)/.clipdesk-engine/bin/pip install -q mlx-whisper
+	@echo "AI:  LLM_PROVIDER=openai LLM_BASE_URL=http://localhost:11434/v1 LLM_API_KEY=ollama LLM_MODEL=$(ENGINE_MODEL)"
+	@echo "ASR: MLX_WHISPER_URL=http://host.docker.internal:8798 MLX_WHISPER_MODEL=$(MLX_MODEL)"
+	@echo "Then: make mlx-bridge and make ssd-bridge"
+
+# Host MLX Whisper bridge (the worker container cannot reach Metal).
+mlx-bridge:
+	@test -x $(HOME)/.clipdesk-engine/bin/python || { echo "Run make setup-engine first"; exit 1; }
+	$(HOME)/.clipdesk-engine/bin/python local/mlx_bridge.py
 
 # Prove the research brain against the local model (no Docker needed).
 research-local:

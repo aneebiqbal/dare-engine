@@ -167,7 +167,7 @@ def recording_detail(request: Request, recording_id: str):
             "whisper_device": row[7],
             "whisper_compute_type": row[8],
             "encoder": row[9],
-            "gpu": row[7] == "cuda",
+            "gpu": row[7] in ("cuda", "mlx"),
         },
         "candidates": candidates,
     }

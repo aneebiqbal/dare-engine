@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     whisper_model: str = "small"
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"
+    # Host MLX Whisper bridge. Empty = use faster-whisper in the container.
+    mlx_whisper_url: str = ""
+    mlx_whisper_model: str = "mlx-community/whisper-large-v3-mlx"
 
     @property
     def direct_url(self) -> str:

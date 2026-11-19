@@ -49,6 +49,30 @@ prompt, schema and citation filter) with the one client pointed at Ollama. It
 prints the sourced ideas. With no source keys it uses the saved sample feed, so
 it is a deterministic proof of the local model path.
 
+## Transcription on Metal (MLX Whisper)
+
+The worker container cannot reach Metal, so transcription runs in a host bridge
+(`local/mlx_bridge.py`, `mlx-whisper`, word timestamps). The worker calls it when
+`MLX_WHISPER_URL` is set:
+
+```sh
+make setup-engine          # creates ~/.clipdesk-engine and installs mlx-whisper
+make mlx-bridge            # serves ws-style HTTP on :8798
+```
+
+`.env`:
+
+```sh
+MLX_WHISPER_URL=http://host.docker.internal:8798
+MLX_WHISPER_MODEL=mlx-community/whisper-large-v3-mlx
+```
+
+Leave `MLX_WHISPER_URL` empty to fall back to `faster-whisper` (CPU) in the
+container. The compute path is stored per recording and shown in the studio as
+`mlx / metal` with the GPU badge; `whisper_compute()` reports `("mlx", "metal")`
+so the detector records it. **Measured:** 30.17 s for the 4.9-minute fixture
+(593 words) after the model is cached; the first run also downloads the model.
+
 ## The container limitation (important)
 
 The API and worker run in Linux containers. **Metal is only available on the
@@ -58,10 +82,8 @@ macOS host**, so a container cannot run MLX or Ollama. Two consequences:
   and the container must reach it at `host.docker.internal:11434` (Colima
   supports this). Set `LLM_BASE_URL=http://host.docker.internal:11434/v1` in
   that case.
-- Transcription is different: the worker uses `faster-whisper` (CPU) inside the
-  container. A Metal path (`mlx-whisper` / `whisper.cpp`) must run on the host
-  and be called over HTTP, or the worker must run on the host. This is the
-  remaining Priority 3 work.
+- Transcription runs on the host through the MLX bridge above; the worker falls
+  back to `faster-whisper` CPU when the bridge is not configured.
 
 ## Security
 

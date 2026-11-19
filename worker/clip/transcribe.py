@@ -16,13 +16,15 @@ class Word:
 
 
 def whisper_compute() -> tuple[str, str]:
-    """CUDA Whisper when a GPU is present, else CPU int8.
+    """The compute path that will run: host MLX Whisper, CUDA, or CPU int8.
 
     An explicit non-default WHISPER_DEVICE/WHISPER_COMPUTE_TYPE wins, so an
     operator can pin the path; the default pair means "detect".
     """
     from app.config import settings
 
+    if settings.mlx_whisper_url:
+        return "mlx", "metal"
     device, compute = settings.whisper_device, settings.whisper_compute_type
     if device == "cpu" and compute == "int8":
         try:
@@ -33,6 +35,36 @@ def whisper_compute() -> tuple[str, str]:
         except Exception:
             pass
     return device, compute
+
+
+def _mlx_bridge_words(path: str) -> list[Word]:
+    """Stream the file to the host MLX bridge (the container's storage is not
+    visible on the host, so a path would not resolve there)."""
+    import http.client
+    import json
+    import pathlib
+    import urllib.parse
+
+    from app.config import settings
+
+    parsed = urllib.parse.urlparse(settings.mlx_whisper_url)
+    target = pathlib.Path(path)
+    conn = http.client.HTTPConnection(parsed.hostname, parsed.port or 80, timeout=1800)
+    conn.putrequest("POST", parsed.path.rstrip("/") + "/transcribe")
+    conn.putheader("Content-Type", "application/octet-stream")
+    conn.putheader("X-Filename", target.name)
+    conn.putheader("Content-Length", str(target.stat().st_size))
+    conn.endheaders()
+    with open(target, "rb") as handle:
+        while chunk := handle.read(1024 * 1024):
+            conn.send(chunk)
+    resp = conn.getresponse()
+    body = resp.read()
+    conn.close()
+    if resp.status != 200:
+        raise RuntimeError(f"MLX bridge returned {resp.status}: {body[:200]!r}")
+    data = json.loads(body)
+    return [Word(float(w["start"]), float(w["end"]), w["text"]) for w in data["words"]]
 
 
 def _load():
@@ -52,7 +84,15 @@ def _load():
 
 
 def transcribe(path: str) -> list[Word]:
-    """Word-level timestamps, in seconds from the start of `path`."""
+    """Word-level timestamps, in seconds from the start of `path`.
+
+    Uses the host MLX Whisper bridge when `MLX_WHISPER_URL` is set (Metal on the
+    Mac); otherwise faster-whisper in the container.
+    """
+    from app.config import settings
+
+    if settings.mlx_whisper_url:
+        return _mlx_bridge_words(path)
     with _lock:
         segments, _info = _load().transcribe(
             path, word_timestamps=True, vad_filter=False, beam_size=1

@@ -192,3 +192,14 @@ the two differ in either direction.
 | Bridge refuses paths outside the mount dir | The endpoint takes a host path; it must not be an arbitrary-file-read primitive. | — |
 | Top level + one folder deep | A full recursive scan of a multi-terabyte SSD would hang the page; camera rolls and Desktop/Movies are one level down. | — |
 
+## Local MLX clip engine decisions
+
+| Choice | Reason | Licence |
+| --- | --- | --- |
+| MLX Whisper runs in a host bridge, not the container | The worker is a Linux container with no Metal. The worker streams the file bytes to the host, which returns word timestamps. | MIT (mlx-whisper) |
+| Stream the file, not a path | The container's `/data/storage` is not visible on the host; a path would not resolve. `http.client` streams in 1 MB chunks. | — |
+| Fall back to faster-whisper CPU when `MLX_WHISPER_URL` is empty | The default stack keeps working with no host setup; the compute path is stored and shown. | — |
+| Visual strikingness from 1 fps 32×32 gray frames | ~1 KB/s; dark (<8% luma) and blown-out (>95%) frames score 0 and are never picked as the cold open. | — |
+| Karaoke caption style | One ASS event per phrase with `{\k}` word timings; the style's primary colour highlights word by word. | — |
+| Rendering stays in the container (libx264) | The container has no VideoToolbox; `detect_encoder()` already prefers it when present. A host render bridge is future work. | — |
+
