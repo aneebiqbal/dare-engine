@@ -7,6 +7,7 @@ pydantic-settings==2.7.1
 # The API unit tests import app.research / app.games, so the test env needs the
 # API's own runtime deps (the same pins as api/requirements.txt).
 fastapi==0.115.6
+python-multipart==0.0.20
 # Unpinned: the local test interpreter is Python 3.14, which has no 3.2.3
 # wheels. The API image stays on the pinned 3.2.3.
 psycopg[binary]

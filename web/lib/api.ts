@@ -17,6 +17,9 @@ import type {
   Mark,
   Me,
   ObsStatus,
+  SsdDrive,
+  SsdResponse,
+  SsdVideo,
   MissionCard,
   PoolEntry,
   ResearchRun,
@@ -53,6 +56,9 @@ export type {
   Mark,
   Me,
   ObsStatus,
+  SsdDrive,
+  SsdResponse,
+  SsdVideo,
   MissionCard,
   PoolEntry,
   ResearchRun,
@@ -374,6 +380,15 @@ export const api = {
       "/studio/templates",
     ),
   studioRecordingUrl: (id: string) => `${base()}/studio/recordings/${id}/file`,
+  studioSsd: () => get<SsdResponse>("/studio/ssd"),
+  studioSsdImport: (path: string) =>
+    post<{
+      recording_id: string;
+      filename: string;
+      duration_seconds: number;
+      width: number;
+      height: number;
+    }>("/studio/ssd/import", { path }),
 
   // --- community -------------------------------------------------------
   leaderboard: (id: string, params = "") =>

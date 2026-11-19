@@ -1657,6 +1657,40 @@ paths:
           content:
             application/json:
               schema: {}
+  /studio/ssd:
+    get:
+      summary: Ssd Drives
+      operationId: ssd_drives_studio_ssd_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /studio/ssd/import:
+    post:
+      summary: Ssd Import
+      operationId: ssd_import_studio_ssd_import_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /studio/upload:
     post:
       summary: Upload

@@ -56,6 +56,12 @@ class Settings(BaseSettings):
     # Days to keep a raw recording after its clips were made.
     recording_retention_days: int = 7
 
+    # --- SSD import -------------------------------------------------------
+    # A host bridge (local/ssd_bridge.py) sees /Volumes; the container cannot.
+    ssd_bridge_url: str = "http://host.docker.internal:8799"
+    ssd_inbox_dir: str = "/ssd-inbox"
+    ssd_mount_dir: str = "/Volumes"
+
     # --- OBS live view ----------------------------------------------------
     # OBS WebSocket 5.x. In the container the host is host.docker.internal.
     obs_ws_url: str = "ws://host.docker.internal:4455"

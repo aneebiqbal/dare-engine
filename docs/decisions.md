@@ -182,3 +182,13 @@ the two differ in either direction.
 | Clear unreachable state | If OBS is off or the WebSocket server is disabled, the endpoint returns `connected:false` + how to enable it, never a spinner. | — |
 | `OBS_WS_URL` defaults to `host.docker.internal` | The API runs in a container; the host is `host.docker.internal` under Colima. | — |
 
+## SSD import decisions
+
+| Choice | Reason | Licence |
+| --- | --- | --- |
+| Host bridge (`local/ssd_bridge.py`) over a container mount of `/Volumes` | A Linux container cannot see the Mac's `/Volumes`; Colima shares `$HOME`, so the bridge copies into a shared inbox. | — |
+| Import by local copy, never a cloud upload | The source stays on the SSD; the API copies into its own local storage and probes it. | — |
+| Import enqueues `detect_moments` | Importing a video starts the local processing job, not just a file copy. | — |
+| Bridge refuses paths outside the mount dir | The endpoint takes a host path; it must not be an arbitrary-file-read primitive. | — |
+| Top level + one folder deep | A full recursive scan of a multi-terabyte SSD would hang the page; camera rolls and Desktop/Movies are one level down. | — |
+

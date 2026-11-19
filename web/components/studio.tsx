@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, type Clip, type MissionCard, type StudioCandidate, type StudioRecording, type SystemLoad } from "@/lib/api";
+import { api, type Clip, type MissionCard, type SsdResponse, type StudioCandidate, type StudioRecording, type SystemLoad } from "@/lib/api";
 import {
   Badge,
   Button,
@@ -36,6 +36,9 @@ export function Studio() {
   const [clips, setClips] = useState<Clip[]>([]);
   const [edits, setEdits] = useState<Record<string, { start: string; end: string; template: string }>>({});
   const [playing, setPlaying] = useState<string | null>(null);
+  const [ssd, setSsd] = useState<SsdResponse | null>(null);
+  const [ssdBusy, setSsdBusy] = useState(false);
+  const [importing, setImporting] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const toast = useToast();
 
@@ -95,6 +98,36 @@ export function Studio() {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function refreshSsd() {
+    setSsdBusy(true);
+    setError(null);
+    try {
+      setSsd(await api.studioSsd());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not read the drives");
+    } finally {
+      setSsdBusy(false);
+    }
+  }
+
+  async function importSsd(path: string) {
+    setImporting(path);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await api.studioSsdImport(path);
+      const detail = await api.studioRecording(res.recording_id);
+      setRecording(detail);
+      setClips([]);
+      setEdits({});
+      toast("Imported from SSD", "success");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Import failed");
+    } finally {
+      setImporting(null);
     }
   }
 
@@ -254,6 +287,62 @@ export function Studio() {
               {detecting ? "Finding moments…" : "Find moments"}
             </Button>
           </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-medium">Import from SSD</h2>
+            <Button size="sm" variant="outline" onClick={refreshSsd} disabled={ssdBusy}>
+              {ssdBusy ? "Reading…" : "Refresh drives"}
+            </Button>
+          </div>
+          {!ssd ? (
+            <p className="text-sm text-muted">Plug in a drive and press Refresh drives.</p>
+          ) : ssd.error ? (
+            <Notice tone="warn">
+              {ssd.error} {ssd.how_to}
+            </Notice>
+          ) : !ssd.enabled ? (
+            <Notice tone="warn">{ssd.reason}</Notice>
+          ) : ssd.drives.length === 0 ? (
+            <EmptyState
+              title="No external drive mounted"
+              body="Plug in an SSD or USB drive, then refresh."
+            />
+          ) : (
+            ssd.drives.map((drive) => (
+              <div key={drive.path} className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Badge tone="accent">{drive.name}</Badge>
+                  <span className="text-xs text-muted">{drive.videos.length} video(s)</span>
+                </div>
+                {drive.error && <Notice tone="warn">{drive.error}</Notice>}
+                {drive.videos.length === 0 && (
+                  <p className="text-xs text-muted">No videos found at the top level of this drive.</p>
+                )}
+                {drive.videos.map((video) => (
+                  <div key={video.path} className="flex items-center justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate">{video.name}</span>
+                    <span className="shrink-0 text-xs text-muted">
+                      {video.error
+                        ? video.error
+                        : `${(video.size_bytes / 1e6).toFixed(1)} MB · ${video.duration_seconds?.toFixed(1)}s · ${video.width}×${video.height}`}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={importing === video.path || Boolean(video.error)}
+                      onClick={() => importSsd(video.path)}
+                    >
+                      {importing === video.path ? "Importing…" : "Import"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
         </div>
       </Card>
 

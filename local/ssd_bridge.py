@@ -108,7 +108,12 @@ def import_file(path: str) -> dict:
     INBOX.mkdir(parents=True, exist_ok=True)
     target = INBOX / f"{uuid.uuid4().hex}{source.suffix.lower()}"
     shutil.copy2(source, target)
-    return {"filename": target.name, "inbox_path": str(target), "size_bytes": target.stat().st_size}
+    return {
+        "filename": target.name,
+        "name": source.name,
+        "inbox_path": str(target),
+        "size_bytes": target.stat().st_size,
+    }
 
 
 class Handler(BaseHTTPRequestHandler):

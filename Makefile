@@ -7,7 +7,7 @@ PYTHON := $(VENV)/bin/python
 # live local run.
 TEST_ENV := DEV_AUTH_ENABLED=true NEXT_PUBLIC_DEV_AUTH=1 LLM_PROVIDER=recorded
 
-.PHONY: up down logs accept test check web-accept screens budgets doctor create-admin voice cleanup contract types research setup-engine research-local
+.PHONY: up down logs accept test check web-accept screens budgets doctor create-admin voice cleanup contract types research setup-engine research-local ssd-bridge
 
 up:
 	docker compose up -d --wait --build
@@ -95,3 +95,8 @@ setup-engine:
 # Prove the research brain against the local model (no Docker needed).
 research-local:
 	.venv/bin/python local/research_local.py
+
+# Host-side SSD bridge: lists /Volumes and copies a chosen video into the inbox.
+ssd-bridge:
+	@mkdir -p $(HOME)/.clipdesk/ssd-inbox
+	.venv/bin/python local/ssd_bridge.py

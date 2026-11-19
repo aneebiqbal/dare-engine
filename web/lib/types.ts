@@ -131,6 +131,32 @@ export type Clip = {
   thumb_url?: string | null;
 };
 
+export type SsdVideo = {
+  name: string;
+  path: string;
+  size_bytes: number;
+  duration_seconds?: number;
+  width?: number;
+  height?: number;
+  error?: string;
+};
+
+export type SsdDrive = {
+  name: string;
+  path: string;
+  error?: string;
+  videos: SsdVideo[];
+};
+
+export type SsdResponse = {
+  enabled: boolean;
+  reason?: string;
+  error?: string;
+  how_to?: string;
+  mount?: string;
+  drives: SsdDrive[];
+};
+
 export type ObsStatus = {
   enabled: boolean;
   connected: boolean;
