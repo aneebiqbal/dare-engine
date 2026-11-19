@@ -36,6 +36,7 @@ import type {
   CalendarResponse,
   AdminClip,
   LongForm,
+  ProviderStatus,
   Today,
   TourProgress,
   User,
@@ -80,6 +81,7 @@ export type {
   CalendarResponse,
   AdminClip,
   LongForm,
+  ProviderStatus,
   Today,
   TourProgress,
   User,
@@ -366,6 +368,11 @@ export const api = {
     post<{ id: string; state: string }>("/admin/long-form", { title, clip_ids }),
   adminLongForm: (id: string) => get<LongForm>(`/admin/long-form/${id}`),
   adminLongFormUrl: (id: string) => `${base()}/admin/long-form/${id}/download`,
+
+  // --- admin: provider picker ---------------------------------------------
+  adminProvider: () => get<ProviderStatus>("/admin/provider"),
+  adminSaveProvider: (fields: Record<string, string>) =>
+    post<{ ok: boolean }>("/admin/provider", fields),
 
   // --- games / research -------------------------------------------------
   games: () => get<Game[]>("/games"),

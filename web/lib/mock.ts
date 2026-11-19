@@ -294,6 +294,14 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
   }
   if (method === "GET" && pathname === "/admin/long-form") return { items: [] } as T;
   if (method === "POST" && pathname === "/admin/long-form") return { id: "lf_1", state: "queued" } as T;
+  if (method === "GET" && pathname === "/admin/provider") {
+    return {
+      env: { llm_provider: "openai", llm_model: "qwen3:8b", llm_base_url: "http://localhost:11434/v1", configured: true },
+      stored: {},
+      effective: { llm_provider: "openai", llm_model: "qwen3:8b", llm_base_url: "http://localhost:11434/v1", asr: "mlx" },
+    } as T;
+  }
+  if (method === "POST" && pathname === "/admin/provider") return { ok: true } as T;
   if (method === "GET" && pathname === "/admin/storage") return { driver: "local", bytes: 123456 } as T;
   if (method === "GET" && pathname === "/studio/system") {
     return { cpu_percent: 12.5, memory_percent: 41.2, gpu: null } as T;

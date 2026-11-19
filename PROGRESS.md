@@ -1,5 +1,70 @@
 # Progress
 
+## Autonomous build session — model manager, memory discipline, content loop
+
+Status: **P1 model manager, P3 memory discipline and P4 content loop are built
+and committed; the full acceptance suite is running.**
+
+### What was built this session
+
+- **Fix: api/worker `app` package collision.** The worker package was renamed
+  to `worker_app` (relative imports, Dockerfile, Makefile, tests), so the api
+  and worker test suites can no longer shadow each other. Unit tests are
+  hermetic (`tests/unit/conftest.py`: `MLX_WHISPER_URL=""`, `HF_HUB_OFFLINE=1`).
+- **P1 — Models page (`/admin/models`).** `local/mlx_bridge.py` now exposes
+  `/models`, pull with progress, unload, free-all and live host/Ollama/MLX
+  memory. `api/app/models.py` proxies it; the page shows the provider, every
+  Ollama model with size and loaded state, pull/unload/free controls and a live
+  memory readout. Real values verified on this machine.
+- **P3 — memory discipline.** `worker/clip/transcribe.py` gains `unload()`;
+  detection and first-time renders free the ASR model after use. The MLX bridge
+  serializes transcription, clears the MLX cache after each call, and a watchdog
+  frees everything after `MLX_IDLE_MINUTES` (default 10).
+- **P4 — content loop.**
+  - `clips.commentary` (migration 0008): the added-value step in clip review,
+    fed into the AI export prompt.
+  - `/admin/calendar` (migration 0009): review-and-export queue, 2 Shorts/day
+    cadence guardrail, TikTok/Instagram refused as approval-gated, publish is a
+    manual marker marked `unproven: youtube-api`.
+  - metrics gain `swiped`/`saves`/`shares` (migration 0010); `/results` shows
+    swipe-through and saves/shares per 1k, and `missions.score` blends them
+    (unit-tested in `tests/unit/test_results_score.py`).
+  - `/admin/long-form` + `build_long_form` job (migration 0011): concatenates a
+    session's finished Shorts into one video.
+- **P5 — launch docs.** README rewritten (pitch, proof, demo slots), new
+  `docs/licences.md`, new `docs/launch.md` with the git-history cleanup plan.
+
+### Ran and observed
+
+- `make doctor` — **14/14**.
+- Unit tests — **57 passed, 1 skipped** (the two transcription tests are slow
+  CPU passes; the suite is offline now).
+- `make check` — **2 passed**.
+- `/admin/models` over the real API: `bridge: up`, 4 Ollama models with real
+  sizes, host RAM, MLX state. `free` returned `{"ok": true}`.
+- `/admin/calendar`, `/admin/clips`, `/admin/long-form` respond on the real API.
+- `contracts/openapi.yaml` regenerated (+274 lines).
+- Full `make accept` — running.
+
+### Real vs stand-in
+
+- **Real:** the model inventory/controls/memory, the commentary field, the
+  calendar queue and cadence rule, the leading indicators and ranking score,
+  the long-form concat job, the memory unload/watchdog.
+- **Stand-in / blocked:** YouTube API publishing (manual marker only), TikTok
+  and Instagram (approval gated), the AI provider (recorded), research sources
+  (sample feed), the real gameplay fixture.
+
+### Blocked on the user
+
+- The user's own gameplay recording with commentary — the clip-quality verdict.
+- AI key credit and research source keys.
+- **The copyrighted trailer `fixtures/gameplay_4min.mp4` is on `origin/main`.**
+  `docs/launch.md` has the cleanup plan; a local `git rm` alone leaves it on the
+  remote, so the owner must choose a fresh repo or an approved history purge.
+- The GitHub token that was embedded in `origin` was removed from the remote URL;
+  it still needs revoking on GitHub.
+
 ## Finish sprint — OBS, SSD, local MLX engine
 
 Status: **Parts 1–3 built and proven on real devices; Part 0 still blocked.**

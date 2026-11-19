@@ -503,3 +503,19 @@ export type LongForm = {
   created_at: string;
   download_url?: string | null;
 };
+
+export type ProviderStatus = {
+  env: {
+    llm_provider: string;
+    llm_model: string;
+    llm_base_url: string;
+    configured: boolean;
+  };
+  stored: Record<string, string | null>;
+  effective: {
+    llm_provider: string;
+    llm_model: string;
+    llm_base_url: string;
+    asr: string;
+  };
+};

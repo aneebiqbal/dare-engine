@@ -40,7 +40,13 @@ def whisper_compute() -> tuple[str, str]:
     operator can pin the path; the default pair means "detect".
     """
     from worker_app.config import settings
+    from worker_app.settings_store import get as stored
 
+    asr = (stored("asr") or "").lower()
+    if asr == "cpu":
+        return _cpu_compute(settings)
+    if asr == "mlx" and not settings.mlx_whisper_url:
+        return _cpu_compute(settings)
     if settings.mlx_whisper_url:
         return "mlx", "metal"
     return _cpu_compute(settings)

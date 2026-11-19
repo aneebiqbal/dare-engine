@@ -19,6 +19,13 @@ Last updated after the research-brain sprint.
 | MLX Whisper transcription (host bridge, Metal) | yes | yes | yes (host, 30.17 s / 4.9 min) | — |
 | Visual-strikingness cold-open check | yes | yes | yes (trailer) | real gameplay fixture |
 | Karaoke word-by-word captions | yes | yes | yes (unit + render) | — |
+| Models admin page (Ollama/MLX inventory, pull, unload, memory) | yes | yes | yes (real bridge) | — |
+| Memory discipline (unload + idle watchdog) | yes | yes | yes (unit + bridge) | — |
+| Originality/commentary step | yes | yes | yes (API) | — |
+| Posting calendar + cadence guardrail | yes | yes | partial (no YouTube API) | YouTube API key |
+| Leading indicators + research-ranking score | yes | yes | yes (unit) | YouTube collector |
+| Long-form builder | yes | yes | partial (no real session clips) | real gameplay fixture |
+| Launch docs (README, licences, launch plan) | yes | yes | yes | history purge decision |
 | Admin approval gate + assign + gamer Today | yes | yes | yes (real accounts) | — |
 | Generated idea card image (SVG, no remote image) | yes | yes | yes | — |
 | Mission cards from typed questions (AI) | yes | yes (recorded provider) | no | AI key credit |

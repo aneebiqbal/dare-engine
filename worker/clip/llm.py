@@ -29,14 +29,18 @@ def _log_usage(**kw) -> None:
 
 
 def get_llm():
-    if (settings.llm_provider or "").lower() != "openai" or not settings.llm_api_key:
+    from worker_app.settings_store import get as stored
+
+    if (stored("llm_provider") or settings.llm_provider or "").lower() != "openai":
+        return None
+    if not settings.llm_api_key:
         return None
     from llm_shared import OpenAICompatibleLLM
 
     return OpenAICompatibleLLM(
-        settings.llm_base_url,
+        stored("llm_base_url") or settings.llm_base_url,
         settings.llm_api_key,
-        settings.llm_model,
+        stored("llm_model") or settings.llm_model,
         settings.llm_timeout,
         log_usage=_log_usage,
     )

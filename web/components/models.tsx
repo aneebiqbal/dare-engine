@@ -2,15 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import type { ModelStatus, PullTask } from "@/lib/types";
+import type { ModelStatus, ProviderStatus, PullTask } from "@/lib/types";
 import {
   Badge,
   Button,
   Card,
+  Field,
   Input,
   Notice,
   PageState,
   Progress,
+  Select,
   Stat,
   StatusDot,
   Table,
@@ -31,6 +33,14 @@ export function AdminModels() {
   const [name, setName] = useState("");
   const [task, setTask] = useState<PullTask | null>(null);
   const [busy, setBusy] = useState(false);
+  const [provider, setProvider] = useState<ProviderStatus | null>(null);
+  const [providerBusy, setProviderBusy] = useState(false);
+  const [form, setForm] = useState({
+    llm_provider: "openai",
+    llm_model: "",
+    llm_base_url: "",
+    asr: "mlx",
+  });
 
   const load = useCallback(async () => {
     try {
@@ -48,6 +58,34 @@ export function AdminModels() {
     const id = setInterval(load, 5000);
     return () => clearInterval(id);
   }, [load]);
+
+  useEffect(() => {
+    api
+      .adminProvider()
+      .then((p) => {
+        setProvider(p);
+        setForm({
+          llm_provider: p.effective.llm_provider,
+          llm_model: p.effective.llm_model,
+          llm_base_url: p.effective.llm_base_url,
+          asr: p.effective.asr,
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  async function saveProvider() {
+    setProviderBusy(true);
+    try {
+      await api.adminSaveProvider(form);
+      setProvider(await api.adminProvider());
+      toast("Provider saved", "success");
+    } catch (exc) {
+      toast(exc instanceof Error ? exc.message : "Could not save the provider", "danger");
+    } finally {
+      setProviderBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!task || task.done) return;
@@ -124,6 +162,61 @@ export function AdminModels() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <div className="flex items-center justify-between">
+            <span className="text-xs uppercase tracking-[0.2em] text-muted">Provider picker</span>
+            <Badge tone={provider?.env.configured ? "success" : "muted"}>
+              {provider?.env.configured ? "configured" : "not configured"}
+            </Badge>
+          </div>
+          <div className="mt-4 grid gap-3">
+            <Field label="Provider">
+              <Select
+                value={form.llm_provider}
+                onChange={(e) => setForm({ ...form, llm_provider: e.target.value })}
+              >
+                <option value="openai">OpenAI-compatible (cloud or Ollama)</option>
+                <option value="recorded">Recorded (CI)</option>
+                <option value="stub">Stub</option>
+              </Select>
+            </Field>
+            <Field label="Model" hint="Pick a local Ollama model or type any id.">
+              <Input
+                list="local-models"
+                value={form.llm_model}
+                onChange={(e) => setForm({ ...form, llm_model: e.target.value })}
+                placeholder="qwen3:8b"
+              />
+              <datalist id="local-models">
+                {(engine?.ollama?.models ?? []).map((m) => (
+                  <option key={m.name} value={m.name} />
+                ))}
+              </datalist>
+            </Field>
+            <Field label="Base URL">
+              <Input
+                value={form.llm_base_url}
+                onChange={(e) => setForm({ ...form, llm_base_url: e.target.value })}
+                placeholder="http://localhost:11434/v1"
+              />
+            </Field>
+            <Field label="Transcription engine">
+              <Select
+                value={form.asr}
+                onChange={(e) => setForm({ ...form, asr: e.target.value })}
+              >
+                <option value="mlx">MLX Whisper (Metal)</option>
+                <option value="cpu">faster-whisper (CPU)</option>
+              </Select>
+            </Field>
+            <div>
+              <Button onClick={saveProvider} disabled={providerBusy}>
+                Save provider
+              </Button>
+            </div>
+          </div>
+        </Card>
+
         <Card>
           <div className="flex items-center justify-between">
             <span className="text-xs uppercase tracking-[0.2em] text-muted">AI provider</span>

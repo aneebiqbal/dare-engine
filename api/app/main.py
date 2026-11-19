@@ -20,6 +20,7 @@ from .longform import router as longform_router
 from .missions import router as missions_router
 from .models import router as models_router
 from .obs import router as obs_router
+from .provider import router as provider_router
 from .ssd import router as ssd_router
 from .studio import router as studio_router
 from .tours import router as tours_router
@@ -77,6 +78,7 @@ for router in (
     ai_router,
     games_router,
     obs_router,
+    provider_router,
     ssd_router,
     studio_router,
     tours_router,
