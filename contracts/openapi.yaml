@@ -1931,6 +1931,39 @@ paths:
           content:
             application/json:
               schema: {}
+  /admin/provider:
+    get:
+      summary: Provider
+      operationId: provider_admin_provider_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    post:
+      summary: Save
+      operationId: save_admin_provider_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /studio/ssd:
     get:
       summary: Ssd Drives
@@ -2011,6 +2044,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /studio/recordings:
+    get:
+      summary: Recordings
+      description: The admin's recent studio sessions, newest first.
+      operationId: recordings_studio_recordings_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /studio/recordings/{recording_id}/file:
     get:
       summary: Recording File
