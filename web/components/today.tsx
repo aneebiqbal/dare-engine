@@ -124,7 +124,6 @@ export function Today({ initial }: { initial: TodayResponse | null }) {
                       Accept
                     </Button>
                   )}
-                  {state === "assigned" && <Badge tone="muted">assigned</Badge>}
                   {state && (
                     <Button size="sm" variant="outline" onClick={() => setSwapFor(card)}>
                       Swap
