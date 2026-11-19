@@ -34,13 +34,16 @@ server-side API call before any HTML was flushed.
 
 | Page | Phone | Desktop |
 | --- | --- | --- |
-| `/` dashboard | 844 | 760 |
-| `/today` | 4008 | 1912 |
-| `/remote` | 32 | 40 |
-| `/clips` | 764 | 724 |
-| `/admin` | 80 | 68 |
+| `/` dashboard | 856 | 976 |
+| `/today` | 2120 | 2628 |
+| `/remote` | 28 | 40 |
+| `/clips` | 792 | 848 |
+| `/admin` | 56 | 68 |
 
-TBT is 0 ms on every page; `make budgets` passes.
+TBT is 0 ms on every page; `make budgets` passes. `/today` is the slowest
+because it renders the daily dare and its generated card image (a real API/DB
+read); the shell streams first and the page is interactive before the data
+lands. Re-measure with `make budgets`.
 
 **Cause.** Each creator page awaited one slow API call in its server component
 before flushing HTML. Those endpoints run two to three sequential Neon round
