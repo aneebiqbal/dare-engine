@@ -151,6 +151,7 @@ export function AdminModels() {
   const running = new Set(ollama?.running.map((r) => r.name) ?? []);
   const vram = (ollama?.running ?? []).reduce((sum, r) => sum + r.size_vram_bytes, 0);
   const models = ollama?.models ?? [];
+  const available = host ? Math.max(0, host.total_bytes - host.used_bytes) : 0;
 
   return (
     <div className="grid gap-6">
@@ -257,6 +258,11 @@ export function AdminModels() {
               value={gb(mlx?.peak_memory_bytes ?? 0)}
               hint={mlx?.transcribing ? "transcribing now" : "idle"}
             />
+            <Stat
+              label="MLX model"
+              value={mlx?.downloaded ? "downloaded" : "not downloaded"}
+              hint={mlx?.downloaded ? mlx.model : "downloaded on first use"}
+            />
           </div>
         </Card>
       </div>
@@ -301,37 +307,45 @@ export function AdminModels() {
         )}
 
         <div className="mt-4">
-          <Table head={["Model", "Size", "Status", "Action"]} caption="Local Ollama models">
+          <Table head={["Model", "Size", "Fit", "Status", "Action"]} caption="Local Ollama models">
             {models.length === 0 && (
               <Tr>
-                <Td colSpan={4}>No models yet. Pull one above.</Td>
+                <Td colSpan={5}>No models yet. Pull one above.</Td>
               </Tr>
             )}
-            {models.map((m) => (
-              <Tr key={m.name}>
-                <Td>{m.name}</Td>
-                <Td>{gb(m.size_bytes)}</Td>
-                <Td>
-                  <span className="inline-flex items-center gap-2">
-                    <StatusDot
-                      tone={running.has(m.name) ? "success" : "muted"}
-                      label={running.has(m.name) ? "loaded" : "on disk"}
-                    />
-                    {running.has(m.name) ? "Loaded" : "On disk"}
-                  </span>
-                </Td>
-                <Td>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => unload(m.name)}
-                    disabled={!running.has(m.name)}
-                  >
-                    Unload
-                  </Button>
-                </Td>
-              </Tr>
-            ))}
+            {models.map((m) => {
+              const fits = !host || m.size_bytes <= available;
+              return (
+                <Tr key={m.name}>
+                  <Td>{m.name}</Td>
+                  <Td>{gb(m.size_bytes)}</Td>
+                  <Td>
+                    <Badge tone={fits ? "success" : "danger"}>
+                      {fits ? "Fits this Mac" : `Needs ${gb(m.size_bytes - available)} free`}
+                    </Badge>
+                  </Td>
+                  <Td>
+                    <span className="inline-flex items-center gap-2">
+                      <StatusDot
+                        tone={running.has(m.name) ? "success" : "muted"}
+                        label={running.has(m.name) ? "loaded" : "on disk"}
+                      />
+                      {running.has(m.name) ? "Loaded" : "On disk"}
+                    </span>
+                  </Td>
+                  <Td>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => unload(m.name)}
+                      disabled={!running.has(m.name)}
+                    >
+                      Unload
+                    </Button>
+                  </Td>
+                </Tr>
+              );
+            })}
           </Table>
         </div>
       </Card>

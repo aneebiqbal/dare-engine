@@ -364,8 +364,8 @@ export const api = {
   // --- admin: long-form builder -------------------------------------------
   adminClips: () => get<{ items: AdminClip[] }>("/admin/clips"),
   adminLongForms: () => get<{ items: LongForm[] }>("/admin/long-form"),
-  adminCreateLongForm: (title: string, clip_ids: string[]) =>
-    post<{ id: string; state: string }>("/admin/long-form", { title, clip_ids }),
+  adminCreateLongForm: (title: string, clip_ids: string[], intro = "", outro = "") =>
+    post<{ id: string; state: string }>("/admin/long-form", { title, clip_ids, intro, outro }),
   adminLongForm: (id: string) => get<LongForm>(`/admin/long-form/${id}`),
   adminLongFormUrl: (id: string) => `${base()}/admin/long-form/${id}/download`,
 
@@ -427,14 +427,15 @@ export const api = {
     ),
   studioRecordingUrl: (id: string) => `${base()}/studio/recordings/${id}/file`,
   studioSsd: () => get<SsdResponse>("/studio/ssd"),
-  studioSsdImport: (path: string) =>
+  studioSsdImport: (path: string, release = true) =>
     post<{
       recording_id: string;
       filename: string;
       duration_seconds: number;
       width: number;
       height: number;
-    }>("/studio/ssd/import", { path }),
+      released?: boolean;
+    }>("/studio/ssd/import", { path, release }),
 
   // --- community -------------------------------------------------------
   leaderboard: (id: string, params = "") =>

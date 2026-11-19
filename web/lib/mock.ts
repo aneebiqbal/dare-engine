@@ -257,6 +257,7 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
           transcribing: false,
           last_elapsed_s: 30.2,
           peak_memory_bytes: 2_000_000_000,
+          downloaded: true,
           error: null,
         },
         host: { total_bytes: 32_000_000_000, used_bytes: 20_000_000_000, percent: 62.5 },

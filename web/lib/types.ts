@@ -427,6 +427,7 @@ export type MlxState = {
   transcribing: boolean;
   last_elapsed_s: number | null;
   peak_memory_bytes: number | null;
+  downloaded: boolean;
   error: string | null;
 };
 
@@ -501,6 +502,8 @@ export type LongForm = {
   clip_ids: string[];
   error?: string | null;
   created_at: string;
+  intro?: string | null;
+  outro?: string | null;
   download_url?: string | null;
 };
 

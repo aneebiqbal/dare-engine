@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import type { CalendarResponse } from "@/lib/types";
 import { NextStep } from "./next-step";
@@ -45,8 +45,13 @@ export function AdminCalendar() {
 
   async function schedule() {
     if (!clipId || !date) return;
+    await scheduleClip(clipId, date);
+  }
+
+  async function scheduleClip(id: string, day: string) {
+    if (!day) return;
     try {
-      await api.adminSchedule(clipId, date, platform);
+      await api.adminSchedule(id, day, platform);
       toast("Scheduled", "success");
       load();
     } catch (exc) {
@@ -79,6 +84,20 @@ export function AdminCalendar() {
 
   const entries = data?.entries ?? [];
   const unscheduled = data?.unscheduled ?? [];
+  const byDay: Record<string, number> = {};
+  for (const e of entries) byDay[e.date] = (byDay[e.date] ?? 0) + 1;
+  const week = useMemo(() => {
+    const today = new Date();
+    const start = new Date(today);
+    start.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return d;
+    });
+  }, []);
+  const dayKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
   return (
     <div className="grid gap-6">
@@ -101,17 +120,7 @@ export function AdminCalendar() {
               {data?.daily_limit ?? 2} Shorts a day.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="Approved clip">
-              <Select value={clipId} onChange={(e) => setClipId(e.target.value)}>
-                <option value="">Choose a clip</option>
-                {unscheduled.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title ?? c.id}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Date">
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </Field>
@@ -127,16 +136,63 @@ export function AdminCalendar() {
               </Select>
             </Field>
           </div>
-          <div>
-            <Button onClick={schedule} disabled={!clipId || !date}>
-              Add to calendar
-            </Button>
+
+          <div className="flex flex-col gap-2">
+            {unscheduled.length === 0 && (
+              <p className="text-xs text-muted">
+                No approved clips waiting. Approve a clip from its review page first.
+              </p>
+            )}
+            {unscheduled.map((c) => (
+              <div
+                key={c.id}
+                draggable
+                onDragStart={(e) => e.dataTransfer.setData("text/clip-id", c.id)}
+                className="flex cursor-grab items-center justify-between gap-3 rounded-xl bg-surface px-4 py-3 ring-surface transition hover:bg-surface-2"
+              >
+                <span className="truncate text-sm">{c.title ?? c.id}</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!date}
+                  onClick={() => scheduleClip(c.id, date)}
+                >
+                  Add
+                </Button>
+              </div>
+            ))}
           </div>
-          {unscheduled.length === 0 && (
-            <p className="text-xs text-muted">
-              No approved clips waiting. Approve a clip from its review page first.
-            </p>
-          )}
+
+          <div className="grid grid-cols-7 gap-2">
+            {week.map((d) => {
+              const key = dayKey(d);
+              const count = byDay[key] ?? 0;
+              const over = count > (data?.daily_limit ?? 2);
+              return (
+                <div
+                  key={key}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const id = e.dataTransfer.getData("text/clip-id");
+                    if (id) void scheduleClip(id, key);
+                  }}
+                  className={`flex flex-col items-center gap-1 rounded-xl px-2 py-3 ring-surface transition ${
+                    over ? "bg-danger/10 ring-danger/30" : "bg-surface-2"
+                  }`}
+                >
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-muted">
+                    {d.toLocaleDateString(undefined, { weekday: "short" })}
+                  </span>
+                  <span className="text-base font-semibold">{d.getDate()}</span>
+                  <span className="text-xs text-muted">
+                    {count} {count === 1 ? "Short" : "Shorts"}
+                  </span>
+                  {over && <Badge tone="danger">over</Badge>}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </Card>
 

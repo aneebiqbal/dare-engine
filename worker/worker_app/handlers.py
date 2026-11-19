@@ -213,10 +213,40 @@ def detect_moments(payload: dict) -> None:
                 )
 
 
+def _title_card(text: str, out_path: str, ref_path: str) -> None:
+    """A 2 s title card matched to the clip's size, frame rate and audio."""
+    import json as _json
+    import subprocess as _sp
+
+    probe = _sp.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+         "-show_entries", "stream=width,height,r_frame_rate", "-of", "json", ref_path],
+        capture_output=True, text=True, check=True,
+    )
+    stream = _json.loads(probe.stdout)["streams"][0]
+    width, height = stream["width"], stream["height"]
+    num, _, den = str(stream["r_frame_rate"]).partition("/")
+    fps = float(num) / float(den or 1)
+    font = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    textfile = pathlib.Path(out_path).with_suffix(".txt")
+    textfile.write_text(text)
+    _run_ffmpeg(
+        ["ffmpeg", "-y",
+         "-f", "lavfi", "-i", f"color=c=0x06070a:s={width}x{height}:d=2:r={fps:g}",
+         "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
+         "-vf", f"drawtext=fontfile={font}:textfile={textfile}:fontcolor=white:fontsize=52"
+                f":x=(w-text_w)/2:y=(h-text_h)/2",
+         "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p",
+         "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-shortest", out_path]
+    )
+
+
 @jobs.register("build_long_form")
 def build_long_form(payload: dict) -> None:
     """Concatenate a session's finished Shorts into one long-form video."""
     lf_id = payload["long_form_id"]
+    intro = payload.get("intro") or ""
+    outro = payload.get("outro") or ""
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT clip_ids FROM long_forms WHERE id = %s", (lf_id,))
@@ -242,6 +272,14 @@ def build_long_form(payload: dict) -> None:
                 part = tmp / f"{len(parts):03d}_{cid}.mp4"
                 storage.get_file(key, str(part))
                 parts.append(part)
+            if parts and intro:
+                card = tmp / "intro.mp4"
+                _title_card(intro, str(card), str(parts[0]))
+                parts.insert(0, card)
+            if parts and outro:
+                card = tmp / "outro.mp4"
+                _title_card(outro, str(card), str(parts[-1]))
+                parts.append(card)
             listing = tmp / "concat.txt"
             listing.write_text("".join(f"file '{p}'\n" for p in parts))
             out = tmp / "long.mp4"

@@ -154,8 +154,12 @@ def _mlx_state() -> dict:
         "transcribing": _state["transcribing"],
         "last_elapsed_s": _state["last_elapsed_s"],
         "peak_memory_bytes": None,
+        "downloaded": False,
         "error": None,
     }
+    slug = MODEL.replace("/", "--")
+    cache = pathlib.Path.home() / ".cache" / "huggingface" / "hub"
+    out["downloaded"] = any(cache.glob(f"models--{slug}*"))
     try:
         import mlx.core as mx
 

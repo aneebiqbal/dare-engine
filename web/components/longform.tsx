@@ -22,6 +22,8 @@ export function AdminLongForm() {
   const [items, setItems] = useState<LongForm[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [title, setTitle] = useState("");
+  const [intro, setIntro] = useState("");
+  const [outro, setOutro] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -56,9 +58,11 @@ export function AdminLongForm() {
     if (!title.trim() || selected.size === 0) return;
     setBusy(true);
     try {
-      await api.adminCreateLongForm(title.trim(), Array.from(selected));
+      await api.adminCreateLongForm(title.trim(), Array.from(selected), intro.trim(), outro.trim());
       toast("Long-form build queued", "success");
       setTitle("");
+      setIntro("");
+      setOutro("");
       setSelected(new Set());
       load();
     } catch (exc) {
@@ -89,6 +93,22 @@ export function AdminLongForm() {
               placeholder="Sunday session — all the clutches"
             />
           </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Intro card" hint="Optional text on a 2 s title card before the first clip.">
+              <Input
+                value={intro}
+                onChange={(e) => setIntro(e.target.value)}
+                placeholder="Sunday session"
+              />
+            </Field>
+            <Field label="Outro card" hint="Optional text on a 2 s title card after the last clip.">
+              <Input
+                value={outro}
+                onChange={(e) => setOutro(e.target.value)}
+                placeholder="Clipdesk Missions"
+              />
+            </Field>
+          </div>
           <div className="flex flex-col gap-2">
             {clips.length === 0 && (
               <p className="text-xs text-muted">No finished clips yet. Render and approve some first.</p>

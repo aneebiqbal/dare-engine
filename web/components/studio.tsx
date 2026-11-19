@@ -40,6 +40,7 @@ export function Studio() {
   const [ssd, setSsd] = useState<SsdResponse | null>(null);
   const [ssdBusy, setSsdBusy] = useState(false);
   const [importing, setImporting] = useState<string | null>(null);
+  const [release, setRelease] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const toast = useToast();
 
@@ -119,12 +120,15 @@ export function Studio() {
     setError(null);
     setNotice(null);
     try {
-      const res = await api.studioSsdImport(path);
+      const res = await api.studioSsdImport(path, release);
       const detail = await api.studioRecording(res.recording_id);
       setRecording(detail);
       setClips([]);
       setEdits({});
-      toast("Imported from SSD", "success");
+      toast(
+        res.released ? "Imported from SSD and released the copy" : "Imported from SSD",
+        "success",
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed");
     } finally {
@@ -299,6 +303,18 @@ export function Studio() {
               {ssdBusy ? "Reading…" : "Refresh drives"}
             </Button>
           </div>
+          <label className="flex items-start gap-2 text-xs text-muted">
+            <input
+              type="checkbox"
+              checked={release}
+              onChange={(e) => setRelease(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
+            />
+            <span>
+              Process and release — delete the inbox copy after import so the disk never
+              fills. The clip is already safe in local storage.
+            </span>
+          </label>
           {!ssd ? (
             <p className="text-sm text-muted">Plug in a drive and press Refresh drives.</p>
           ) : ssd.error ? (

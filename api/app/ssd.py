@@ -64,6 +64,14 @@ def ssd_import(request: Request, payload: dict):
     key = f"recordings/{user['id']}/studio-{recording_id}{suffix}"
     specs = _probe(str(local))
     storage.put_file(key, str(local))
+    # Process-and-release: once the file is safely in local storage, drop the
+    # inbox copy so a long session cannot fill the disk.
+    release = bool(payload.get("release", True))
+    if release:
+        try:
+            local.unlink()
+        except OSError:
+            pass
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -89,5 +97,6 @@ def ssd_import(request: Request, payload: dict):
         "filename": imported.get("name") or filename,
         "source_path": path,
         "detect_queued": True,
+        "released": release and not local.exists(),
         **specs,
     }

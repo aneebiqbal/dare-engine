@@ -50,6 +50,8 @@ def admin_clips(request: Request):
 def create(request: Request, payload: dict):
     title = (payload.get("title") or "").strip()
     clip_ids = [str(c) for c in (payload.get("clip_ids") or [])]
+    intro = (payload.get("intro") or "").strip()
+    outro = (payload.get("outro") or "").strip()
     if not title:
         raise HTTPException(422, "title required")
     if not clip_ids:
@@ -66,14 +68,21 @@ def create(request: Request, payload: dict):
             if not found:
                 raise HTTPException(404, "no renderable clips")
             cur.execute(
-                "INSERT INTO long_forms (title, clip_ids) VALUES (%s, %s) RETURNING id",
-                (title, json.dumps(found)),
+                "INSERT INTO long_forms (title, intro, outro, clip_ids) VALUES (%s, %s, %s, %s) RETURNING id",
+                (title, intro or None, outro or None, json.dumps(found)),
             )
             lf_id = str(cur.fetchone()[0])
             cur.execute(
                 "INSERT INTO jobs (kind, payload, idempotency_key) "
                 "VALUES ('build_long_form', %s, %s) ON CONFLICT (idempotency_key) DO NOTHING",
-                (json.dumps({"long_form_id": lf_id}), f"longform:{lf_id}"),
+                (
+                    json.dumps({
+                        "long_form_id": lf_id,
+                        "intro": intro or None,
+                        "outro": outro or None,
+                    }),
+                    f"longform:{lf_id}",
+                ),
             )
     return {"id": lf_id, "state": "queued"}
 
@@ -83,7 +92,7 @@ def list_long_forms(request: Request):
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, title, state, clip_ids, error, created_at "
+                "SELECT id, title, state, clip_ids, error, created_at, intro, outro "
                 "FROM long_forms ORDER BY created_at DESC LIMIT 50"
             )
             rows = cur.fetchall()
@@ -96,6 +105,8 @@ def list_long_forms(request: Request):
                 "clip_ids": r[3],
                 "error": r[4],
                 "created_at": r[5].isoformat(),
+                "intro": r[6],
+                "outro": r[7],
             }
             for r in rows
         ]
