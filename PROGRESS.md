@@ -52,6 +52,18 @@ The honest bar is a human looking at `docs/screens/flow/` and the page
 screenshots. The clip-quality bar and the launch demo still need the owner's own
 gameplay footage.
 
+### Sprint verification
+
+- `make accept` — **66 passed, 2 skipped**, then `test_contract` **2 passed**
+  after regenerating the contract for the new routes (67 passed, 2 skipped).
+- `make screens` / a11y — **0 serious/critical on 30 pages** at phone + desktop.
+- Unit — **60 passed, 1 skipped**; `make check` **2 passed**; `make doctor`
+  **14/14**.
+- `make budgets` — LCP/TBT within budget on the five main pages; the numbers are
+  in `docs/performance.md` and `docs/screens/budgets.json` (TBT 0 ms everywhere).
+- `make flow` — **11 steps**, every handoff real, screenshots in
+  `docs/screens/flow/`.
+
 ## Autonomous build session — model manager, memory discipline, content loop
 
 Status: **P1 model manager, P3 memory discipline and P4 content loop are built
