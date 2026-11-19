@@ -105,7 +105,7 @@ the two differ in either direction.
 | Voice-over as an optional add-on | The installed `piper-tts` 1.8.0 is **GPL-3.0-or-later** (the old MIT `rhasspy/piper` is archived). It is not in the default build; `make voice` installs it into the worker on demand. | GPL-3.0 (optional, off by default) |
 | Export package (zip) only | No YouTube/TikTok/Instagram API this sprint. | — |
 | FFmpeg `sidechaincompress` ducking | Game audio dips only while the voice bed speaks. | LGPL (see above) |
-| `piper-tts>=1.8.0` | `1.2.0` pins `piper-phonemize~=1.1.0`, which has no wheels on this platform. | MIT |
+| `piper-tts>=1.8.0` | `1.2.0` pins `piper-phonemize~=1.1.0`, which has no wheels on this platform. | GPL-3.0-or-later |
 
 - **Voice-over licence.** The `piper-tts` PyPI package is GPL-3.0-or-later
   (metadata: `License: GPL-3.0-or-later`, home page `OHF-voice/piper1-gpl`). The

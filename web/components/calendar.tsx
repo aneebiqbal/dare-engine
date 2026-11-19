@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { CalendarResponse } from "@/lib/types";
 import { NextStep } from "./next-step";
@@ -86,7 +86,7 @@ export function AdminCalendar() {
   const unscheduled = data?.unscheduled ?? [];
   const byDay: Record<string, number> = {};
   for (const e of entries) byDay[e.date] = (byDay[e.date] ?? 0) + 1;
-  const week = useMemo(() => {
+  const week = (() => {
     const today = new Date();
     const start = new Date(today);
     start.setDate(today.getDate() - ((today.getDay() + 6) % 7));
@@ -95,7 +95,7 @@ export function AdminCalendar() {
       d.setDate(start.getDate() + i);
       return d;
     });
-  }, []);
+  })();
   const dayKey = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 

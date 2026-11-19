@@ -99,7 +99,7 @@ clipdesk/
 | api | argon2-cffi | 23.1.0 | `api/requirements.txt` |
 | worker | faster-whisper | 1.2.1 | `worker/requirements.txt` |
 | worker | PyAV | 16.1.0 | `worker/requirements.txt` |
-| worker | piper-tts | >=1.8.0 | `worker/requirements.txt` |
+| worker | piper-tts | >=1.8.0 | `worker/requirements-voice.txt` (optional) |
 | db | PostgreSQL | 16-alpine | `docker-compose.yml` |
 | relay | MediaMTX | latest (image `clipdesk-relay`) | `relay/Dockerfile` |
 | tests | pytest / Playwright | 8.3.4 / 1.65.2 | `tests/requirements.txt` |
