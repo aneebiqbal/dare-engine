@@ -405,17 +405,11 @@ export function ClipReview({ clip }: { clip: Clip }) {
         </PageState>
       </div>
 
-      {current.state === "approved" ? (
+      {current.state === "approved" && (
         <NextStep
           href="/admin/calendar"
           title="Schedule this Short"
           body="Add it to the posting calendar and keep the cadence."
-        />
-      ) : (
-        <NextStep
-          href={`/clips/${clip.id}`}
-          title="Approve to schedule"
-          body="Watch it, add your commentary, then approve."
         />
       )}
     </div>

@@ -569,23 +569,11 @@ export function Studio() {
         <EmptyState title="No moments yet" body="Upload a recording, then press Find moments." />
       )}
 
-      {clips.length > 0 ? (
+      {clips.length > 0 && (
         <NextStep
           href="/clips"
           title="Review the clips"
           body="Watch, add commentary and approve the finished Shorts."
-        />
-      ) : recording && recording.candidates.length > 0 ? (
-        <NextStep
-          href="/admin/studio"
-          title="Generate a clip"
-          body="Accept a candidate and build the Short."
-        />
-      ) : (
-        <NextStep
-          href="/admin/studio"
-          title="Import a recording"
-          body="Bring in a session from SSD or an upload, then find moments."
         />
       )}
     </div>

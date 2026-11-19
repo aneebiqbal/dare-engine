@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { NextStep } from "./next-step";
 import {
   api,
   type Game,
@@ -205,6 +206,14 @@ export function AdminGames() {
           ))}
         </div>
       </PageState>
+
+      {items.length > 0 && (
+        <NextStep
+          href={`/admin/games/${items[0].id}`}
+          title={`Open ${items[0].name}`}
+          body="See today's sourced ideas and approve one."
+        />
+      )}
 
       <Dialog open={addOpen} onClose={() => setAddOpen(false)} title="Add a game">
         <div className="flex flex-col gap-4">
@@ -507,6 +516,14 @@ export function AdminGameProfile({ gameId }: { gameId: string }) {
       )}
 
       <AssignDialog entry={assignFor} onClose={() => setAssignFor(null)} onAssigned={load} />
+
+      {candidates.length > 0 && (
+        <NextStep
+          href={`/admin/pool?game_id=${gameId}`}
+          title="Review the pool"
+          body="Approve the sourced ideas and assign one to a creator."
+        />
+      )}
     </div>
   );
 }

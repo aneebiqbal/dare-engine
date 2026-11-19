@@ -293,19 +293,11 @@ export function Live({ initial }: { initial: Stream | null }) {
         </div>
       </Card>
 
-      {obs?.connected ? (
-        <NextStep
-          href="/remote"
-          title="Open the phone remote"
-          body="Tap Start when the moment begins and Done when it ends."
-        />
-      ) : (
-        <NextStep
-          href="/live"
-          title="Enable OBS WebSocket"
-          body="OBS is not reachable yet. Check the OBS card above, then come back."
-        />
-      )}
+      <NextStep
+        href="/remote"
+        title="Open the phone remote"
+        body="Tap Start when the moment begins and Done when it ends."
+      />
     </div>
   );
 }
