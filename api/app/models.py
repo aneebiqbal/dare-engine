@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import urllib.request
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from .config import settings
 from .users import require_admin
