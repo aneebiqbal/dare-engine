@@ -1636,6 +1636,27 @@ paths:
           content:
             application/json:
               schema: {}
+  /live/obs:
+    get:
+      summary: Obs Status
+      operationId: obs_status_live_obs_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /live/obs/snapshot:
+    get:
+      summary: Obs Snapshot
+      description: A periodic still of the program scene. Not a live video feed.
+      operationId: obs_snapshot_live_obs_snapshot_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /studio/upload:
     post:
       summary: Upload

@@ -16,6 +16,7 @@ from .config import settings
 from .games import router as games_router
 from .hooks import router as hooks_router
 from .missions import router as missions_router
+from .obs import router as obs_router
 from .studio import router as studio_router
 from .tours import router as tours_router
 from .users import csrf_protect
@@ -68,6 +69,7 @@ for router in (
     admin_router,
     ai_router,
     games_router,
+    obs_router,
     studio_router,
     tours_router,
 ):

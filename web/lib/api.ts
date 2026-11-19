@@ -16,6 +16,7 @@ import type {
   List,
   Mark,
   Me,
+  ObsStatus,
   MissionCard,
   PoolEntry,
   ResearchRun,
@@ -51,6 +52,7 @@ export type {
   List,
   Mark,
   Me,
+  ObsStatus,
   MissionCard,
   PoolEntry,
   ResearchRun,
@@ -254,6 +256,8 @@ export const api = {
     post("/marks", { assignment_id, kind, result, stream_time }),
   createStream: (title: string) => post<Stream>("/streams", { title }),
   streamStatus: (id: string) => get<{ connected: boolean }>(`/streams/${id}/status`),
+  obsStatus: () => get<ObsStatus>("/live/obs"),
+  obsSnapshotUrl: () => `${base()}/live/obs/snapshot`,
 
   // --- uploads ---------------------------------------------------------
   uploadStart: () => post<{ upload_id: string; chunk_size: number }>("/uploads/start", {}),

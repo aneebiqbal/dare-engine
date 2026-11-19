@@ -57,6 +57,9 @@ services:
       RESEARCH_ENABLED: ${RESEARCH_ENABLED:-true}
       RESEARCH_HOUR: ${RESEARCH_HOUR:-5}
       RESEARCH_TIMEZONE: ${RESEARCH_TIMEZONE:-UTC}
+      OBS_WS_URL: ${OBS_WS_URL:-ws://host.docker.internal:4455}
+      OBS_WS_PASSWORD: ${OBS_WS_PASSWORD:-}
+      OBS_SNAPSHOT_WIDTH: ${OBS_SNAPSHOT_WIDTH:-640}
       TTS_COMMAND: ${TTS_COMMAND:-piper}
       TTS_VOICE: ${TTS_VOICE:-en_US-amy-medium}
       TTS_MODEL_DIR: /data/voices

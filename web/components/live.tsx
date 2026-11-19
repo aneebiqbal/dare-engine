@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, type Stream } from "@/lib/api";
+import { api, type ObsStatus, type Stream } from "@/lib/api";
 import { Badge, Button, Card, Field, Input, PageState, Progress, StatusDot, useToast } from "@/components/ui";
 
 function masked(key: string | null) {
@@ -20,6 +20,10 @@ export function Live({ initial }: { initial: Stream | null }) {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checked, setChecked] = useState<string[]>([]);
+  const [obs, setObs] = useState<ObsStatus | null>(null);
+  const [obsError, setObsError] = useState<string | null>(null);
+  const [snapTick, setSnapTick] = useState(0);
+  const [snapOk, setSnapOk] = useState(true);
   const toast = useToast();
 
   useEffect(() => {
@@ -29,6 +33,30 @@ export function Live({ initial }: { initial: Stream | null }) {
     } catch {
       /* ignore */
     }
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const loop = async () => {
+      try {
+        const status = await api.obsStatus();
+        if (alive) {
+          setObs(status);
+          setObsError(null);
+        }
+      } catch (e) {
+        if (alive) setObsError(e instanceof Error ? e.message : "Failed to read OBS");
+      }
+      if (alive) timer = setTimeout(loop, 3000);
+    };
+    void loop();
+    const snap = setInterval(() => setSnapTick((t) => t + 1), 5000);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+      clearInterval(snap);
+    };
   }, []);
 
   useEffect(() => {
@@ -97,8 +125,11 @@ export function Live({ initial }: { initial: Stream | null }) {
   const checks = [
     { id: "address", label: "Stream address issued", done: Boolean(stream) },
     { id: "relay", label: "Relay reachable", done: connected },
-    { id: "obs", label: "OBS set to this address and key", done: checked.includes("obs"), manual: true },
-    { id: "test", label: "Test stream arrives", done: checked.includes("test"), manual: true },
+    { id: "obs", label: "OBS connected", done: Boolean(obs?.connected) },
+    { id: "recording", label: "Recording on", done: Boolean(obs?.recording) },
+    { id: "hdcp", label: "HDCP off", done: checked.includes("hdcp"), manual: true },
+    { id: "mic", label: "Mic level checked", done: checked.includes("mic"), manual: true },
+    { id: "radio", label: "Radio off", done: checked.includes("radio"), manual: true },
   ];
   const done = checks.filter((c) => c.done).length;
 
@@ -137,6 +168,75 @@ export function Live({ initial }: { initial: Stream | null }) {
           </div>
         )}
       </PageState>
+
+      <Card>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-medium">OBS</h2>
+            <span
+              className="inline-flex items-center gap-2 text-xs"
+              role="status"
+              aria-live="polite"
+              data-testid="obs-status"
+            >
+              <StatusDot
+                tone={obs?.connected ? "success" : "danger"}
+                label={obs?.connected ? "OBS connected" : "OBS not connected"}
+              />
+              {obs?.connected ? "Connected" : "Not connected"}
+            </span>
+          </div>
+          {obsError ? (
+            <p className="text-sm text-danger" role="alert">{obsError}</p>
+          ) : !obs ? (
+            <p className="text-sm text-muted">Reading OBS…</p>
+          ) : !obs.connected ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-danger" role="alert">
+                OBS is not reachable over its WebSocket.
+              </p>
+              {obs.detail && <p className="text-xs text-muted">{obs.detail}</p>}
+              {obs.how_to_enable && <p className="text-xs text-muted">{obs.how_to_enable}</p>}
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2 text-sm">
+                <span className="text-muted">
+                  OBS {obs.obs_version} · WebSocket {obs.websocket_version}
+                </span>
+                <span>Scene · <strong>{obs.scene ?? "—"}</strong></span>
+                <span>Streaming · {obs.streaming ? "live" : "idle"}</span>
+                <span>
+                  Recording · {obs.recording ? (obs.record_paused ? "paused" : "on") : "off"}
+                </span>
+                {(obs.audio_inputs ?? []).map((i) => (
+                  <span key={i.name}>
+                    Mic · {i.name} {i.muted ? "muted" : "live"}
+                  </span>
+                ))}
+              </div>
+              <div className="flex flex-col gap-2">
+                <span className="text-xs text-muted">
+                  Preview — periodic snapshot, not a live video feed.
+                </span>
+                {snapOk ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={`${api.obsSnapshotUrl()}?t=${snapTick}`}
+                    alt="OBS program scene snapshot"
+                    className="w-full rounded-xl bg-bg object-cover ring-surface"
+                    onError={() => setSnapOk(false)}
+                  />
+                ) : (
+                  <div className="flex h-40 items-center justify-center rounded-xl bg-bg text-xs text-muted ring-surface">
+                    Snapshot unavailable — OBS is connected but the scene screenshot failed.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
 
       <Card>
         <div className="flex flex-col gap-4">

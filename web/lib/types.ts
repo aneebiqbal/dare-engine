@@ -131,6 +131,22 @@ export type Clip = {
   thumb_url?: string | null;
 };
 
+export type ObsStatus = {
+  enabled: boolean;
+  connected: boolean;
+  error?: string;
+  detail?: string;
+  how_to_enable?: string;
+  obs_version?: string;
+  websocket_version?: string;
+  rpc_version?: number;
+  streaming?: boolean;
+  recording?: boolean;
+  record_paused?: boolean;
+  scene?: string;
+  audio_inputs?: { name: string; muted: boolean }[];
+};
+
 export type Mark = {
   id: string;
   assignment_id: string;

@@ -172,3 +172,13 @@ the two differ in either direction.
 | Card identity is an SVG endpoint | No remote image dependency; the same card is used in the admin queue and the dare editor. | — |
 | Contract path resolves in Docker and in a local checkout | `make contract` and the API unit tests run from the repo root, where `contracts/` is at the root. | — |
 
+## OBS live view decisions
+
+| Choice | Reason | Licence |
+| --- | --- | --- |
+| obs-websocket 5.x over `simpleobsws` | OBS 31+ ships obs-websocket 5.x; `simpleobsws` is the maintained client. | MIT |
+| Periodic scene snapshot, not a video feed | `GetSourceScreenshot` on the program scene is the only frame OBS exposes without a second pipeline; the page labels it "periodic snapshot, not a live video feed". | — |
+| Real status + manual ticks in one checklist | Connection, streaming, recording, scene and mic mute come from OBS; HDCP/mic/radio stay manual because OBS cannot see them. | — |
+| Clear unreachable state | If OBS is off or the WebSocket server is disabled, the endpoint returns `connected:false` + how to enable it, never a spinner. | — |
+| `OBS_WS_URL` defaults to `host.docker.internal` | The API runs in a container; the host is `host.docker.internal` under Colima. | — |
+

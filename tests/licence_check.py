@@ -24,6 +24,7 @@ PYTHON_LICENCES = {
     "python-multipart": "Apache-2.0",
     "argon2-cffi": "MIT",
     "pyyaml": "MIT",
+    "simpleobsws": "MIT",
     "faster-whisper": "MIT",
     "av": "BSD-3-Clause",
     "onnxruntime": "MIT",

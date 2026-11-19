@@ -56,6 +56,12 @@ class Settings(BaseSettings):
     # Days to keep a raw recording after its clips were made.
     recording_retention_days: int = 7
 
+    # --- OBS live view ----------------------------------------------------
+    # OBS WebSocket 5.x. In the container the host is host.docker.internal.
+    obs_ws_url: str = "ws://host.docker.internal:4455"
+    obs_ws_password: str = ""
+    obs_snapshot_width: int = 640
+
     # --- Research brain ---------------------------------------------------
     # All optional: with no keys the brain runs on the recorded sample feed and
     # marks its output as a fallback. Never a secret in a log or response.
