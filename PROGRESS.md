@@ -1,5 +1,58 @@
 # Progress
 
+## Finish sprint — OBS, SSD, local MLX engine
+
+Status: **Parts 1–3 built and proven on real devices; Part 0 still blocked.**
+
+### Part 0 — security (BLOCKED, not done)
+
+`.git/config`'s `origin` URL still embeds a live GitHub token
+(`https://ghp_…@github.com/aneebiqbal/dare-engine.git`). **Rotate it and reset
+the remote.** Nothing was pushed; all work is committed locally on
+`research-brain`. Finish-line item 5 stays false until the remote is clean.
+
+### Part 1 — OBS live view (done)
+
+- `api/app/obs.py` over obs-websocket 5.x (`simpleobsws`, MIT): real connection,
+  OBS version, stream/record state, program scene, mic mute.
+- `GET /live/obs/snapshot` returns a real `GetSourceScreenshot` JPEG of the
+  program scene, labelled on the page as a **periodic snapshot, not a live feed**.
+- Go-Live checklist now has real OBS signals (connected, recording) plus the
+  manual HDCP / mic / radio ticks; unreachable OBS shows how to enable it.
+- **Proven on real OBS 33.0.1 / WebSocket 5.7.6:** `connected:true`, scene
+  `Scene`, `Mic/Aux` unmuted, 640×360 JPEG snapshot (4307 bytes).
+- Unit tests: status mapping, snapshot decoding, unreachable state.
+
+### Part 2 — SSD flow (done)
+
+- Host bridge `local/ssd_bridge.py` (stdlib) lists `/Volumes`, ffprobes each
+  video (size, duration, resolution) and copies the chosen file into a shared
+  inbox; it refuses paths outside the mount dir.
+- `GET /studio/ssd` and `POST /studio/ssd/import`: import registers a local
+  studio recording **and enqueues a real `detect_moments` job**. No cloud.
+- Studio page: "Import from SSD" with drive/video list and clear no-drive /
+  no-video / bridge-down states.
+- **Proven on a real mounted DMG** (`/Volumes/TestSSD/gameplay.mp4`): listed
+  (291.8 s, 1280×720, 33 MB), imported, `detect_queued:true`, job `queued`.
+
+### Part 3 — local MLX clip engine (done, human verdict still blocked)
+
+- **MLX Whisper on Metal** via a host bridge (`local/mlx_bridge.py`); the worker
+  streams the file bytes (the container's storage is not on the host) and falls
+  back to faster-whisper CPU when `MLX_WHISPER_URL` is empty. Compute path is
+  stored and shown as `mlx / metal` with the GPU badge.
+- **Measured:** 30.17 s to transcribe the 4.9-min fixture (593 words) on Metal.
+- **Visual strikingness:** 1 fps 32×32 gray frame stats; dark (<8% luma) and
+  blown-out (>95%) frames score 0 and are never the cold open. The trailer's top
+  candidate (243–255 s, 6.91) carries the new `striking frame` reason.
+- **Karaoke captions:** a `karaoke` style emits one ASS event per phrase with
+  `{\k}` word timings (word-by-word highlight), added to the template list.
+- Detection on the trailer with MLX returned 3 candidates; render numbers below.
+
+### Re-prove after the source_ids change
+
+- Pending: `test_games_research.py` + `test_contract.py` over HTTP.
+
 ## Research-brain sprint — games + sourced daily ideas
 
 Status: **built and green on the real stack.** The games grid, the game profile,

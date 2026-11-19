@@ -14,6 +14,11 @@ Last updated after the research-brain sprint.
 | Research brain: YouTube + Reddit + news → sourced ideas | yes | yes | partial (sample feed, recorded AI) | source keys + AI credit |
 | Idea accuracy: citations stored and shown, schema-validated | yes | yes | yes (sample feed) | live sources |
 | Local open-weight models (Ollama: Qwen / Kimi, Metal) | yes | yes | yes (host, no cloud) | — |
+| OBS live view (obs-websocket 5.x: connection, stream, record, scene, mic) | yes | yes | yes (real OBS 33.0.1) | — |
+| SSD import (host bridge → list → local import → detect job) | yes | yes | yes (mounted DMG) | — |
+| MLX Whisper transcription (host bridge, Metal) | yes | yes | yes (host, 30.17 s / 4.9 min) | — |
+| Visual-strikingness cold-open check | yes | yes | yes (trailer) | real gameplay fixture |
+| Karaoke word-by-word captions | yes | yes | yes (unit + render) | — |
 | Admin approval gate + assign + gamer Today | yes | yes | yes (real accounts) | — |
 | Generated idea card image (SVG, no remote image) | yes | yes | yes | — |
 | Mission cards from typed questions (AI) | yes | yes (recorded provider) | no | AI key credit |
