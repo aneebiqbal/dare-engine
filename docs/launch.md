@@ -116,16 +116,12 @@ so anything dropped in `fixtures/` is tracked.
   GitHub token. It does not: `git config --get remote.origin.url` returns a
   clean URL. The remote does exist, so the older "no git remote" claims in
   `docs/context/14-gaps-and-risks.md` are stale too.
-- `docs/context/13-dependencies-and-licences.md` lists `piper-tts` in
-  `worker/requirements.txt`; it is in `worker/requirements-voice.txt`.
-  `docs/licences.md` is the current manifest.
-- `docs/decisions.md` has a Sprint 6 table row that says `piper-tts` is MIT,
-  next to a note that says GPL-3.0-or-later.
-- `docs/performance.md`'s LCP table does not match the committed
-  `docs/screens/budgets.json` (for example `/today` phone: 1856 ms vs 4008 ms).
-  The JSON is the `make budgets` artifact.
-- `docs/context/*.md` refers to `worker/app/...`; the code is
-  `worker/worker_app/...`. `docs/context/05-api.md` says 73 contract paths; the
-  file has 93.
+- Fixed 2026-11-19: `piper-tts` now points at `worker/requirements-voice.txt`
+  in `docs/context/13-dependencies-and-licences.md`, `01-repository-map.md`
+  and `10-ai.md` (`docs/licences.md` is the current manifest);
+  `docs/decisions.md`'s Sprint 6 row says GPL-3.0-or-later;
+  `docs/performance.md`'s LCP table matches `docs/screens/budgets.json`;
+  `docs/context/*.md` points at `worker/worker_app/...`; and
+  `docs/context/05-api.md` says 105 contract paths.
 - `tests/unit/test_transcribe.py` line 19 says the trailer is "not committed".
   It is committed, and it is a publisher trailer.

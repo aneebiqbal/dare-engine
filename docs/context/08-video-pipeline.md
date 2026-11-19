@@ -95,8 +95,9 @@ software H.264, synthetic stand-in):
 | 3 clips, 4-way pool | 119.8 s |
 | 3 clips, 4-way pool, warm | 70.9 s |
 
-`test_m4_relay.py` asserts Done → finished file < 180 s. Web performance budgets
-in `docs/performance.md` are **not measured** ("to be measured in D3").
+`test_m4_relay.py` asserts Done → finished file < 180 s. Web performance
+budgets in `docs/performance.md` are measured by `make budgets` and recorded
+in `docs/screens/budgets.json`.
 
 ## Largest file actually processed
 

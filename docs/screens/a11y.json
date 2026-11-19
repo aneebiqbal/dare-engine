@@ -24,20 +24,7 @@
   "phone-admin-jobs": [],
   "phone-admin-ai": [],
   "phone-admin-models": [],
-  "phone-admin-calendar": [
-    {
-      "id": "document-title",
-      "impact": "serious",
-      "nodes": 1,
-      "help": "Documents must have <title> element to aid in navigation"
-    },
-    {
-      "id": "html-has-lang",
-      "impact": "serious",
-      "nodes": 1,
-      "help": "<html> element must have a lang attribute"
-    }
-  ],
+  "phone-admin-calendar": [],
   "phone-admin-long-form": [],
   "phone-admin-audit": [],
   "phone-admin-setup": [],
@@ -66,20 +53,7 @@
   "desktop-admin-jobs": [],
   "desktop-admin-ai": [],
   "desktop-admin-models": [],
-  "desktop-admin-calendar": [
-    {
-      "id": "document-title",
-      "impact": "serious",
-      "nodes": 1,
-      "help": "Documents must have <title> element to aid in navigation"
-    },
-    {
-      "id": "html-has-lang",
-      "impact": "serious",
-      "nodes": 1,
-      "help": "<html> element must have a lang attribute"
-    }
-  ],
+  "desktop-admin-calendar": [],
   "desktop-admin-long-form": [],
   "desktop-admin-audit": [],
   "desktop-admin-setup": []

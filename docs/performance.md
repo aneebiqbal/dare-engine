@@ -29,15 +29,16 @@ The first byte now arrives in **~680 ms cold** (the shell + skeleton) and
 **~10 ms warm** for a cached read. Before, creator pages waited 2.3–2.7 s for a
 server-side API call before any HTML was flushed.
 
-**LCP** (largest contentful paint, `make budgets`, budget 5000 ms), ms.
+**LCP** (largest contentful paint, budget 5000 ms), ms.
+`docs/screens/budgets.json` is the source of truth, measured by `make budgets`.
 
-| Page | Before phone/desktop | After phone/desktop |
+| Page | Phone | Desktop |
 | --- | --- | --- |
-| `/` dashboard | 860 / 816 | 752 / 812 |
-| `/today` | 4844 / 2528 | **1856 / 1876** |
-| `/remote` | 2524 / 2476 | **32 / 36** |
-| `/clips` | 732 / 988 | 712 / 748 |
-| `/admin` | 736 / 772 | **56 / 52** |
+| `/` dashboard | 844 | 760 |
+| `/today` | 4008 | 1912 |
+| `/remote` | 32 | 40 |
+| `/clips` | 764 | 724 |
+| `/admin` | 80 | 68 |
 
 TBT is 0 ms on every page; `make budgets` passes.
 

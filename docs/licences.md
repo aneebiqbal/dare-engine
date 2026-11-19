@@ -111,9 +111,8 @@ monetisation.
    `make licence` prints `WARN requirements.txt: psycopg-pool licence unknown`.
    The installed metadata says `LGPL-3.0-only`. Add it to the check's table to
    clear the warning.
-5. **Doc drift:** `docs/context/13-dependencies-and-licences.md` still lists
-   `piper-tts` in `worker/requirements.txt` and says `docs/decisions.md` calls
-   Piper MIT. Both are out of date: the package is in the optional file, and
-   `docs/decisions.md` has a MIT row in its Sprint 6 table next to a GPL note.
-   This file is the current manifest.
+5. **Doc drift (fixed 2026-11-19):** `docs/context/13-dependencies-and-licences.md`,
+   `docs/context/01-repository-map.md` and `docs/context/10-ai.md` now point
+   `piper-tts` at `worker/requirements-voice.txt`, and `docs/decisions.md`'s
+   Sprint 6 row says GPL-3.0-or-later. This file is the current manifest.
 6. **Geist** is OFL-1.1 (font) and **TypeScript** Apache-2.0 — both permissive.
