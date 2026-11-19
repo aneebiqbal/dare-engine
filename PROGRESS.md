@@ -34,17 +34,16 @@ and committed; the full acceptance suite is running.**
 - **P5 — launch docs.** README rewritten (pitch, proof, demo slots), new
   `docs/licences.md`, new `docs/launch.md` with the git-history cleanup plan.
 
-### Ran and observed
+### Final verification
 
-- `make doctor` — **14/14**.
-- Unit tests — **57 passed, 1 skipped** (the two transcription tests are slow
-  CPU passes; the suite is offline now).
-- `make check` — **2 passed**.
-- `/admin/models` over the real API: `bridge: up`, 4 Ollama models with real
-  sizes, host RAM, MLX state. `free` returned `{"ok": true}`.
-- `/admin/calendar`, `/admin/clips`, `/admin/long-form` respond on the real API.
-- `contracts/openapi.yaml` regenerated (+274 lines).
-- Full `make accept` — running.
+- `make accept` — **67 passed, 2 skipped** (31.6 min).
+- `make web-accept` — Playwright page flows pass; axe-core **0 serious/critical**
+  on 30 pages at phone and desktop (includes the new models, calendar and
+  long-form pages).
+- `make doctor` — **14/14**; `make check` — **2 passed**.
+- Unit tests — **60 passed, 1 skipped**.
+- Provider picker verified on the real API and in the worker: `asr=cpu` →
+  `('cpu','int8')`, `asr=mlx` → `('mlx','metal')`.
 
 ### Real vs stand-in
 

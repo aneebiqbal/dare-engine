@@ -52,10 +52,12 @@ H.264). Sources: `PROGRESS.md`, `docs/performance.md`,
 | OBS live view | real OBS 33.0.1 / WebSocket 5.7.6: connected, scene, mic unmuted, 640x360 JPEG (4307 B) |
 | SSD import | real mounted DMG: 291.8 s, 1280x720, 33 MB listed and imported |
 | Research brain | 3 sourced candidates in 3.8 s (sample feed, `fallback: true`); local Ollama: 3 ideas citing real sources, `fallback: false` |
+| Local model manager | 4 Ollama models listed with real sizes; pull with progress, per-model unload, free-all, live host/Ollama/MLX memory |
+| Content loop | calendar queue with a 2/day cadence guardrail; long-form concat job; commentary step; swipe-through + saves/shares feeding the ranking score |
 | Web TTFB | ~680 ms cold, ~10 ms warm |
 | Web LCP, phone/desktop | dashboard 844/760 ms, today 4008/1912 ms, remote 32/40 ms, clips 764/724 ms, admin 80/68 ms; TBT 0 ms; budget 5000 ms |
-| Tests | 67 acceptance: 65 passed, 2 skipped, 0 failed; unit 36 passed, 1 skipped; `make check` 2 passed |
-| Accessibility | axe-core 0 serious/critical on 26 pages at phone and desktop |
+| Tests | acceptance: 67 passed, 2 skipped, 0 failed; unit 60 passed, 1 skipped; `make check` 2 passed; Playwright page flows pass |
+| Accessibility | axe-core 0 serious/critical on 30 pages at phone and desktop |
 
 The two acceptance skips are the voice-over tests, off unless the GPL add-on is
 installed.
@@ -72,6 +74,8 @@ installed.
 - **Live research sources.** The brain runs on the saved sample feed; YouTube,
   Reddit and RAWG keys are missing.
 - **S3 storage, publishing, Google sign-in, billing.** Not built or stub only.
+  The calendar’s “Mark published” is a manual marker (`unproven: youtube-api`);
+  TikTok and Instagram are approval-gated and disabled.
 - **Production operations.** No TLS termination, backups, structured logging or
   error reporting.
 - The screenshots in `docs/screens/` were captured with

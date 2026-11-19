@@ -23,6 +23,9 @@
   "phone-admin-invites": [],
   "phone-admin-jobs": [],
   "phone-admin-ai": [],
+  "phone-admin-models": [],
+  "phone-admin-calendar": [],
+  "phone-admin-long-form": [],
   "phone-admin-audit": [],
   "phone-admin-setup": [],
   "desktop-welcome": [],
@@ -49,6 +52,9 @@
   "desktop-admin-invites": [],
   "desktop-admin-jobs": [],
   "desktop-admin-ai": [],
+  "desktop-admin-models": [],
+  "desktop-admin-calendar": [],
+  "desktop-admin-long-form": [],
   "desktop-admin-audit": [],
   "desktop-admin-setup": []
 }

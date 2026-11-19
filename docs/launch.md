@@ -8,9 +8,9 @@ supply. Status detail is in `PROGRESS.md` and `docs/BUILD_STATE.md`.
 | Item | Status |
 | --- | --- |
 | App builds and runs locally | yes (`make up`) |
-| Acceptance suite | 65 passed, 2 skipped, 0 failed |
-| Unit + licence check | 36 passed, 1 skipped; `make check` 2 passed |
-| Accessibility | axe-core 0 serious/critical, 26 pages x phone/desktop |
+| Acceptance suite | 67 passed, 2 skipped, 0 failed |
+| Unit + licence check | 60 passed, 1 skipped; `make check` 2 passed |
+| Accessibility | axe-core 0 serious/critical, 30 pages x phone/desktop |
 | Performance budgets | TBT 0 ms; LCP under the 5000 ms budget (`docs/screens/budgets.json`) |
 | Dependency licences | no GPL/AGPL in the core (`docs/licences.md`) |
 | Copyrighted media in git | **not clean** — see the cleanup plan below |
@@ -21,7 +21,7 @@ supply. Status detail is in `PROGRESS.md` and `docs/BUILD_STATE.md`.
 | Production database | Neon configured; the default local run uses container Postgres |
 | Object storage | local disk by default; S3 unproven |
 | TLS, backups, logging, error reporting | not built |
-| Publishing to YouTube/TikTok/Instagram | stub only |
+| Publishing to YouTube/TikTok/Instagram | calendar queue + manual marker; YouTube API and TikTok/IG approval blocked |
 | Git remote | exists, URL is clean, but points at `dare-engine` |
 
 ## Git-history cleanup plan

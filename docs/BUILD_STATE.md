@@ -56,5 +56,6 @@ Last updated after the research-brain sprint.
 3. **Research source keys.** `YOUTUBE_API_KEY` and the Reddit app (or RAWG for
    live game search). Without them the brain runs on the saved sample feed and
    flags the run as a fallback.
-4. **A git remote with a safe credential.** `origin` exists but its URL embeds a
-   GitHub token; rotate it and use a credential helper before pushing.
+4. **A git remote with a safe credential.** The token embedded in `origin` was
+   removed from the remote URL; revoke it on GitHub and choose the real remote
+   (the current one points at `dare-engine`). See `docs/launch.md`.
