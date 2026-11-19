@@ -220,29 +220,45 @@ def _card_svg(card: dict, game_name: str) -> str:
     game = html.escape(game_name)
     mission_id = html.escape(str(card.get("id", "")))
 
+    hook_lines = _wrap(hook.upper(), 16)[:3]
     question_lines = _wrap(question, 26)
     win_lines = _wrap(win, 30)
-    y = 720
-    question_svg = "".join(
-        f'<text x="90" y="{y + i * 52}" font-size="42" fill="#FAFAFA">{html.escape(l)}</text>'
-        for i, l in enumerate(question_lines)
-    )
-    y += len(question_lines) * 52 + 40
-    win_svg = "".join(
-        f'<text x="90" y="{y + i * 44}" font-size="34" fill="#A3A3A3">{html.escape(l)}</text>'
-        for i, l in enumerate(win_lines)
-    )
 
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
-  <rect width="1080" height="1920" fill="#050505"/>
-  <rect x="24" y="24" width="1032" height="1872" rx="48" fill="none" stroke="#C8FF3D" stroke-width="3"/>
-  <text x="90" y="220" font-family="Verdana, sans-serif" font-size="30" letter-spacing="8" fill="#8B7CFF">{game.upper()[:30]}</text>
-  <text x="90" y="330" font-family="Verdana, sans-serif" font-size="96" font-weight="bold" fill="#C8FF3D">{hook.upper()[:28]}</text>
-  <text x="90" y="430" font-family="Verdana, sans-serif" font-size="44" fill="#FAFAFA">{title[:60]}</text>
-  {question_svg}
-  {win_svg}
-  <text x="90" y="1740" font-family="Verdana, sans-serif" font-size="30" letter-spacing="4" fill="#737373">{mode.upper()} · {mission_id}</text>
-</svg>"""
+    parts = [
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">',
+        '<rect width="1080" height="1920" fill="#050505"/>',
+        '<rect x="24" y="24" width="1032" height="1872" rx="48" fill="none" stroke="#C8FF3D" stroke-width="3"/>',
+        f'<text x="90" y="220" font-family="Verdana, sans-serif" font-size="30" letter-spacing="8" fill="#8B7CFF">{game.upper()[:30]}</text>',
+    ]
+    y = 330
+    for line in hook_lines:
+        parts.append(
+            f'<text x="90" y="{y}" font-family="Verdana, sans-serif" font-size="96" '
+            f'font-weight="bold" fill="#C8FF3D">{line}</text>'
+        )
+        y += 104
+    y += 20
+    parts.append(
+        f'<text x="90" y="{y}" font-family="Verdana, sans-serif" font-size="44" fill="#FAFAFA">{title[:60]}</text>'
+    )
+    y += 90
+    for line in question_lines:
+        parts.append(
+            f'<text x="90" y="{y}" font-family="Verdana, sans-serif" font-size="42" fill="#FAFAFA">{line}</text>'
+        )
+        y += 52
+    y += 40
+    for line in win_lines:
+        parts.append(
+            f'<text x="90" y="{y}" font-family="Verdana, sans-serif" font-size="34" fill="#A3A3A3">{line}</text>'
+        )
+        y += 44
+    parts.append(
+        f'<text x="90" y="1740" font-family="Verdana, sans-serif" font-size="30" letter-spacing="4" '
+        f'fill="#737373">{mode.upper()} · {mission_id}</text>'
+    )
+    parts.append("</svg>")
+    return "".join(parts)
 
 
 @router.get("/missions/{mission_id}/card.svg")
