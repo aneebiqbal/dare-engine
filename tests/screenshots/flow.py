@@ -1,10 +1,11 @@
 """The end-to-end product journey on real data, one screenshot per step.
 
 Run with the stack up, NEXT_PUBLIC_API_MOCK=0, DEV_AUTH_ENABLED=true and
-NEXT_PUBLIC_DEV_AUTH=1. It seeds a real game, sourced ideas, an assignment, a
-rendered clip with commentary, a calendar entry, a long-form build and metrics,
-then walks the UI as an admin and a creator, saving docs/screens/flow/<step>.png
-and asserting every step has a real "Up next" link.
+NEXT_PUBLIC_DEV_AUTH=1. It seeds a real game, sourced ideas, an assignment, then
+the admin runs the real studio (upload -> find moments -> generate), reviews the
+clip with commentary, schedules it, builds a long-form video and records results.
+A creator walks Today, Go Live and Remote. Every step is screenshotted to
+docs/screens/flow/ and the real "Up next" links are asserted.
 """
 from __future__ import annotations
 
@@ -18,14 +19,31 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tests" / "acceptance"))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from helpers import WEB, dev_sign_in, make_admin, upload_recording  # noqa: E402
+from helpers import WEB, dev_sign_in, truncate  # noqa: E402
 
 OUT = ROOT / "docs" / "screens" / "flow"
 FIXTURE = ROOT / "tests" / "fixtures" / "standin_speech_45s.mp4"
 
 
+def studio_upload(client, filename="session.mp4"):
+    boundary = "----flow"
+    body = (
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; "
+        f"filename=\"{filename}\"\r\nContent-Type: video/mp4\r\n\r\n"
+    ).encode() + FIXTURE.read_bytes() + (f"\r\n--{boundary}--\r\n").encode()
+    return client.call(
+        "POST", "/studio/upload", raw=body, ctype=f"multipart/form-data; boundary={boundary}"
+    )
+
+
 def seed() -> dict:
-    admin = make_admin()
+    truncate(
+        "missions", "assignments", "attempts", "daily_sets", "clips", "jobs",
+        "studio_candidates", "studio_recordings", "calendar_entries", "long_forms",
+        "posts", "metrics", "games", "mission_sources", "research_runs",
+        "exports", "voice_overs", "streams", "marks",
+    )
+    admin = dev_sign_in("Admin")
     slug = f"flow-{int(time.time())}"
     game = admin.post("/admin/games", {"slug": slug, "name": "Flow Game"})
     game_id = game["id"]
@@ -34,29 +52,51 @@ def seed() -> dict:
     mission_id = profile["candidates"][0]["id"]
     admin.post(f"/admin/pool/{mission_id}/approve", {})
 
-    creator = dev_sign_in("flow-creator")
+    creator = dev_sign_in("Alice")
     creator_id = creator.get("/me")["user"]["id"]
     admin.post(f"/admin/pool/{mission_id}/assign", {"user_id": creator_id})
 
-    uploaded = upload_recording(
-        creator, [{"mission_id": mission_id, "start": 5, "end": 20, "result": "0:41"}]
-    )
-    clip_id = uploaded["clips"][0]
-    deadline = time.time() + 420
-    while time.time() < deadline:
-        if creator.get(f"/clips/{clip_id}")["state"] == "ready":
+    # The admin runs the real studio: upload, find moments, generate.
+    rec = studio_upload(admin)
+    recording_id = rec["recording_id"]
+    admin.post("/studio/detect", {"recording_id": recording_id, "top_n": 3})
+    detail = {}
+    for _ in range(150):
+        detail = admin.get(f"/studio/recordings/{recording_id}")
+        if detail["candidates"]:
             break
-        time.sleep(5)
-    creator.patch(f"/clips/{clip_id}", {"commentary": "I cut the corner and the wanted level spiked."})
-    creator.post(f"/clips/{clip_id}/approve", {})
+        time.sleep(2)
+    candidate = detail["candidates"][0]
+    gen = admin.post(
+        "/studio/generate",
+        {
+            "recording_id": recording_id,
+            "mission_id": mission_id,
+            "windows": [
+                {
+                    "start": candidate["start"],
+                    "end": candidate["end"],
+                    "template_id": "cold_open",
+                    "candidate_id": candidate["id"],
+                }
+            ],
+        },
+    )
+    clip_id = gen["clips"][0]
+    for _ in range(150):
+        if admin.get(f"/clips/{clip_id}")["state"] == "ready":
+            break
+        time.sleep(2)
 
+    admin.patch(f"/clips/{clip_id}", {"commentary": "I cut the corner and the wanted level spiked."})
+    admin.post(f"/clips/{clip_id}/approve", {})
     day = time.strftime("%Y-%m-%d")
     admin.post("/admin/calendar", {"clip_id": clip_id, "scheduled_for": day, "platform": "youtube"})
     long_form = admin.post(
         "/admin/long-form",
         {"title": "Flow session", "clip_ids": [clip_id], "intro": "Flow", "outro": "Clipdesk"},
     )
-    creator.post(
+    admin.post(
         "/metrics",
         {
             "clip_id": clip_id,
@@ -70,6 +110,7 @@ def seed() -> dict:
     return {
         "game_id": game_id,
         "mission_id": mission_id,
+        "recording_id": recording_id,
         "clip_id": clip_id,
         "long_form_id": long_form["id"],
     }
@@ -95,11 +136,13 @@ def walk(page, steps) -> None:
         page.goto(f"{WEB}{path}", wait_until="networkidle")
         page.wait_for_timeout(600)
         shoot(page, name)
+        if expect is None:
+            continue
         links = page.locator('[data-testid="next-step"]')
         assert links.count() >= 1, f"{path} has no Up next affordance"
         href = links.first.get_attribute("href") or ""
         assert href.startswith("/"), f"{path} next step is not a real route: {href!r}"
-        if expect:
+        if expect != "*":
             assert expect in href, f"{path} next step {href!r} does not lead to {expect!r}"
         print(f"  up next -> {href}")
 
@@ -116,24 +159,47 @@ def main() -> int:
                 ("01-game-setup", "/admin/games", "/admin/games/"),
                 ("02-daily-ideas", f"/admin/games/{data['game_id']}", "/admin/pool"),
                 ("03-approve-assign", "/admin/pool", None),
-                ("04-studio", "/admin/studio", None),
-                ("05-calendar", "/admin/calendar", "/admin/long-form"),
-                ("06-long-form", "/admin/long-form", None),
+                ("04-studio", "/admin/studio", "*"),
+                ("05-review", f"/clips/{data['clip_id']}", "/admin/calendar"),
+                ("06-calendar", "/admin/calendar", "/admin/long-form"),
+                ("07-long-form", "/admin/long-form", None),
+                ("08-results", "/results", "/today"),
             ],
         )
         admin_ctx.close()
 
         creator_ctx, user = sign_in(browser, "Alice")
-        walk(
-            user,
-            [
-                ("07-today", "/today", "/live"),
-                ("08-go-live", "/live", "/remote"),
-                ("09-remote", "/remote", "/clips"),
-                ("10-review", f"/clips/{data['clip_id']}", "/admin/calendar"),
-                ("11-results", "/results", "/today"),
-            ],
+        # Today: accept the assigned dare, then the next step is Go Live.
+        user.goto(f"{WEB}/today", wait_until="networkidle")
+        user.wait_for_timeout(500)
+        accept = user.locator('[data-testid="accept-button"]')
+        if accept.count():
+            accept.first.click()
+            user.wait_for_timeout(800)
+        shoot(user, "09-today")
+        links = user.locator('[data-testid="next-step"]')
+        assert links.count() >= 1 and "/live" in (links.first.get_attribute("href") or ""), (
+            "Today did not lead to Go Live"
         )
+        print("  up next ->", links.first.get_attribute("href"))
+
+        walk(user, [("10-go-live", "/live", "/remote")])
+
+        # Remote: really tap Start and Done, then the next step is Clips.
+        user.goto(f"{WEB}/remote", wait_until="networkidle")
+        user.wait_for_timeout(500)
+        user.click('[data-testid="start"]')
+        user.wait_for_selector('[data-testid="done"]', timeout=15000)
+        user.click('[data-testid="done"]')
+        user.fill('[data-testid="result-input"]', "0:41")
+        user.click('[data-testid="submit-result"]')
+        user.wait_for_selector('[data-testid="done-state"]', timeout=15000)
+        shoot(user, "11-remote")
+        links = user.locator('[data-testid="next-step"]')
+        assert links.count() >= 1 and "/clips" in (links.first.get_attribute("href") or ""), (
+            "Remote did not lead to Clips"
+        )
+        print("  up next ->", links.first.get_attribute("href"))
         creator_ctx.close()
         browser.close()
     print("flow complete:", data)

@@ -53,6 +53,25 @@ export function Studio() {
       .catch(() => {});
   }, []);
 
+  // Reopen the latest session, so the studio is already pointed at it.
+  useEffect(() => {
+    api.studioRecordings()
+      .then((d) => {
+        const first = d.items[0];
+        if (!first) return;
+        return api.studioRecording(first.id).then((detail) => {
+          setRecording(detail);
+          const ids = new Set(
+            detail.candidates.map((c) => c.clip_id).filter(Boolean),
+          );
+          return api.clips("?page_size=50").then((res) =>
+            setClips(res.items.filter((c) => ids.has(c.id))),
+          );
+        });
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     Promise.all([
       api.pool("?status=unverified"),

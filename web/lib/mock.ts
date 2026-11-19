@@ -307,6 +307,7 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
   if (method === "GET" && pathname === "/studio/system") {
     return { cpu_percent: 12.5, memory_percent: 41.2, gpu: null } as T;
   }
+  if (method === "GET" && pathname === "/studio/recordings") return { items: [] } as T;
   if (method === "GET" && pathname === "/admin/setup") {
     return { checks: [
       { name: "DATABASE_URL set", ok: true, detail: "" },

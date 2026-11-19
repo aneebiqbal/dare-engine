@@ -115,6 +115,32 @@ def detect(request: Request, payload: dict):
     return {"state": "queued"}
 
 
+@router.get("/studio/recordings")
+def recordings(request: Request):
+    """The admin's recent studio sessions, newest first."""
+    user = current_user(request)
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, filename, duration_seconds, width, height FROM studio_recordings "
+                "WHERE user_id = %s ORDER BY created_at DESC LIMIT 20",
+                (user["id"],),
+            )
+            rows = cur.fetchall()
+    return {
+        "items": [
+            {
+                "id": str(r[0]),
+                "filename": r[1],
+                "duration_seconds": r[2],
+                "width": r[3],
+                "height": r[4],
+            }
+            for r in rows
+        ]
+    }
+
+
 @router.get("/studio/recordings/{recording_id}/file")
 def recording_file(request: Request, recording_id: str):
     with db.session() as conn:

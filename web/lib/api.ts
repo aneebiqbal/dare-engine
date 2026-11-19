@@ -414,6 +414,16 @@ export const api = {
   studioDetect: (recording_id: string, top_n = 5) =>
     post("/studio/detect", { recording_id, top_n }),
   studioRecording: (id: string) => get<StudioRecording>(`/studio/recordings/${id}`),
+  studioRecordings: () =>
+    get<{
+      items: {
+        id: string;
+        filename: string;
+        duration_seconds: number;
+        width: number;
+        height: number;
+      }[];
+    }>("/studio/recordings"),
   studioGenerate: (recording_id: string, mission_id: string, windows: Record<string, unknown>[]) =>
     post<{ clips: string[]; count: number }>("/studio/generate", {
       recording_id,

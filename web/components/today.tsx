@@ -89,8 +89,8 @@ export function Today({ initial }: { initial: TodayResponse | null }) {
     ? [data.daily, ...(data.picks ?? []).filter((p) => p.id !== data.daily?.id)]
     : data?.picks ?? [];
   const swapOptions = cards.filter((c) => c.id !== swapFor?.id);
-  const accepted = cards.some(
-    (c) => data?.accepted?.[c.id] === "accepted" || data?.accepted?.[c.id] === "swapped",
+  const accepted = cards.some((c) =>
+    ["accepted", "swapped", "assigned"].includes(data?.accepted?.[c.id] ?? ""),
   );
 
   return (
@@ -117,6 +117,8 @@ export function Today({ initial }: { initial: TodayResponse | null }) {
                     <Badge tone="success" data-testid="accepted">
                       {state}
                     </Badge>
+                  ) : state === "assigned" ? (
+                    <Badge tone="accent">assigned</Badge>
                   ) : (
                     <Button size="sm" data-testid="accept-button" onClick={() => accept(card.id)}>
                       Accept
