@@ -284,16 +284,27 @@ def results_summary(request: Request):
         "Cite the numbers you used. Return JSON only."
     )
     prompt = f"By mission type: {json.dumps(by_type)}\nTop clips: {json.dumps(top)}"
+    from .config import settings
+
+    # The recorded provider is a CI stand-in: never present its canned numbers
+    # as a real summary. Use the data-driven summary and say so.
+    recorded = (settings.llm_provider or "").lower() == "recorded"
     result, fallback = run_ai(user, "results", "results_summary", system, prompt)
-    if fallback or not result:
+    if fallback or not result or recorded:
         best = max(by_type, key=lambda r: r["views"], default=None)
         summary = (
             f"Best performing type: {best['mode']} with {best['views']} views across {best['clips']} clips."
             if best
             else "No results recorded yet."
         )
-        return {"summary": summary, "fallback": True, "notice": FALLBACK_NOTICE, "by_type": by_type}
-    return {**result, "fallback": False, "by_type": by_type}
+        return {
+            "summary": summary,
+            "fallback": True,
+            "notice": FALLBACK_NOTICE,
+            "by_type": by_type,
+            "sample": recorded,
+        }
+    return {**result, "fallback": False, "by_type": by_type, "sample": False}
 
 
 @router.post("/ai/pool-review")
