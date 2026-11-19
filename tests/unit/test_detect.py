@@ -26,7 +26,7 @@ def test_compute_path_is_explicit():
 
 
 def test_whisper_compute_uses_cuda_when_a_gpu_is_present(monkeypatch):
-    from app.config import settings
+    from worker_app.config import settings
 
     monkeypatch.setattr(settings, "whisper_device", "cpu")
     monkeypatch.setattr(settings, "whisper_compute_type", "int8")
@@ -36,7 +36,7 @@ def test_whisper_compute_uses_cuda_when_a_gpu_is_present(monkeypatch):
 
 
 def test_whisper_compute_falls_back_to_cpu_int8(monkeypatch):
-    from app.config import settings
+    from worker_app.config import settings
 
     monkeypatch.setattr(settings, "whisper_device", "cpu")
     monkeypatch.setattr(settings, "whisper_compute_type", "int8")
@@ -46,7 +46,7 @@ def test_whisper_compute_falls_back_to_cpu_int8(monkeypatch):
 
 
 def test_compute_path_agrees_with_the_whisper_path(monkeypatch):
-    from app.config import settings
+    from worker_app.config import settings
 
     monkeypatch.setattr(settings, "whisper_device", "cpu")
     monkeypatch.setattr(settings, "whisper_compute_type", "int8")

@@ -9,7 +9,7 @@ import threading
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "worker"))
 
-from app.config import settings  # noqa: E402
+from worker_app.config import settings  # noqa: E402
 from clip.transcribe import transcribe, whisper_compute  # noqa: E402
 
 

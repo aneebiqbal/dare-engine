@@ -4,13 +4,13 @@ Returns None when no key is configured, so callers fall back to word density.
 """
 from __future__ import annotations
 
-from app.config import settings
+from worker_app.config import settings
 
 
 def _log_usage(**kw) -> None:
     """Best-effort usage logging; never let it break a render."""
     try:
-        from app import db
+        from worker_app import db
 
         with db.session() as conn:
             with conn.cursor() as cur:

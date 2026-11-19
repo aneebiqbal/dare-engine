@@ -49,7 +49,7 @@ def _ensure_mission(opener):
     else:
         mission_id = "m_bench"
         code = (
-            "import json;from app import db;"
+            "import json;from worker_app import db;"
             "card=json.load(open('app/llm_recorded.json'))['cards'][0];card['id']='m_bench';"
             "conn=db.connect();cur=conn.cursor();"
             "cur.execute(\"INSERT INTO missions (id,card,status) VALUES ('m_bench',%s,'candidate') "

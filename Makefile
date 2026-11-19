@@ -65,7 +65,7 @@ create-admin:
 # OPTIONAL voice-over add-on (GPL piper-tts). Installs into the running worker
 # and downloads the voice model. Not part of the default build.
 voice:
-	docker compose exec -T worker sh -c "pip install -q -r /app/requirements-voice.txt && python -m app.voice $(if $(VOICE),$(VOICE),en_US-amy-medium)"
+	docker compose exec -T worker sh -c "pip install -q -r /app/requirements-voice.txt && python -m worker_app.voice $(if $(VOICE),$(VOICE),en_US-amy-medium)"
 
 # Delete recordings and previews past the retention window.
 cleanup:

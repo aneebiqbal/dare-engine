@@ -21,7 +21,7 @@ TRAILER = ROOT / "fixtures" / "gameplay_4min.mp4"
 
 
 def test_bridge_failure_falls_back_to_cpu(monkeypatch):
-    from app.config import settings
+    from worker_app.config import settings
 
     monkeypatch.setattr(settings, "mlx_whisper_url", "http://127.0.0.1:1")
     monkeypatch.setattr(settings, "whisper_device", "cpu")

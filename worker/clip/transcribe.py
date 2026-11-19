@@ -38,7 +38,7 @@ def whisper_compute() -> tuple[str, str]:
     An explicit non-default WHISPER_DEVICE/WHISPER_COMPUTE_TYPE wins, so an
     operator can pin the path; the default pair means "detect".
     """
-    from app.config import settings
+    from worker_app.config import settings
 
     if settings.mlx_whisper_url:
         return "mlx", "metal"
@@ -58,7 +58,7 @@ def _mlx_bridge_words(path: str) -> list[Word]:
     import pathlib
     import urllib.parse
 
-    from app.config import settings
+    from worker_app.config import settings
 
     parsed = urllib.parse.urlparse(settings.mlx_whisper_url)
     target = pathlib.Path(path)
@@ -85,7 +85,7 @@ def _load():
     if _model is None:
         from faster_whisper import WhisperModel
 
-        from app.config import settings
+        from worker_app.config import settings
 
         device, compute = whisper_compute()
         _model = WhisperModel(
@@ -102,7 +102,7 @@ def transcribe(path: str) -> list[Word]:
     Uses the host MLX Whisper bridge when `MLX_WHISPER_URL` is set (Metal on the
     Mac); otherwise faster-whisper in the container.
     """
-    from app.config import settings
+    from worker_app.config import settings
 
     global _last_compute
     if settings.mlx_whisper_url:

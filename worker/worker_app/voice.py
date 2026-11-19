@@ -1,6 +1,6 @@
 """Download a Piper voice model into the shared voices volume.
 
-Usage: python -m app.voice en_US-amy-medium
+Usage: python -m worker_app.voice en_US-amy-medium
 """
 from __future__ import annotations
 

@@ -20,14 +20,14 @@ from clip.llm import get_llm  # noqa: E402
 
 
 def test_get_llm_is_none_without_a_key(monkeypatch):
-    from app.config import settings
+    from worker_app.config import settings
 
     monkeypatch.setattr(settings, "llm_api_key", "")
     assert get_llm() is None
 
 
 def test_get_llm_returns_the_shared_client_with_a_key(monkeypatch):
-    from app.config import settings
+    from worker_app.config import settings
 
     monkeypatch.setattr(settings, "llm_provider", "openai")
     monkeypatch.setattr(settings, "llm_api_key", "k")
