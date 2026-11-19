@@ -135,6 +135,12 @@ function base() {
   return typeof window === "undefined" ? SERVER_BASE : "/api";
 }
 
+// Links and images rendered into HTML must be same-origin, even during server
+// rendering: the browser resolves them through the web app's /api proxy.
+function browserBase() {
+  return "/api";
+}
+
 function csrfToken(): string {
   if (typeof document === "undefined") return "";
   const match = document.cookie.match(/(?:^|;\s*)clipdesk_csrf=([^;]+)/);
@@ -258,14 +264,14 @@ export const api = {
   voicePreview: (id: string, voice?: string) =>
     post<{ id: string; state: string }>(`/clips/${id}/voice-preview`, { voice }),
   voiceOverStatus: (id: string) => get<VoiceOver>(`/voice-overs/${id}`),
-  voiceOverAudioUrl: (id: string) => `${base()}/voice-overs/${id}/audio`,
+  voiceOverAudioUrl: (id: string) => `${browserBase()}/voice-overs/${id}/audio`,
   approveClip: (id: string) => post<{ id: string; state: string }>(`/clips/${id}/approve`, {}),
   postClip: (id: string) => post<{ id: string; state: string }>(`/clips/${id}/post`, {}),
   createExport: (id: string, fields: Record<string, unknown>) =>
     post<{ id: string }>(`/clips/${id}/export`, fields),
-  downloadClipUrl: (id: string) => `${base()}/clips/${id}/download`,
-  downloadExportUrl: (id: string) => `${base()}/clips/${id}/export`,
-  thumbnailUrl: (id: string) => `${base()}/clips/${id}/thumbnail`,
+  downloadClipUrl: (id: string) => `${browserBase()}/clips/${id}/download`,
+  downloadExportUrl: (id: string) => `${browserBase()}/clips/${id}/export`,
+  thumbnailUrl: (id: string) => `${browserBase()}/clips/${id}/thumbnail`,
   reviewClip: (id: string) => post<ReviewResult>("/ai/clip-review", { clip_id: id }),
   exportCopy: (id: string) => post<ClipExport>("/ai/export", { clip_id: id }),
 
@@ -275,7 +281,7 @@ export const api = {
   createStream: (title: string) => post<Stream>("/streams", { title }),
   streamStatus: (id: string) => get<{ connected: boolean }>(`/streams/${id}/status`),
   obsStatus: () => get<ObsStatus>("/live/obs"),
-  obsSnapshotUrl: () => `${base()}/live/obs/snapshot`,
+  obsSnapshotUrl: () => `${browserBase()}/live/obs/snapshot`,
 
   // --- uploads ---------------------------------------------------------
   uploadStart: () => post<{ upload_id: string; chunk_size: number }>("/uploads/start", {}),
@@ -313,7 +319,7 @@ export const api = {
   updateSettings: (fields: Record<string, unknown>) =>
     patch<{ ok: boolean } & Record<string, unknown>>("/settings", fields),
   deleteAccount: () => del("/account"),
-  exportAccountUrl: () => `${base()}/account/export`,
+  exportAccountUrl: () => `${browserBase()}/account/export`,
 
   // --- ai --------------------------------------------------------------
   help: (question: string) => post<HelpAnswer>("/ai/help", { question }),
@@ -367,7 +373,7 @@ export const api = {
   adminCreateLongForm: (title: string, clip_ids: string[], intro = "", outro = "") =>
     post<{ id: string; state: string }>("/admin/long-form", { title, clip_ids, intro, outro }),
   adminLongForm: (id: string) => get<LongForm>(`/admin/long-form/${id}`),
-  adminLongFormUrl: (id: string) => `${base()}/admin/long-form/${id}/download`,
+  adminLongFormUrl: (id: string) => `${browserBase()}/admin/long-form/${id}/download`,
 
   // --- admin: provider picker ---------------------------------------------
   adminProvider: () => get<ProviderStatus>("/admin/provider"),
@@ -393,7 +399,7 @@ export const api = {
       fallback: boolean;
       latency_ms: number;
     }>(`/admin/games/${id}/research`, {}),
-  cardImageUrl: (id: string) => `${base()}/missions/${id}/card.svg`,
+  cardImageUrl: (id: string) => `${browserBase()}/missions/${id}/card.svg`,
 
   // --- studio -----------------------------------------------------------
   studioUpload: (file: File) => {
@@ -435,7 +441,7 @@ export const api = {
     get<{ caption_styles: Record<string, unknown>; templates: { id: string }[] }>(
       "/studio/templates",
     ),
-  studioRecordingUrl: (id: string) => `${base()}/studio/recordings/${id}/file`,
+  studioRecordingUrl: (id: string) => `${browserBase()}/studio/recordings/${id}/file`,
   studioSsd: () => get<SsdResponse>("/studio/ssd"),
   studioSsdImport: (path: string, release = true) =>
     post<{
