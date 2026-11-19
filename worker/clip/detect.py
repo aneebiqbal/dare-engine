@@ -82,9 +82,9 @@ class Candidate:
 
 def detect_compute_path() -> ComputePath:
     """CUDA Whisper when a GPU is present, else CPU int8. Never assume a GPU."""
-    from .transcribe import whisper_compute
+    from .transcribe import actual_compute, whisper_compute
 
-    device, compute = whisper_compute()
+    device, compute = actual_compute() or whisper_compute()
     from .engine import detect_encoder
 
     enc = detect_encoder()

@@ -47,11 +47,29 @@ the remote.** Nothing was pushed; all work is committed locally on
   candidate (243–255 s, 6.91) carries the new `striking frame` reason.
 - **Karaoke captions:** a `karaoke` style emits one ASS event per phrase with
   `{\k}` word timings (word-by-word highlight), added to the template list.
-- Detection on the trailer with MLX returned 3 candidates; render numbers below.
+- Detection on the trailer with MLX returned 3 candidates, all carrying
+  `striking frame`; the top (243–255 s, 6.91) also has commentary + marker +
+  fast cuts + rising voice.
+- **Rendered the 3 moments:** 14.5 s / 5.5 s / 16.5 s clips, all `ready`,
+  `blur_fit`. 3 clips in parallel: **87.1 s wall** (≈29 s/clip). A warm karaoke
+  re-render of one clip: **6.6 s** (transcript and window cached).
+- Karaoke re-render stored `caption_style: karaoke`; the render calls
+  `write_ass(caption_style=...)`, and the unit test proves the `{\k}` output.
+
+### Per-clip verdict (the bar that is NOT met)
+
+The only footage is a publisher trailer (`fixtures/gameplay_4min.mp4`, IGN
+watermark), not the user's own gameplay with commentary. **No human has watched
+the clips and recorded a verdict.** Per the Gate 0 rule, the clip-quality bar is
+**unmet** until `fixtures/stream_10min.mp4` exists and a person watches the
+output. The 3 trailer clips are in the studio (recording
+`5cd6b8e9-70ef-4f7c-8f98-dbce9d1e4ec8`); watch them and record one line each.
 
 ### Re-prove after the source_ids change
 
-- Pending: `test_games_research.py` + `test_contract.py` over HTTP.
+- `tests/acceptance/test_games_research.py` + `test_contract.py` over HTTP:
+  **4 passed.** The research path is proven over HTTP, not only by the unit test
+  and the local-model run.
 
 ## Research-brain sprint — games + sourced daily ideas
 

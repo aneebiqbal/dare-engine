@@ -6,6 +6,10 @@ import threading
 
 _lock = threading.Lock()
 _model = None
+# The path that actually ran last, so a bridge fallback is never reported as a
+# GPU path. `whisper_compute()` is the configured path; `actual_compute()` is
+# what ran.
+_last_compute: tuple[str, str] | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -15,16 +19,7 @@ class Word:
     text: str
 
 
-def whisper_compute() -> tuple[str, str]:
-    """The compute path that will run: host MLX Whisper, CUDA, or CPU int8.
-
-    An explicit non-default WHISPER_DEVICE/WHISPER_COMPUTE_TYPE wins, so an
-    operator can pin the path; the default pair means "detect".
-    """
-    from app.config import settings
-
-    if settings.mlx_whisper_url:
-        return "mlx", "metal"
+def _cpu_compute(settings) -> tuple[str, str]:
     device, compute = settings.whisper_device, settings.whisper_compute_type
     if device == "cpu" and compute == "int8":
         try:
@@ -35,6 +30,24 @@ def whisper_compute() -> tuple[str, str]:
         except Exception:
             pass
     return device, compute
+
+
+def whisper_compute() -> tuple[str, str]:
+    """The configured path: host MLX Whisper, CUDA, or CPU int8.
+
+    An explicit non-default WHISPER_DEVICE/WHISPER_COMPUTE_TYPE wins, so an
+    operator can pin the path; the default pair means "detect".
+    """
+    from app.config import settings
+
+    if settings.mlx_whisper_url:
+        return "mlx", "metal"
+    return _cpu_compute(settings)
+
+
+def actual_compute() -> tuple[str, str] | None:
+    """The path that actually ran, or None before the first transcription."""
+    return _last_compute
 
 
 def _mlx_bridge_words(path: str) -> list[Word]:
@@ -91,8 +104,15 @@ def transcribe(path: str) -> list[Word]:
     """
     from app.config import settings
 
+    global _last_compute
     if settings.mlx_whisper_url:
-        return _mlx_bridge_words(path)
+        try:
+            words = _mlx_bridge_words(path)
+            _last_compute = ("mlx", "metal")
+            return words
+        except Exception:
+            pass  # bridge configured but unreachable: fall back cleanly to CPU
+    _last_compute = _cpu_compute(settings)
     with _lock:
         segments, _info = _load().transcribe(
             path, word_timestamps=True, vad_filter=False, beam_size=1
