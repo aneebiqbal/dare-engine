@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { api, type MissionCard, type Today as TodayResponse } from "@/lib/api";
+import { NextStep } from "./next-step";
+import { DareCard } from "./dare-card";
 import {
   Badge,
   Button,
@@ -87,6 +89,9 @@ export function Today({ initial }: { initial: TodayResponse | null }) {
     ? [data.daily, ...(data.picks ?? []).filter((p) => p.id !== data.daily?.id)]
     : data?.picks ?? [];
   const swapOptions = cards.filter((c) => c.id !== swapFor?.id);
+  const accepted = cards.some(
+    (c) => data?.accepted?.[c.id] === "accepted" || data?.accepted?.[c.id] === "swapped",
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -101,57 +106,60 @@ export function Today({ initial }: { initial: TodayResponse | null }) {
           {cards.map((card) => {
             const state = data?.accepted?.[card.id];
             return (
-              <Card
+              <DareCard
                 key={card.id}
-                className={card.id === data?.daily?.id ? "signature glow" : ""}
+                card={card}
+                highlight={card.id === data?.daily?.id}
+                image={card.id === data?.daily?.id}
               >
-                <div className="flex h-full flex-col gap-3">
-                  <div className="flex items-center justify-between">
-                    <Badge tone={card.id === data?.daily?.id ? "accent" : "muted"}>
-                      {card.id === data?.daily?.id ? "Daily dare" : card.id}
+                <div className="mt-auto flex flex-wrap items-center gap-2 pt-2">
+                  {state === "accepted" || state === "swapped" ? (
+                    <Badge tone="success" data-testid="accepted">
+                      {state}
                     </Badge>
-                    <span className="text-xs text-muted">{card.est_minutes} min</span>
-                  </div>
-                  <h3 className="text-2xl font-semibold leading-tight tracking-tight">
-                    {card.hook_text}
-                  </h3>
-                  <p className="text-sm text-muted">{card.question}</p>
-                  <p className="text-sm">{card.win_condition}</p>
-                  <div className="mt-auto flex flex-wrap items-center gap-2 pt-2">
-                    {state === "accepted" || state === "swapped" ? (
-                      <Badge tone="success" data-testid="accepted">
-                        {state}
-                      </Badge>
-                    ) : (
-                      <Button size="sm" data-testid="accept-button" onClick={() => accept(card.id)}>
-                        Accept
-                      </Button>
-                    )}
-                    {state === "assigned" && <Badge tone="muted">assigned</Badge>}
-                    {state && (
-                      <Button size="sm" variant="outline" onClick={() => setSwapFor(card)}>
-                        Swap
-                      </Button>
-                    )}
-                    <Link href={`/missions/${card.id}`} className="text-sm text-muted hover:text-text">
-                      Edit
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => suggest(card.id)}
-                      className="text-sm text-accent hover:underline"
-                    >
-                      More like this
-                    </button>
-                  </div>
+                  ) : (
+                    <Button size="sm" data-testid="accept-button" onClick={() => accept(card.id)}>
+                      Accept
+                    </Button>
+                  )}
+                  {state === "assigned" && <Badge tone="muted">assigned</Badge>}
+                  {state && (
+                    <Button size="sm" variant="outline" onClick={() => setSwapFor(card)}>
+                      Swap
+                    </Button>
+                  )}
+                  <Link href={`/missions/${card.id}`} className="text-sm text-muted hover:text-text">
+                    Edit
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => suggest(card.id)}
+                    className="text-sm text-accent hover:underline"
+                  >
+                    More like this
+                  </button>
                 </div>
-              </Card>
+              </DareCard>
             );
           })}
         </div>
       </PageState>
 
       {suggestNotice && <Notice tone="warn">{suggestNotice}</Notice>}
+
+      {accepted ? (
+        <NextStep
+          href="/live"
+          title="Go live and mark the moment"
+          body="Connect OBS, then tap Start and Done on the phone remote."
+        />
+      ) : (
+        <NextStep
+          href={data?.daily ? `/missions/${data.daily.id}` : "/today"}
+          title="Read the dare"
+          body="Check the win condition, accept it, then go live."
+        />
+      )}
 
       <section className="flex flex-col gap-3" aria-live="polite">
         <h2 className="text-xl font-semibold tracking-tight">More like this</h2>

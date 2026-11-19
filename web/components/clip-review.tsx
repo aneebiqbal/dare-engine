@@ -9,6 +9,7 @@ import {
   type ReviewResult,
   type VoiceOver,
 } from "@/lib/api";
+import { NextStep } from "./next-step";
 import {
   Badge,
   Button,
@@ -403,6 +404,20 @@ export function ClipReview({ clip }: { clip: Clip }) {
           </Card>
         </PageState>
       </div>
+
+      {current.state === "approved" ? (
+        <NextStep
+          href="/admin/calendar"
+          title="Schedule this Short"
+          body="Add it to the posting calendar and keep the cadence."
+        />
+      ) : (
+        <NextStep
+          href={`/clips/${clip.id}`}
+          title="Approve to schedule"
+          body="Watch it, add your commentary, then approve."
+        />
+      )}
     </div>
   );
 }

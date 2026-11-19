@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, type ObsStatus, type Stream } from "@/lib/api";
+import { NextStep } from "./next-step";
 import { Badge, Button, Card, Field, Input, PageState, Progress, StatusDot, useToast } from "@/components/ui";
 
 function masked(key: string | null) {
@@ -291,6 +292,20 @@ export function Live({ initial }: { initial: Stream | null }) {
           </div>
         </div>
       </Card>
+
+      {obs?.connected ? (
+        <NextStep
+          href="/remote"
+          title="Open the phone remote"
+          body="Tap Start when the moment begins and Done when it ends."
+        />
+      ) : (
+        <NextStep
+          href="/live"
+          title="Enable OBS WebSocket"
+          body="OBS is not reachable yet. Check the OBS card above, then come back."
+        />
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Clip, type MissionCard } from "@/lib/api";
+import { NextStep } from "./next-step";
 import {
   Badge,
   Button,
@@ -94,6 +95,9 @@ export function Clips({ initial }: { initial: Clip[] }) {
       setUploadError(e instanceof Error ? e.message : "Upload failed");
     }
   }
+
+  const needsCommentary = clips.find((c) => c.state === "ready" && !c.commentary);
+  const firstReady = clips.find((c) => c.state === "ready" || c.state === "approved");
 
   return (
     <div className="flex flex-col gap-6">
@@ -268,6 +272,26 @@ export function Clips({ initial }: { initial: Clip[] }) {
           ))}
         </div>
       </PageState>
+
+      {needsCommentary ? (
+        <NextStep
+          href={`/clips/${needsCommentary.id}`}
+          title="Add commentary for monetisation"
+          body="Tell viewers what you were doing — a silent re-upload is not enough."
+        />
+      ) : firstReady ? (
+        <NextStep
+          href={`/clips/${firstReady.id}`}
+          title="Review and export"
+          body="Watch the Short, approve it, then schedule it."
+        />
+      ) : (
+        <NextStep
+          href="/admin/studio"
+          title="Import a session"
+          body="Bring in a recording and find the moments worth clipping."
+        />
+      )}
     </div>
   );
 }

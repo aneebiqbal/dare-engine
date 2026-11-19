@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, type Results } from "@/lib/api";
+import { NextStep } from "./next-step";
 import {
   Badge,
   Button,
@@ -222,6 +223,12 @@ export function Results({ initial }: { initial: Results | null }) {
           </div>
         </div>
       </Dialog>
+
+      <NextStep
+        href="/today"
+        title="Back to today's ideas"
+        body="Pick the next dare from what worked."
+      />
     </div>
   );
 }

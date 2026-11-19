@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Clip, type MissionCard, type SsdResponse, type StudioCandidate, type StudioRecording, type SystemLoad } from "@/lib/api";
+import { NextStep } from "./next-step";
 import {
   Badge,
   Button,
@@ -550,6 +551,26 @@ export function Studio() {
       )}
       {recording && recording.candidates.length === 0 && !detecting && (
         <EmptyState title="No moments yet" body="Upload a recording, then press Find moments." />
+      )}
+
+      {clips.length > 0 ? (
+        <NextStep
+          href="/clips"
+          title="Review the clips"
+          body="Watch, add commentary and approve the finished Shorts."
+        />
+      ) : recording && recording.candidates.length > 0 ? (
+        <NextStep
+          href="/admin/studio"
+          title="Generate a clip"
+          body="Accept a candidate and build the Short."
+        />
+      ) : (
+        <NextStep
+          href="/admin/studio"
+          title="Import a recording"
+          body="Bring in a session from SSD or an upload, then find moments."
+        />
       )}
     </div>
   );

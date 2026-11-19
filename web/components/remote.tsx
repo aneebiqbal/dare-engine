@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Mark, type MissionCard } from "@/lib/api";
+import { NextStep } from "./next-step";
 import { Badge, Button, Dialog, Eyebrow, Field, Input } from "@/components/ui";
 
 type QueuedTap = { kind: "start" | "done"; at: number; result?: string };
@@ -198,6 +199,14 @@ export function Remote({ mission, next }: { mission: MissionCard; next?: Mission
           >
             Mission logged{result ? ` · ${result}` : ""}
           </div>
+        )}
+
+        {done && (
+          <NextStep
+            href="/clips"
+            title="Review your clips"
+            body="Your Shorts render as the markers land. Watch, add commentary, approve."
+          />
         )}
 
         {done && next && (

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { CalendarResponse } from "@/lib/types";
+import { NextStep } from "./next-step";
 import {
   Badge,
   Button,
@@ -178,6 +179,20 @@ export function AdminCalendar() {
           records your own upload — it is not an API post.
         </p>
       </Card>
+
+      {entries.length > 0 ? (
+        <NextStep
+          href="/admin/long-form"
+          title="Build a long-form video"
+          body="Assemble the scheduled Shorts into one video."
+        />
+      ) : (
+        <NextStep
+          href="/clips"
+          title="Approve a clip"
+          body="Approved clips appear here ready to schedule."
+        />
+      )}
     </div>
   );
 }
