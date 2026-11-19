@@ -7,7 +7,7 @@ PYTHON := $(VENV)/bin/python
 # live local run.
 TEST_ENV := DEV_AUTH_ENABLED=true NEXT_PUBLIC_DEV_AUTH=1 LLM_PROVIDER=recorded
 
-.PHONY: up down logs accept test check web-accept screens budgets doctor create-admin voice cleanup contract types research setup-engine research-local ssd-bridge mlx-bridge
+.PHONY: up down logs accept test check web-accept screens budgets doctor create-admin voice cleanup contract types research setup-engine research-local ssd-bridge mlx-bridge flow
 
 up:
 	docker compose up -d --wait --build
@@ -53,6 +53,11 @@ screens: $(VENV)/bin/python
 # Web performance budgets on the five most-used pages.
 budgets: $(VENV)/bin/python
 	$(VENV)/bin/python tests/screenshots/budgets.py
+
+# The end-to-end product journey, screenshots into docs/screens/flow/.
+flow: $(VENV)/bin/python
+	$(TEST_ENV) docker compose up -d --wait --build
+	$(VENV)/bin/python tests/screenshots/flow.py
 
 # Environment and connection checks. Prints PASS/FAIL, never a value.
 doctor:
