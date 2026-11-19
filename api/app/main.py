@@ -10,11 +10,13 @@ from .account import router as account_router
 from .admin import router as admin_router
 from .ai import router as ai_router
 from .auth import router as auth_router
+from .calendar import router as calendar_router
 from .clips import router as clips_router
 from .community import router as community_router
 from .config import settings
 from .games import router as games_router
 from .hooks import router as hooks_router
+from .longform import router as longform_router
 from .missions import router as missions_router
 from .models import router as models_router
 from .obs import router as obs_router
@@ -64,6 +66,8 @@ async def http_error_handler(request: Request, exc: HTTPException):
 
 for router in (
     auth_router,
+    calendar_router,
+    longform_router,
     missions_router,
     models_router,
     clips_router,

@@ -39,6 +39,8 @@ PAGES = [
     ("admin-jobs", "/admin/jobs"),
     ("admin-ai", "/admin/ai"),
     ("admin-models", "/admin/models"),
+    ("admin-calendar", "/admin/calendar"),
+    ("admin-long-form", "/admin/long-form"),
     ("admin-audit", "/admin/audit"),
     ("admin-setup", "/admin/setup"),
     ("terms", "/terms"),

@@ -127,6 +127,7 @@ export type Clip = {
   export_description: string | null;
   export_tags: string[] | null;
   transcript: { start: number; end: number; text: string }[] | null;
+  commentary?: string | null;
   download_url: string | null;
   thumb_url?: string | null;
 };
@@ -211,9 +212,29 @@ export type Results = {
     title: string | null;
     views: number;
     avg_view_percentage: number | null;
+    swiped: number;
+    saves: number;
+    shares: number;
     source: string;
   }[];
-  by_type: { mode: string; clips: number; views: number; avg_view_percentage?: number | null }[];
+  by_type: {
+    mode: string;
+    clips: number;
+    views: number;
+    avg_view_percentage?: number | null;
+    swiped: number;
+    saves: number;
+    shares: number;
+  }[];
+  leading: {
+    views: number;
+    swiped: number;
+    swipe_through_rate: number | null;
+    saves: number;
+    shares: number;
+    saves_per_1000: number | null;
+    shares_per_1000: number | null;
+  };
 };
 
 export type Settings = {
@@ -443,4 +464,42 @@ export type PullTask = {
   progress: number;
   status: string;
   error: string | null;
+};
+
+export type CalendarEntry = {
+  id: string;
+  clip_id: string;
+  date: string;
+  platform: string;
+  state: string;
+  title: string;
+  duration_seconds: number | null;
+};
+
+export type CalendarResponse = {
+  month: string;
+  entries: CalendarEntry[];
+  unscheduled: { id: string; title: string; duration_seconds: number | null }[];
+  warnings: string[];
+  daily_limit: number;
+  platforms: Record<string, string>;
+  gated: string[];
+};
+
+export type AdminClip = {
+  id: string;
+  title: string | null;
+  state: string;
+  duration_seconds: number | null;
+  created_at: string;
+};
+
+export type LongForm = {
+  id: string;
+  title: string;
+  state: string;
+  clip_ids: string[];
+  error?: string | null;
+  created_at: string;
+  download_url?: string | null;
 };

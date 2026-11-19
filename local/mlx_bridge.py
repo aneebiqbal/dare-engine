@@ -30,26 +30,49 @@ _state_lock = threading.Lock()
 _state = {"transcribing": False, "last_elapsed_s": None}
 _pulls: dict[str, dict] = {}
 _pulls_lock = threading.Lock()
+_model_lock = threading.Lock()
+_last_activity = time.time()
+IDLE_MINUTES = float(os.environ.get("MLX_IDLE_MINUTES", "10"))
+
+
+def _touch() -> None:
+    global _last_activity
+    _last_activity = time.time()
+
+
+def _clear_mlx() -> None:
+    try:
+        import mlx.core as mx
+
+        mx.clear_cache()
+        gc.collect()
+    except Exception:
+        pass
 
 
 def transcribe(path: str) -> dict:
     import mlx_whisper
 
-    with _state_lock:
-        _state["transcribing"] = True
-    started = time.time()
-    try:
-        result = mlx_whisper.transcribe(path, path_or_hf_repo=MODEL, word_timestamps=True)
-    finally:
+    with _model_lock:  # one model resident at a time
+        _touch()
         with _state_lock:
-            _state["transcribing"] = False
-            _state["last_elapsed_s"] = round(time.time() - started, 2)
-    words = [
-        {"start": float(w["start"]), "end": float(w["end"]), "text": w["word"].strip()}
-        for segment in result.get("segments", [])
-        for w in segment.get("words", [])
-        if w.get("word", "").strip()
-    ]
+            _state["transcribing"] = True
+        started = time.time()
+        try:
+            result = mlx_whisper.transcribe(path, path_or_hf_repo=MODEL, word_timestamps=True)
+        finally:
+            with _state_lock:
+                _state["transcribing"] = False
+                _state["last_elapsed_s"] = round(time.time() - started, 2)
+        words = [
+            {"start": float(w["start"]), "end": float(w["end"]), "text": w["word"].strip()}
+            for segment in result.get("segments", [])
+            for w in segment.get("words", [])
+            if w.get("word", "").strip()
+        ]
+    # Free the ASR model before the next pipeline stage loads its own.
+    _clear_mlx()
+    _touch()
     return {
         "words": words,
         "compute": COMPUTE,
@@ -226,14 +249,19 @@ def free_all() -> dict:
         _unload_ollama(None)
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
-    try:
-        import mlx.core as mx
-
-        mx.clear_cache()
-        gc.collect()
-    except Exception as exc:
-        error = error or f"{type(exc).__name__}: {exc}"
+    _clear_mlx()
+    _touch()
     return {"ok": error is None, "error": error}
+
+
+def _watchdog() -> None:
+    """Free everything after N minutes idle (the #1 local-AI failure mode)."""
+    while True:
+        time.sleep(30)
+        with _state_lock:
+            busy = _state["transcribing"]
+        if not busy and time.time() - _last_activity >= IDLE_MINUTES * 60:
+            free_all()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -315,6 +343,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> int:
+    threading.Thread(target=_watchdog, daemon=True).start()
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print(f"Engine bridge on http://0.0.0.0:{PORT} (mlx {MODEL}, ollama {OLLAMA})", flush=True)
     try:

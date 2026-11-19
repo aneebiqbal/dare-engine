@@ -17,7 +17,7 @@ from .caption import write_ass, write_srt
 from .grammar import Beat, Template, build_beats, get_template, load_templates, pick_template
 from .layout import filtergraph
 from .policy import detect_letterbox, guard_window, title_flags
-from .transcribe import Word, transcribe
+from .transcribe import Word, transcribe, unload
 
 WINDOW_BEFORE = 10.0
 WINDOW_AFTER = 5.0
@@ -198,6 +198,7 @@ def render_short(
         if words_abs is None:
             words = transcribe(str(window))
             words_abs = [Word(w.start + win_start, w.end + win_start, w.text) for w in words]
+            unload()
         else:
             # Cached transcript is in source-recording time; re-window it.
             words = [

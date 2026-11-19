@@ -14,8 +14,20 @@ from .users import audit, current_user
 router = APIRouter()
 
 
-def _score(views: int, avg_view_percentage: float | None) -> float:
-    return round(views / 1000 + (avg_view_percentage or 0) / 100, 4)
+def _score(views: int, avg_view_percentage: float | None,
+           swiped: int = 0, saves: int = 0, shares: int = 0) -> float:
+    """The research-ranking score.
+
+    Base: views and average % viewed. When the leading indicators are present,
+    add the swipe-through rate (viewed vs swiped) and engagement per view
+    (saves + shares), so a clip that holds attention outranks a big flat one.
+    """
+    score = views / 1000 + (avg_view_percentage or 0) / 100
+    if swiped or saves or shares:
+        retention = views / (views + swiped) if (views + swiped) else 0.0
+        engagement = (saves + shares) / views if views else 0.0
+        score += retention + engagement
+    return round(score, 4)
 
 
 @router.post("/metrics")
@@ -43,8 +55,16 @@ def record_metric(request: Request, payload: dict):
                 cur.execute("SELECT id FROM posts WHERE clip_id = %s LIMIT 1", (clip_id,))
                 post_id = cur.fetchone()[0]
             cur.execute(
-                "INSERT INTO metrics (post_id, views, avg_view_percentage) VALUES (%s, %s, %s)",
-                (post_id, int(payload.get("views", 0)), payload.get("avg_view_percentage")),
+                "INSERT INTO metrics (post_id, views, avg_view_percentage, swiped, saves, shares) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
+                (
+                    post_id,
+                    int(payload.get("views", 0)),
+                    payload.get("avg_view_percentage"),
+                    int(payload.get("swiped", 0) or 0),
+                    int(payload.get("saves", 0) or 0),
+                    int(payload.get("shares", 0) or 0),
+                ),
             )
             cur.execute(
                 "SELECT a.mission_id FROM assignments a JOIN clips c ON c.assignment_id = a.id "
@@ -53,7 +73,13 @@ def record_metric(request: Request, payload: dict):
             )
             mission = cur.fetchone()
             if mission:
-                score = _score(int(payload.get("views", 0)), payload.get("avg_view_percentage"))
+                score = _score(
+                    int(payload.get("views", 0)),
+                    payload.get("avg_view_percentage"),
+                    int(payload.get("swiped", 0) or 0),
+                    int(payload.get("saves", 0) or 0),
+                    int(payload.get("shares", 0) or 0),
+                )
                 cur.execute("UPDATE missions SET score = %s WHERE id = %s", (score, mission[0]))
     return {"ok": True, "source": "manual"}
 
@@ -64,7 +90,8 @@ def results(request: Request):
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT c.id, c.title, SUM(m.views), AVG(m.avg_view_percentage) "
+                "SELECT c.id, c.title, SUM(m.views), AVG(m.avg_view_percentage), "
+                "SUM(m.swiped), SUM(m.saves), SUM(m.shares) "
                 "FROM clips c "
                 "JOIN assignments a ON a.id = c.assignment_id "
                 "LEFT JOIN posts p ON p.clip_id = c.id "
@@ -75,7 +102,8 @@ def results(request: Request):
             rows = cur.fetchall()
             cur.execute(
                 "SELECT m.card->>'mode', COUNT(c.id), COALESCE(SUM(mm.views), 0), "
-                "AVG(mm.avg_view_percentage) "
+                "AVG(mm.avg_view_percentage), COALESCE(SUM(mm.swiped), 0), "
+                "COALESCE(SUM(mm.saves), 0), COALESCE(SUM(mm.shares), 0) "
                 "FROM clips c JOIN assignments a ON a.id = c.assignment_id "
                 "JOIN missions m ON m.id = a.mission_id "
                 "LEFT JOIN posts p ON p.clip_id = c.id "
@@ -84,26 +112,48 @@ def results(request: Request):
                 (user["id"],),
             )
             by_type = cur.fetchall()
+    clips = [
+        {
+            "clip_id": str(r[0]),
+            "title": r[1],
+            "views": int(r[2] or 0),
+            "avg_view_percentage": round(float(r[3]), 2) if r[3] else None,
+            "swiped": int(r[4] or 0),
+            "saves": int(r[5] or 0),
+            "shares": int(r[6] or 0),
+            "source": "manual",
+        }
+        for r in rows
+    ]
+    total_views = sum(c["views"] for c in clips)
+    total_swiped = sum(c["swiped"] for c in clips)
+    total_saves = sum(c["saves"] for c in clips)
+    total_shares = sum(c["shares"] for c in clips)
     return {
-        "clips": [
-            {
-                "clip_id": str(r[0]),
-                "title": r[1],
-                "views": int(r[2] or 0),
-                "avg_view_percentage": round(float(r[3]), 2) if r[3] else None,
-                "source": "manual",
-            }
-            for r in rows
-        ],
+        "clips": clips,
         "by_type": [
             {
                 "mode": r[0],
                 "clips": r[1],
                 "views": int(r[2] or 0),
                 "avg_view_percentage": round(float(r[3]), 2) if r[3] else None,
+                "swiped": int(r[4] or 0),
+                "saves": int(r[5] or 0),
+                "shares": int(r[6] or 0),
             }
             for r in by_type
         ],
+        "leading": {
+            "views": total_views,
+            "swiped": total_swiped,
+            "swipe_through_rate": round(total_views / (total_views + total_swiped), 4)
+            if (total_views + total_swiped)
+            else None,
+            "saves": total_saves,
+            "shares": total_shares,
+            "saves_per_1000": round(1000 * total_saves / total_views, 2) if total_views else None,
+            "shares_per_1000": round(1000 * total_shares / total_views, 2) if total_views else None,
+        },
     }
 
 

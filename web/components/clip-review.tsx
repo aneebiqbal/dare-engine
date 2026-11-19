@@ -36,6 +36,7 @@ export function ClipReview({ clip }: { clip: Clip }) {
   const [current, setCurrent] = useState(clip);
   const [title, setTitle] = useState(clip.title ?? "");
   const [description, setDescription] = useState(clip.export_description ?? "");
+  const [commentary, setCommentary] = useState(clip.commentary ?? "");
   const [tags, setTags] = useState((clip.export_tags ?? []).join(", "));
   const [trimStart, setTrimStart] = useState("");
   const [trimEnd, setTrimEnd] = useState("");
@@ -81,6 +82,13 @@ export function ClipReview({ clip }: { clip: Clip }) {
       const res = await api.updateClip(clip.id, { title });
       setCurrent((p) => ({ ...p, title: res.title }));
       toast("Title saved", "success");
+    });
+
+  const saveCommentary = () =>
+    run(async () => {
+      await api.updateClip(clip.id, { commentary });
+      setCurrent((p) => ({ ...p, commentary }));
+      toast("Commentary saved", "success");
     });
 
   const applyTrim = () =>
@@ -245,9 +253,23 @@ export function ClipReview({ clip }: { clip: Clip }) {
               <Field label="Tags" hint="Comma separated.">
                 <Input value={tags} onChange={(e) => setTags(e.target.value)} />
               </Field>
+              <Field
+                label="Commentary / added value"
+                hint="Your own context, reaction or explanation. Required for monetisation; a silent re-upload is not enough."
+              >
+                <Textarea
+                  rows={4}
+                  value={commentary}
+                  onChange={(e) => setCommentary(e.target.value)}
+                  placeholder="What were you doing, and why is this moment worth watching?"
+                />
+              </Field>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={saveTitle} disabled={busy}>
                   Save title
+                </Button>
+                <Button variant="outline" onClick={saveCommentary} disabled={busy}>
+                  Save commentary
                 </Button>
                 <Button variant="outline" onClick={runExportCopy} disabled={busy}>
                   Write with AI

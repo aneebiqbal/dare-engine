@@ -26,6 +26,9 @@ export function Results({ initial }: { initial: Results | null }) {
   const [metricFor, setMetricFor] = useState<{ clip_id: string; title: string | null } | null>(null);
   const [views, setViews] = useState("");
   const [avg, setAvg] = useState("");
+  const [swiped, setSwiped] = useState("");
+  const [saves, setSaves] = useState("");
+  const [shares, setShares] = useState("");
   const [busy, setBusy] = useState(false);
   const toast = useToast();
 
@@ -50,10 +53,17 @@ export function Results({ initial }: { initial: Results | null }) {
     if (!metricFor) return;
     setBusy(true);
     try {
-      await api.recordMetric(metricFor.clip_id, Number(views), Number(avg));
+      await api.recordMetric(metricFor.clip_id, Number(views), Number(avg), {
+        swiped: Number(swiped || 0),
+        saves: Number(saves || 0),
+        shares: Number(shares || 0),
+      });
       setMetricFor(null);
       setViews("");
       setAvg("");
+      setSwiped("");
+      setSaves("");
+      setShares("");
       await load();
       toast("Metrics saved", "success");
     } catch (e) {
@@ -72,10 +82,26 @@ export function Results({ initial }: { initial: Results | null }) {
           <Stat label="Total views" value={totalViews.toLocaleString()} />
         </Card>
         <Card>
-          <Stat label="Clips" value={data?.clips.length ?? 0} />
+          <Stat
+            label="Swipe-through"
+            value={
+              data?.leading?.swipe_through_rate != null
+                ? `${Math.round(data.leading.swipe_through_rate * 100)}%`
+                : "—"
+            }
+            hint={data?.leading ? `${data.leading.swiped.toLocaleString()} swiped` : undefined}
+          />
         </Card>
         <Card>
-          <Stat label="Dare types" value={data?.by_type.length ?? 0} />
+          <Stat
+            label="Saves / shares"
+            value={`${data?.leading?.saves?.toLocaleString() ?? 0} / ${data?.leading?.shares?.toLocaleString() ?? 0}`}
+            hint={
+              data?.leading?.saves_per_1000 != null
+                ? `${data.leading.saves_per_1000} saves per 1k views`
+                : undefined
+            }
+          />
         </Card>
       </div>
 
@@ -157,6 +183,35 @@ export function Results({ initial }: { initial: Results | null }) {
               placeholder="42"
             />
           </Field>
+          <Field label="Swiped past" hint="Views that did not hold.">
+            <Input
+              type="number"
+              min={0}
+              value={swiped}
+              onChange={(e) => setSwiped(e.target.value)}
+              placeholder="300"
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Saves">
+              <Input
+                type="number"
+                min={0}
+                value={saves}
+                onChange={(e) => setSaves(e.target.value)}
+                placeholder="12"
+              />
+            </Field>
+            <Field label="Shares">
+              <Input
+                type="number"
+                min={0}
+                value={shares}
+                onChange={(e) => setShares(e.target.value)}
+                placeholder="8"
+              />
+            </Field>
+          </div>
           <div className="flex justify-end gap-3">
             <Button variant="ghost" onClick={() => setMetricFor(null)}>
               Cancel

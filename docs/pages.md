@@ -46,6 +46,8 @@ set. Every kept page reads real data; the only mocked data is behind
 | `/admin/jobs` | Job queue. | Retries failed jobs. | Setup status |
 | `/admin/ai` | AI usage and provider config. | Checks tokens, latency, fallback. | Setup status |
 | `/admin/models` | Local models and provider. | Pulls/unloads Ollama models, reads MLX and memory. | Setup status |
+| `/admin/calendar` | Posting calendar queue. | Schedules approved Shorts and marks them published. | Session history |
+| `/admin/long-form` | Long-form builder. | Assembles a session's Shorts into one video. | Session history |
 | `/admin/audit` | Audit log. | Reviews admin actions. | Setup status |
 | `/admin/setup` | Setup status (same checks as `make doctor`). | Confirms every key and connection. | Setup status |
 

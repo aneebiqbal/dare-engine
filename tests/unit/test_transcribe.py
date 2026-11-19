@@ -35,6 +35,12 @@ def test_bridge_failure_falls_back_to_cpu(monkeypatch):
     assert actual_compute() == ("cpu", "int8")
 
 
+def test_unload_drops_the_resident_model():
+    transcribe_mod._model = object()
+    transcribe_mod.unload()
+    assert transcribe_mod._model is None
+
+
 def test_window_transcript_keeps_speech():
     if not TRAILER.exists():
         return

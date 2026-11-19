@@ -124,7 +124,7 @@ def run_ai(user: dict, page: str, kind: str, system: str, prompt: str, schema: d
 
 def _clip_rows(cur, user_id: str, clip_id: str | None = None):
     cur.execute(
-        "SELECT c.id, c.title, c.transcript, c.state, m.card "
+        "SELECT c.id, c.title, c.transcript, c.state, m.card, c.commentary "
         "FROM clips c JOIN assignments a ON a.id = c.assignment_id "
         "JOIN missions m ON m.id = a.mission_id "
         "WHERE a.user_id = %s" + (" AND c.id = %s" if clip_id else ""),
@@ -201,7 +201,7 @@ def clip_review(request: Request, payload: dict):
             rows = _clip_rows(cur, user["id"], clip_id)
     if not rows:
         raise HTTPException(404, "clip not found")
-    _cid, title, transcript, state, card = rows[0]
+    _cid, title, transcript, state, card, commentary = rows[0]
     words = [w.get("text", "") for w in (transcript or [])][:400]
     system = (
         "You review a finished gameplay Short. Choose the strongest hook line, "
@@ -232,12 +232,16 @@ def export_copy(request: Request, payload: dict):
             rows = _clip_rows(cur, user["id"], clip_id)
     if not rows:
         raise HTTPException(404, "clip not found")
-    _cid, title, transcript, state, card = rows[0]
+    _cid, title, transcript, state, card, commentary = rows[0]
     system = (
         "You write YouTube Shorts metadata. Write three title options, a "
         "description and tags. Never use trademarked names in a title. Return JSON only."
     )
-    prompt = f"Mission: {card.get('question', '')}\nHook: {card.get('hook_text', '')}\nExisting title: {title or ''}"
+    prompt = (
+        f"Mission: {card.get('question', '')}\nHook: {card.get('hook_text', '')}\n"
+        f"Existing title: {title or ''}\n"
+        f"Creator commentary (added value): {commentary or 'none'}"
+    )
     result, fallback = run_ai(user, "export", "export", system, prompt)
     if fallback or not result:
         question = card.get("question", "Mission")

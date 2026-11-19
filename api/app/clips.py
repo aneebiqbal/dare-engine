@@ -41,6 +41,7 @@ def _clip(row) -> dict:
         "export_description": row[15],
         "export_tags": row[16],
         "transcript": row[17],
+        "commentary": row[18],
         "download_url": f"/clips/{row[0]}/download" if row[2] else None,
         "thumb_url": f"/clips/{row[0]}/thumbnail" if row[2] else None,
     }
@@ -50,7 +51,7 @@ _SELECT = (
     "SELECT c.id, c.assignment_id, c.file_key, c.title, c.state, c.template, "
     "c.duration_seconds, c.stage, c.progress, c.error, c.layout, c.caption_style, "
     "c.voice_over, c.voice, c.export_title, c.export_description, c.export_tags, "
-    "c.transcript "
+    "c.transcript, c.commentary "
     "FROM clips c"
 )
 
@@ -310,7 +311,7 @@ def clip_detail(request: Request, clip_id: str):
 def update_clip(request: Request, clip_id: str, payload: dict):
     user = current_user(request)
     fields = {}
-    for key in ("title", "layout", "caption_style", "voice_over", "voice", "export_title", "export_description", "export_tags"):
+    for key in ("title", "layout", "caption_style", "voice_over", "voice", "export_title", "export_description", "export_tags", "commentary"):
         if key in payload:
             fields[key] = payload[key]
     template_id = payload.get("template_id")

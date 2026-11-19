@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import dataclasses
+import gc
 import threading
 
 _lock = threading.Lock()
@@ -94,6 +95,18 @@ def _load():
             compute_type=compute,
         )
     return _model
+
+
+def unload() -> None:
+    """Drop the resident model so the next pipeline stage starts clean.
+
+    Memory discipline: one model resident at a time, freed and verified before
+    the next stage loads its own.
+    """
+    global _model
+    with _lock:
+        _model = None
+        gc.collect()
 
 
 def transcribe(path: str) -> list[Word]:

@@ -213,6 +213,60 @@ def detect_moments(payload: dict) -> None:
                 )
 
 
+@jobs.register("build_long_form")
+def build_long_form(payload: dict) -> None:
+    """Concatenate a session's finished Shorts into one long-form video."""
+    lf_id = payload["long_form_id"]
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT clip_ids FROM long_forms WHERE id = %s", (lf_id,))
+            row = cur.fetchone()
+            if row is None:
+                raise RuntimeError(f"long form {lf_id} not found")
+            clip_ids = list(row[0] or [])
+            cur.execute(
+                "UPDATE long_forms SET state = 'building', error = NULL WHERE id = %s",
+                (lf_id,),
+            )
+            keys = []
+            for cid in clip_ids:
+                cur.execute("SELECT file_key FROM clips WHERE id = %s", (cid,))
+                found = cur.fetchone()
+                if found and found[0]:
+                    keys.append((cid, found[0]))
+    try:
+        with tempfile.TemporaryDirectory(prefix="longform-") as tmp:
+            tmp = pathlib.Path(tmp)
+            parts = []
+            for cid, key in keys:
+                part = tmp / f"{len(parts):03d}_{cid}.mp4"
+                storage.get_file(key, str(part))
+                parts.append(part)
+            listing = tmp / "concat.txt"
+            listing.write_text("".join(f"file '{p}'\n" for p in parts))
+            out = tmp / "long.mp4"
+            _run_ffmpeg(
+                ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(listing),
+                 "-c", "copy", str(out)]
+            )
+            file_key = f"long-forms/{lf_id}/long.mp4"
+            storage.put_file(file_key, str(out))
+        with db.session() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE long_forms SET state = 'ready', file_key = %s WHERE id = %s",
+                    (file_key, lf_id),
+                )
+    except Exception as exc:
+        with db.session() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE long_forms SET state = 'failed', error = %s WHERE id = %s",
+                    (str(exc), lf_id),
+                )
+        raise
+
+
 @jobs.register("preview_voice")
 def preview_voice(payload: dict) -> None:
     voice_over_id = payload["voice_over_id"]

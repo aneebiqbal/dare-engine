@@ -33,6 +33,9 @@ import type {
   SystemLoad,
   ModelStatus,
   PullTask,
+  CalendarResponse,
+  AdminClip,
+  LongForm,
   Today,
   TourProgress,
   User,
@@ -74,6 +77,9 @@ export type {
   SystemLoad,
   ModelStatus,
   PullTask,
+  CalendarResponse,
+  AdminClip,
+  LongForm,
   Today,
   TourProgress,
   User,
@@ -293,8 +299,13 @@ export const api = {
   resultsSummary: () => get<{ summary: string; fallback: boolean; by_type: Results["by_type"] }>(
     "/ai/results-summary",
   ),
-  recordMetric: (clip_id: string, views: number, avg_view_percentage: number) =>
-    post("/metrics", { clip_id, views, avg_view_percentage }),
+  recordMetric: (
+    clip_id: string,
+    views: number,
+    avg_view_percentage: number,
+    extra?: { swiped?: number; saves?: number; shares?: number },
+  ) =>
+    post("/metrics", { clip_id, views, avg_view_percentage, ...extra }),
   history: (params = "") => get<List<HistoryEntry>>(`/history${params}`),
   settings: () => get<Settings>("/settings"),
   updateSettings: (fields: Record<string, unknown>) =>
@@ -339,6 +350,22 @@ export const api = {
   adminModelPullStatus: (id: string) => get<PullTask>(`/admin/models/pull/${id}`),
   adminModelUnload: (name: string) => post<{ ok: boolean }>("/admin/models/unload", { name }),
   adminModelFree: () => post<{ ok: boolean; error?: string | null }>("/admin/models/free"),
+
+  // --- admin: posting calendar --------------------------------------------
+  adminCalendar: (month = "") => get<CalendarResponse>(`/admin/calendar?month=${month}`),
+  adminSchedule: (clip_id: string, scheduled_for: string, platform = "youtube") =>
+    post<{ ok: boolean }>("/admin/calendar", { clip_id, scheduled_for, platform }),
+  adminPublish: (id: string) =>
+    post<{ ok: boolean; unproven?: string }>(`/admin/calendar/${id}/publish`, {}),
+  adminUnschedule: (id: string) => del<{ ok: boolean }>(`/admin/calendar/${id}`),
+
+  // --- admin: long-form builder -------------------------------------------
+  adminClips: () => get<{ items: AdminClip[] }>("/admin/clips"),
+  adminLongForms: () => get<{ items: LongForm[] }>("/admin/long-form"),
+  adminCreateLongForm: (title: string, clip_ids: string[]) =>
+    post<{ id: string; state: string }>("/admin/long-form", { title, clip_ids }),
+  adminLongForm: (id: string) => get<LongForm>(`/admin/long-form/${id}`),
+  adminLongFormUrl: (id: string) => `${base()}/admin/long-form/${id}/download`,
 
   // --- games / research -------------------------------------------------
   games: () => get<Game[]>("/games"),

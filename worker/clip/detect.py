@@ -15,7 +15,7 @@ import math
 import re
 import subprocess
 
-from .transcribe import Word, transcribe
+from .transcribe import Word, transcribe, unload
 
 # Configurable marker phrases, lower-cased. Add to this list, not to code.
 MARKER_PHRASES = (
@@ -284,6 +284,7 @@ def detect_moments(path: str, top_n: int = 5) -> tuple[list[Candidate], ComputeP
     """Rank candidate windows over the whole recording. No timestamps typed."""
     duration = _duration(path)
     words = transcribe(path)
+    unload()
     energy = _audio_energy(path)
     scenes = _scene_changes(path)
     frames = _frame_stats(path)

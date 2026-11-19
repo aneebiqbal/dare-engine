@@ -268,6 +268,32 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
   }
   if (method === "POST" && pathname === "/admin/models/unload") return { ok: true } as T;
   if (method === "POST" && pathname === "/admin/models/free") return { ok: true } as T;
+  if (method === "GET" && pathname === "/admin/calendar") {
+    return {
+      month: "2026-11",
+      entries: [
+        { id: "ce_1", clip_id: "c_0001", date: "2026-11-20", platform: "youtube", state: "draft", title: "5 stars, one bicycle", duration_seconds: 24 },
+      ],
+      unscheduled: [{ id: "c_0002", title: "Clutch no-scope", duration_seconds: 18 }],
+      warnings: [],
+      daily_limit: 2,
+      platforms: { youtube: "YouTube", tiktok: "TikTok (approval required)", instagram: "Instagram (approval required)" },
+      gated: ["tiktok", "instagram"],
+    } as T;
+  }
+  if (method === "POST" && pathname === "/admin/calendar") return { ok: true } as T;
+  if (method === "POST" && pathname.endsWith("/publish")) return { ok: true, unproven: "youtube-api" } as T;
+  if (method === "DELETE" && pathname.startsWith("/admin/calendar/")) return { ok: true } as T;
+  if (method === "GET" && pathname === "/admin/clips") {
+    return {
+      items: [
+        { id: "c_0001", title: "5 stars, one bicycle", state: "approved", duration_seconds: 24, created_at: "2026-11-01T00:00:00Z" },
+        { id: "c_0002", title: "Clutch no-scope", state: "approved", duration_seconds: 18, created_at: "2026-11-02T00:00:00Z" },
+      ],
+    } as T;
+  }
+  if (method === "GET" && pathname === "/admin/long-form") return { items: [] } as T;
+  if (method === "POST" && pathname === "/admin/long-form") return { id: "lf_1", state: "queued" } as T;
   if (method === "GET" && pathname === "/admin/storage") return { driver: "local", bytes: 123456 } as T;
   if (method === "GET" && pathname === "/studio/system") {
     return { cpu_percent: 12.5, memory_percent: 41.2, gpu: null } as T;
