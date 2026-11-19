@@ -58,6 +58,9 @@ services:
       RESEARCH_HOUR: ${RESEARCH_HOUR:-5}
       RESEARCH_TIMEZONE: ${RESEARCH_TIMEZONE:-UTC}
       OBS_WS_URL: ${OBS_WS_URL:-ws://host.docker.internal:4455}
+      MODEL_BRIDGE_URL: ${MODEL_BRIDGE_URL:-http://host.docker.internal:8798}
+      MLX_WHISPER_URL: ${MLX_WHISPER_URL:-}
+      MLX_WHISPER_MODEL: ${MLX_WHISPER_MODEL:-mlx-community/whisper-large-v3-mlx}
       OBS_WS_PASSWORD: ${OBS_WS_PASSWORD:-}
       OBS_SNAPSHOT_WIDTH: ${OBS_SNAPSHOT_WIDTH:-640}
       SSD_BRIDGE_URL: ${SSD_BRIDGE_URL:-http://host.docker.internal:8799}

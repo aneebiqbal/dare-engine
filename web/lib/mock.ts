@@ -226,6 +226,48 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
   if (method === "GET" && pathname === "/admin/ai-config") {
     return { provider: "recorded", base_url: "https://example.invalid/v1", model: "recorded", key_present: false, configured: false } as T;
   }
+  if (method === "GET" && pathname === "/admin/models") {
+    return {
+      bridge: "up",
+      error: null,
+      provider: {
+        llm_provider: "openai",
+        llm_model: "qwen3:8b",
+        llm_base_url: "http://localhost:11434/v1",
+        configured: true,
+        asr: "mlx",
+        mlx_model: "mlx-community/whisper-large-v3-mlx",
+      },
+      engine: {
+        compute: "mlx-metal",
+        model: "mlx-community/whisper-large-v3-mlx",
+        ollama: {
+          available: true,
+          error: null,
+          models: [
+            { name: "qwen3:8b", size_bytes: 8_000_000_000, modified_at: "2026-11-01T00:00:00Z" },
+            { name: "qwen2.5-coder:14b", size_bytes: 9_000_000_000, modified_at: "2026-11-01T00:00:00Z" },
+          ],
+          running: [
+            { name: "qwen3:8b", size_bytes: 8_000_000_000, size_vram_bytes: 6_000_000_000, expires_at: null },
+          ],
+        },
+        mlx: {
+          model: "mlx-community/whisper-large-v3-mlx",
+          transcribing: false,
+          last_elapsed_s: 30.2,
+          peak_memory_bytes: 2_000_000_000,
+          error: null,
+        },
+        host: { total_bytes: 32_000_000_000, used_bytes: 20_000_000_000, percent: 62.5 },
+      },
+    } as T;
+  }
+  if (method === "POST" && pathname === "/admin/models/pull") {
+    return { id: "t_1", name: bodyObj.name, done: true, progress: 100, status: "done", error: null } as T;
+  }
+  if (method === "POST" && pathname === "/admin/models/unload") return { ok: true } as T;
+  if (method === "POST" && pathname === "/admin/models/free") return { ok: true } as T;
   if (method === "GET" && pathname === "/admin/storage") return { driver: "local", bytes: 123456 } as T;
   if (method === "GET" && pathname === "/studio/system") {
     return { cpu_percent: 12.5, memory_percent: 41.2, gpu: null } as T;

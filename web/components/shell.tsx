@@ -30,6 +30,7 @@ const ADMIN: [string, string, string][] = [
   ["/admin/templates", "Templates", "layout"],
   ["/admin/jobs", "Jobs", "queue"],
   ["/admin/ai", "AI usage", "spark"],
+  ["/admin/models", "Models", "chip"],
   ["/admin/audit", "Audit log", "scroll"],
   ["/admin/setup", "Setup status", "check"],
 ];

@@ -31,6 +31,8 @@ import type {
   StudioRecording,
   Suggestion,
   SystemLoad,
+  ModelStatus,
+  PullTask,
   Today,
   TourProgress,
   User,
@@ -70,6 +72,8 @@ export type {
   StudioRecording,
   Suggestion,
   SystemLoad,
+  ModelStatus,
+  PullTask,
   Today,
   TourProgress,
   User,
@@ -327,6 +331,14 @@ export const api = {
     "/admin/setup",
   ),
   adminTemplates: (params = "") => get<List<unknown>>(`/admin/templates${params}`),
+
+  // --- admin: local models -----------------------------------------------
+  adminModels: () => get<ModelStatus>("/admin/models"),
+  adminModelPull: (name: string) =>
+    post<PullTask>("/admin/models/pull", { name }),
+  adminModelPullStatus: (id: string) => get<PullTask>(`/admin/models/pull/${id}`),
+  adminModelUnload: (name: string) => post<{ ok: boolean }>("/admin/models/unload", { name }),
+  adminModelFree: () => post<{ ok: boolean; error?: string | null }>("/admin/models/free"),
 
   // --- games / research -------------------------------------------------
   games: () => get<Game[]>("/games"),

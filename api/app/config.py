@@ -68,6 +68,13 @@ class Settings(BaseSettings):
     obs_ws_password: str = ""
     obs_snapshot_width: int = 640
 
+    # --- Local engine bridge -----------------------------------------------
+    # Host-side bridge (local/mlx_bridge.py) for MLX transcription and the
+    # Ollama model manager. Empty = no local engine.
+    model_bridge_url: str = "http://host.docker.internal:8798"
+    mlx_whisper_url: str = ""
+    mlx_whisper_model: str = "mlx-community/whisper-large-v3-mlx"
+
     # --- Research brain ---------------------------------------------------
     # All optional: with no keys the brain runs on the recorded sample feed and
     # marks its output as a fallback. Never a secret in a log or response.

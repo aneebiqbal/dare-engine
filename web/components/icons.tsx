@@ -98,6 +98,12 @@ const PATHS: Record<string, React.ReactNode> = {
     </>
   ),
   check: <path d="m5 13 4 4L19 7" />,
+  chip: (
+    <>
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+      <path d="M9 6V3M15 6V3M9 21v-3M15 21v-3M6 9H3M6 15H3M21 9h-3M21 15h-3" />
+    </>
+  ),
   gamepad: (
     <>
       <path d="M6.5 8h11a3.5 3.5 0 0 1 3.4 4.3l-.6 3.2a2.6 2.6 0 0 1-4.9 1L14 14h-4l-1.4 2.5a2.6 2.6 0 0 1-4.9-1l-.6-3.2A3.5 3.5 0 0 1 6.5 8Z" />

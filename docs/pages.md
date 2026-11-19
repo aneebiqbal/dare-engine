@@ -45,6 +45,7 @@ set. Every kept page reads real data; the only mocked data is behind
 | `/admin/templates` | Clip templates and caption styles. | Picks the render grammar. | Clip studio |
 | `/admin/jobs` | Job queue. | Retries failed jobs. | Setup status |
 | `/admin/ai` | AI usage and provider config. | Checks tokens, latency, fallback. | Setup status |
+| `/admin/models` | Local models and provider. | Pulls/unloads Ollama models, reads MLX and memory. | Setup status |
 | `/admin/audit` | Audit log. | Reviews admin actions. | Setup status |
 | `/admin/setup` | Setup status (same checks as `make doctor`). | Confirms every key and connection. | Setup status |
 

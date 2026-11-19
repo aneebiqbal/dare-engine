@@ -16,6 +16,7 @@ from .config import settings
 from .games import router as games_router
 from .hooks import router as hooks_router
 from .missions import router as missions_router
+from .models import router as models_router
 from .obs import router as obs_router
 from .ssd import router as ssd_router
 from .studio import router as studio_router
@@ -64,6 +65,7 @@ async def http_error_handler(request: Request, exc: HTTPException):
 for router in (
     auth_router,
     missions_router,
+    models_router,
     clips_router,
     community_router,
     account_router,

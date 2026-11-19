@@ -381,3 +381,66 @@ export type SystemLoad = {
     memory_total_mb: number;
   } | null;
 };
+
+export type OllamaModel = {
+  name: string;
+  size_bytes: number;
+  modified_at: string | null;
+};
+
+export type RunningModel = {
+  name: string;
+  size_bytes: number;
+  size_vram_bytes: number;
+  expires_at: string | null;
+};
+
+export type HostMemory = {
+  total_bytes: number;
+  used_bytes: number;
+  percent: number;
+};
+
+export type MlxState = {
+  model: string;
+  transcribing: boolean;
+  last_elapsed_s: number | null;
+  peak_memory_bytes: number | null;
+  error: string | null;
+};
+
+export type ModelProvider = {
+  llm_provider: string;
+  llm_model: string;
+  llm_base_url: string;
+  configured: boolean;
+  asr: string;
+  mlx_model: string;
+};
+
+export type ModelStatus = {
+  bridge: "up" | "down";
+  error: string | null;
+  provider: ModelProvider;
+  engine: {
+    compute: string;
+    model: string;
+    ollama: {
+      available: boolean;
+      error: string | null;
+      models: OllamaModel[];
+      running: RunningModel[];
+    };
+    mlx: MlxState;
+    host: HostMemory;
+  } | null;
+};
+
+export type PullTask = {
+  id: string;
+  name: string;
+  done: boolean;
+  progress: number;
+  status: string;
+  error: string | null;
+};
