@@ -110,7 +110,6 @@ export function Today({ initial }: { initial: TodayResponse | null }) {
                 key={card.id}
                 card={card}
                 highlight={card.id === data?.daily?.id}
-                image={card.id === data?.daily?.id}
               >
                 <div className="mt-auto flex flex-wrap items-center gap-2 pt-2">
                   {state === "accepted" || state === "swapped" ? (

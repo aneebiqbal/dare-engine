@@ -34,16 +34,23 @@ server-side API call before any HTML was flushed.
 
 | Page | Phone | Desktop |
 | --- | --- | --- |
-| `/` dashboard | 856 | 976 |
-| `/today` | 2120 | 2628 |
-| `/remote` | 28 | 40 |
-| `/clips` | 792 | 848 |
-| `/admin` | 56 | 68 |
+| `/` dashboard | 864 | 820 |
+| `/today` | 1760 | 1828 |
+| `/remote` | 24 | 36 |
+| `/clips` | 752 | 736 |
+| `/admin` | 60 | 64 |
 
-TBT is 0 ms on every page; `make budgets` passes. `/today` is the slowest
-because it renders the daily dare and its generated card image (a real API/DB
-read); the shell streams first and the page is interactive before the data
-lands. Re-measure with `make budgets`.
+TBT is 0 ms on every page; `make budgets` passes. These are cold loads on a
+managed Neon database (two queries for `/today`, one for `/clips`). A warm
+`/today` — the 15 s server cache — paints in **60 ms**. `/today` and `/clips`
+are the two pages that read the most; the shell streams first via Suspense, so
+the page is interactive before the data lands.
+
+**Final-sprint fixes.** `/today` made two queries instead of three (the dares and
+the user's assignments are one join) and the generated card image moved off the
+critical path to the dare editor (it is cached for 60 s). `/clips` serves the
+thumbnail in place with a cache header instead of copying it to a temp file, and
+the grid thumbnails lazy-load. Re-measure with `make budgets`.
 
 **Cause.** Each creator page awaited one slow API call in its server component
 before flushing HTML. Those endpoints run two to three sequential Neon round

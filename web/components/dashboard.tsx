@@ -187,5 +187,5 @@ export function Dashboard({ role }: { role: string }) {
 }
 
 function MissionCard({ card }: { card: NonNullable<Today["daily"]> }) {
-  return <DareCard card={card} highlight image href={`/missions/${card.id}`} />;
+  return <DareCard card={card} highlight href={`/missions/${card.id}`} />;
 }
