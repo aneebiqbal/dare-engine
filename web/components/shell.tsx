@@ -123,10 +123,10 @@ export function AppShell({ user, children }: { user: Me; children: ReactNode }) 
   }, [accountOpen]);
 
   const groups = useMemo(() => {
-    const all: { label: string; items: NavItem[] }[] = [
-      { label: "", items: [{ href: "/admin", label: "Overview", icon: "grid" }] },
-      ...(user.role === "admin" ? ADMIN : GAMER),
-    ];
+    const all: { label: string; items: NavItem[] }[] =
+      user.role === "admin"
+        ? [{ label: "", items: [{ href: "/admin", label: "Overview", icon: "grid" }] }, ...ADMIN]
+        : GAMER;
     const q = query.trim().toLowerCase();
     if (!q) return all;
     return all
