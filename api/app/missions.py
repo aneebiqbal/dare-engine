@@ -7,6 +7,7 @@ import html
 import json
 import pathlib
 import re
+import time
 
 import jsonschema
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -210,6 +211,10 @@ def _wrap(text: str, width: int) -> list[str]:
     return lines
 
 
+_CARD_CACHE: dict[str, tuple[float, str]] = {}
+_CARD_TTL = 60.0
+
+
 def _card_svg(card: dict, game_name: str) -> str:
     """Render the idea's visual identity as an SVG. No remote image."""
     hook = html.escape(card.get("hook_text", ""))
@@ -263,6 +268,12 @@ def _card_svg(card: dict, game_name: str) -> str:
 
 @router.get("/missions/{mission_id}/card.svg")
 def mission_card_svg(mission_id: str):
+    # The card is a pure function of the mission, so a short cache keeps the
+    # image off the critical path on warm loads.
+    now = time.time()
+    hit = _CARD_CACHE.get(mission_id)
+    if hit and now - hit[0] < _CARD_TTL:
+        return Response(content=hit[1], media_type="image/svg+xml")
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -273,7 +284,9 @@ def mission_card_svg(mission_id: str):
             row = cur.fetchone()
     if row is None:
         raise HTTPException(404, "mission not found")
-    return Response(content=_card_svg(row[0], row[1] or ""), media_type="image/svg+xml")
+    svg = _card_svg(row[0], row[1] or "")
+    _CARD_CACHE[mission_id] = (now, svg)
+    return Response(content=svg, media_type="image/svg+xml")
 
 
 @router.get("/missions/{mission_id}")
@@ -300,6 +313,7 @@ def update_mission(request: Request, mission_id: str, payload: CardIn):
             )
             if cur.fetchone() is None:
                 raise HTTPException(404, "mission not found")
+    _CARD_CACHE.pop(mission_id, None)
     audit(user["id"], "mission.update", "mission", mission_id)
     return {"id": mission_id, "card": card}
 
@@ -310,17 +324,16 @@ def today(request: Request):
     date = datetime.date.today()
     with db.session() as conn:
         with conn.cursor() as cur:
+            # One round trip for the dares and this user's assignments.
             cur.execute(
-                "SELECT id, card, score, status FROM missions "
-                "WHERE status = 'unverified' ORDER BY id"
-            )
-            rows = cur.fetchall()
-            cur.execute(
-                "SELECT id, mission_id, state FROM assignments "
-                "WHERE user_id = %s AND date = %s",
+                "SELECT m.id, m.card, m.score, m.status, a.id, a.state "
+                "FROM missions m "
+                "LEFT JOIN assignments a "
+                "  ON a.mission_id = m.id AND a.user_id = %s AND a.date = %s "
+                "WHERE m.status = 'unverified' ORDER BY m.id",
                 (user["id"], date),
             )
-            assignment_rows = cur.fetchall()
+            joined = cur.fetchall()
             cur.execute(
                 "SELECT m.card->>'mode' FROM clips c "
                 "JOIN assignments a ON a.id = c.assignment_id "
@@ -329,10 +342,17 @@ def today(request: Request):
                 (user["id"],),
             )
             preferred = cur.fetchone()
-    accepted = {r[1]: r[2] for r in assignment_rows}
-    assignments = [
-        {"id": str(r[0]), "mission_id": r[1], "state": r[2]} for r in assignment_rows
-    ]
+    rows: list = []
+    accepted: dict[str, str] = {}
+    assignments: list[dict] = []
+    seen: set = set()
+    for r in joined:
+        if r[0] not in seen:
+            seen.add(r[0])
+            rows.append(r)
+        if r[4]:
+            accepted[r[0]] = r[5]
+            assignments.append({"id": str(r[4]), "mission_id": r[0], "state": r[5]})
 
     if not rows:
         return {

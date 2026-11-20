@@ -238,6 +238,7 @@ export function Clips({ initial }: { initial: Clip[] }) {
                   <img
                     src={api.thumbnailUrl(clip.id)}
                     alt=""
+                    loading="lazy"
                     className="h-32 w-full rounded-xl object-cover"
                   />
                 )}

@@ -1,68 +1,63 @@
 # Pages — why each exists
 
-One row per route. "Target" maps the page to the master build prompt's target
-set. Every kept page reads real data; the only mocked data is behind
-`NEXT_PUBLIC_API_MOCK=1`, which app code may not import (`make check`).
+One row per route in the product nav. Supporting pages that stay reachable by
+URL but are off the nav are listed separately at the bottom. Every kept page
+reads real data; the only mocked data is behind `NEXT_PUBLIC_API_MOCK=1`, which
+app code may not import (`make check`).
 
-## Shared / public
+## Gamer nav (Play / Review / Account)
 
-| Route | Why it exists | User does | Target |
-| --- | --- | --- | --- |
-| `/signin` | The only way in. | Signs in with email + password (dev sign-in in tests). | Sign-in |
-| `/signup` | Invite-only account creation. | Redeems an invite code and sets a password. | Sign-in |
-| `/reset` | Admin-issued password reset. | Sets a new password from a signed link. | Sign-in |
-| `/welcome` | Public landing, linked as "Home" on every public page. | Reads the pitch, goes to sign-in or the leaderboard. | Public |
-| `/terms`, `/privacy` | Legal pages linked from sign-up. | Reads the terms. | Public |
-| `/leaderboard` | Public daily board. | Sees ranked attempts on the daily dare. | Public |
-| `/m/[slug]` | Public dare page. | Reads the dare and its ranked attempts. | Public |
-| `/creators/[id]` | Public creator profile. | Sees a creator's attempts per dare. | Public |
-| `/styleguide` | Design-system preview for the team, not a user page. | Inspects every component in both themes. | Internal |
+| Route | Why it exists | User does |
+| --- | --- | --- |
+| `/` | Dashboard: today's assigned dares and the one next action. | Opens Today or the next dare. |
+| `/today` | The daily dare plus three picks. | Accepts or swaps a dare. |
+| `/missions/[id]` | Idea detail and dare editor. | Reads what to do, edits hook/setup/win condition. |
+| `/live` | OBS / Go Live: stream address, key, connection status, checklist. | Connects OBS and checks HDCP, mic, radio. |
+| `/remote` | Phone remote. | Taps Start and Done; the clip window is stored. |
+| `/clips`, `/clips/[id]`, `/export/[id]` | Clip review and export. | Watches, retitles, restyles, adds commentary, exports a zip. |
+| `/history` | Session history with search. | Finds a past session and its result. |
+| `/results` | Metrics and summary. | Reads views, swipe-through, saves/shares per dare type. |
+| `/settings` | Caption style, layout, voice-over defaults. | Sets preferences. |
 
-## Gamer / creator
+## Admin nav (Plan / Create / Manage)
 
-| Route | Why it exists | User does | Target |
-| --- | --- | --- | --- |
-| `/` | Dashboard: today's assigned dares and the one next action. | Opens Today or the next dare. | Dashboard |
-| `/today` | The daily dare plus three picks. | Accepts or swaps a dare. | Dashboard / idea |
-| `/missions/[id]` | Idea detail and dare editor. | Reads what to do, edits hook/setup/win condition. | Idea detail |
-| `/live` | OBS / Go Live: stream address, key, connection status, checklist. | Connects OBS and checks HDCP, mic, radio. | OBS/Go-Live |
-| `/remote` | Phone remote. | Taps Start and Done; the clip window is stored. | OBS/Go-Live |
-| `/clips`, `/clips/[id]`, `/export/[id]` | Clip review and export. | Watches, retitles, restyles, exports a zip. | Clip studio |
-| `/results` | Metrics and AI summary. | Reads views/retention per dare type. | Session history |
-| `/history` | Session history with search. | Finds a past session and its result. | Session history |
-| `/settings` | Caption style, layout, voice-over defaults. | Sets preferences. | Settings |
-| `/help` | Guide and AI help. | Reads the guide, asks a question. | Settings |
+| Route | Why it exists | User does |
+| --- | --- | --- |
+| `/admin` | Overview: system health, jobs, AI usage. | Triages the platform. |
+| `/admin/games` | Games grid. | Adds a game, enables/disables it, runs research. |
+| `/admin/games/[id]` | Game profile. | Reviews today's sourced ideas, approves/rejects/assigns, sees runs. |
+| `/admin/pool` | Idea pool. | Types questions, approves/rejects/assigns. |
+| `/admin/studio` | Clip studio. | Imports a recording, finds moments, generates clips. |
+| `/admin/calendar` | Posting calendar queue. | Schedules approved Shorts and marks them published. |
+| `/admin/long-form` | Long-form builder. | Assembles a session's Shorts into one video. |
+| `/admin/models` | Local models and provider. | Pulls/unloads Ollama models, reads MLX and memory. |
+| `/admin/setup` | Setup status (same checks as `make doctor`). | Confirms every key and connection. |
+| `/admin/users`, `/admin/invites` | Gamer management. | Changes roles, issues invites and reset links. |
 
-## Admin
+## Shared
 
-| Route | Why it exists | User does | Target |
-| --- | --- | --- | --- |
-| `/admin` | Overview: system health, jobs, AI usage. | Triages the platform. | Setup status |
-| `/admin/users` | Gamer management. | Changes roles, issues reset links. | Gamer management |
-| `/admin/invites` | Invite codes. | Creates and revokes invites. | Gamer management |
-| `/admin/pool` | Idea pool: type questions, approve/reject/assign. | Runs the approval queue. | Game profile |
-| `/admin/studio` | Clip studio: upload, find moments, generate. | Cuts clips from a recording. | Clip studio |
-| `/admin/templates` | Clip templates and caption styles. | Picks the render grammar. | Clip studio |
-| `/admin/jobs` | Job queue. | Retries failed jobs. | Setup status |
-| `/admin/ai` | AI usage and provider config. | Checks tokens, latency, fallback. | Setup status |
-| `/admin/models` | Local models and provider. | Pulls/unloads Ollama models, reads MLX and memory. | Setup status |
-| `/admin/calendar` | Posting calendar queue. | Schedules approved Shorts and marks them published. | Session history |
-| `/admin/long-form` | Long-form builder. | Assembles a session's Shorts into one video. | Session history |
-| `/admin/audit` | Audit log. | Reviews admin actions. | Setup status |
-| `/admin/setup` | Setup status (same checks as `make doctor`). | Confirms every key and connection. | Setup status |
+| Route | Why it exists | User does |
+| --- | --- | --- |
+| `/signin` | The only way in. | Signs in with email + password. |
+| `/signup` | Invite-only account creation. | Redeems an invite code and sets a password. |
+| `/reset` | Admin-issued password reset. | Sets a new password from a signed link. |
+| `/terms`, `/privacy` | Legal pages linked from sign-up. | Reads the terms. |
 
-## Added with the research brain
+## Supporting — reachable by URL, off the nav
 
-| Route | Why it exists | User does | Target |
-| --- | --- | --- | --- |
-| `/admin/games` | Games grid. | Adds a game from RAWG, enables/disables it, runs research. | Games grid |
-| `/admin/games/[id]` | Game profile. | Reviews today's sourced ideas, approves/rejects/assigns, sees runs. | Game profile |
-
-The idea pool (`/admin/pool`) now filters by game and shows each idea's real
-sources; the dare editor (`/missions/[id]`) shows them too.
+| Route | Why it stays |
+| --- | --- |
+| `/styleguide` | Design-system preview for the team. |
+| `/admin/templates` | Clip template and caption-style editor. |
+| `/admin/jobs` | Job queue and retry. |
+| `/admin/ai` | AI usage and provider config. |
+| `/admin/audit` | Audit log. |
+| `/welcome`, `/leaderboard`, `/m/[slug]`, `/creators/[id]` | Public community pages. |
+| `/help` | In-app guide. |
 
 ## Trimmed
 
-No page was deleted: every route above has a real user and real data. The
-legacy `web/components/nav.tsx` "Home" link points at `/welcome`, which is the
-public landing, so `/welcome` stays.
+The nav lists only the core flow above. The supporting pages remain reachable by
+URL (the styleguide is explicitly kept for the team) but are out of the product
+nav. Render scratch was moved to `trash/`; see `trash/README.txt`.
+

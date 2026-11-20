@@ -12,6 +12,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from starlette.background import BackgroundTask
 
 from . import db, storage
+from .config import settings
 from .paging import envelope, order_clause, parse
 from .users import current_user
 
@@ -562,10 +563,19 @@ def thumbnail(request: Request, clip_id: str):
     key = f"clips/{clip_id}/thumb.jpg"
     if not storage.exists(key):
         raise HTTPException(404, "no thumbnail yet")
-    tmp = pathlib.Path(tempfile.mkdtemp()) / "thumb.jpg"
-    storage.get_file(key, str(tmp))
     from fastapi.responses import FileResponse
 
+    if settings.storage_driver == "local":
+        # Serve the file in place: no copy, and the browser can cache it.
+        path = (pathlib.Path(settings.storage_local_dir) / key).resolve()
+        if not path.is_file():
+            raise HTTPException(404, "no thumbnail yet")
+        return FileResponse(
+            path, media_type="image/jpeg", filename=f"{clip_id}.jpg",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+    tmp = pathlib.Path(tempfile.mkdtemp()) / "thumb.jpg"
+    storage.get_file(key, str(tmp))
     return FileResponse(
         tmp, media_type="image/jpeg", filename=f"{clip_id}.jpg",
         background=BackgroundTask(shutil.rmtree, tmp.parent),

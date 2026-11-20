@@ -9,32 +9,60 @@ import { ThemeToggle } from "./theme";
 import { Icon } from "./icons";
 import { Badge, Button } from "./ui";
 
-const CREATOR: [string, string, string][] = [
-  ["/", "Dashboard", "grid"],
-  ["/today", "Today", "target"],
-  ["/live", "Go Live", "radio"],
-  ["/clips", "Clips", "film"],
-  ["/results", "Results", "chart"],
-  ["/history", "History", "clock"],
-  ["/help", "Help", "help"],
-  ["/settings", "Settings", "gear"],
+type NavItem = { href: string; label: string; icon: string };
+type NavGroup = { label: string; items: NavItem[] };
+
+// The gamer surface: play, then review, then account. No admin controls.
+const GAMER: NavGroup[] = [
+  {
+    label: "Play",
+    items: [
+      { href: "/", label: "Dashboard", icon: "grid" },
+      { href: "/today", label: "Today", icon: "target" },
+      { href: "/live", label: "Go Live", icon: "radio" },
+      { href: "/remote", label: "Remote", icon: "play" },
+    ],
+  },
+  {
+    label: "Review",
+    items: [
+      { href: "/clips", label: "Clips", icon: "film" },
+      { href: "/history", label: "History", icon: "clock" },
+      { href: "/results", label: "Results", icon: "chart" },
+    ],
+  },
+  {
+    label: "Account",
+    items: [{ href: "/settings", label: "Settings", icon: "gear" }],
+  },
 ];
 
-const ADMIN: [string, string, string][] = [
-  ["/admin", "Overview", "grid"],
-  ["/admin/games", "Games", "gamepad"],
-  ["/admin/users", "Users", "users"],
-  ["/admin/invites", "Invites", "mail"],
-  ["/admin/pool", "Pool", "layers"],
-  ["/admin/studio", "Studio", "film"],
-  ["/admin/templates", "Templates", "layout"],
-  ["/admin/jobs", "Jobs", "queue"],
-  ["/admin/ai", "AI usage", "spark"],
-  ["/admin/models", "Models", "chip"],
-  ["/admin/calendar", "Calendar", "calendar"],
-  ["/admin/long-form", "Long-form", "film"],
-  ["/admin/audit", "Audit log", "scroll"],
-  ["/admin/setup", "Setup status", "check"],
+// The admin surface, in workflow order: plan, create, manage.
+const ADMIN: NavGroup[] = [
+  {
+    label: "Plan",
+    items: [
+      { href: "/admin/games", label: "Games", icon: "gamepad" },
+      { href: "/admin/pool", label: "Pool", icon: "layers" },
+    ],
+  },
+  {
+    label: "Create",
+    items: [
+      { href: "/admin/studio", label: "Studio", icon: "film" },
+      { href: "/admin/calendar", label: "Calendar", icon: "calendar" },
+      { href: "/admin/long-form", label: "Long-form", icon: "film" },
+    ],
+  },
+  {
+    label: "Manage",
+    items: [
+      { href: "/admin/models", label: "Models", icon: "chip" },
+      { href: "/admin/setup", label: "Setup status", icon: "check" },
+      { href: "/admin/users", label: "Users", icon: "users" },
+      { href: "/admin/invites", label: "Invites", icon: "mail" },
+    ],
+  },
 ];
 
 export function AppShell({ user, children }: { user: Me; children: ReactNode }) {
@@ -94,10 +122,16 @@ export function AppShell({ user, children }: { user: Me; children: ReactNode }) 
     return () => document.removeEventListener("mousedown", onDown);
   }, [accountOpen]);
 
-  const links = useMemo(() => {
-    const all = user.role === "admin" ? [...CREATOR, ...ADMIN] : CREATOR;
+  const groups = useMemo(() => {
+    const all: { label: string; items: NavItem[] }[] = [
+      { label: "", items: [{ href: "/admin", label: "Overview", icon: "grid" }] },
+      ...(user.role === "admin" ? ADMIN : GAMER),
+    ];
     const q = query.trim().toLowerCase();
-    return q ? all.filter(([, label]) => label.toLowerCase().includes(q)) : all;
+    if (!q) return all;
+    return all
+      .map((g) => ({ ...g, items: g.items.filter((i) => i.label.toLowerCase().includes(q)) }))
+      .filter((g) => g.items.length > 0);
   }, [query, user.role]);
 
   const signOut = async () => {
@@ -124,28 +158,37 @@ export function AppShell({ user, children }: { user: Me; children: ReactNode }) 
         </button>
       </div>
 
-      <nav className="flex flex-col gap-1" aria-label="Primary">
-        {links.map(([href, label, icon]) => {
-          const active = pathname === href;
-          return (
-            <Link
-              key={href}
-              href={href}
-              data-tour={`nav-${label.toLowerCase().replace(/\s+/g, "-")}`}
-              aria-current={active ? "page" : undefined}
-              className={`flex items-center gap-3 rounded-full px-3 py-2.5 text-sm transition duration-300 ease-out ${
-                active
-                  ? "bg-accent-soft text-accent"
-                  : "text-muted hover:bg-surface-2 hover:text-text"
-              } ${collapsed ? "justify-center" : ""}`}
-            >
-              <span className="w-5 text-center text-muted">
-                <Icon name={icon} size={15} />
+      <nav className="flex flex-col gap-3" aria-label="Primary">
+        {groups.map((group, gi) => (
+          <div key={group.label || "home"} className="flex flex-col gap-1">
+            {group.label && !collapsed && (
+              <span className="px-3 pb-1 pt-2 text-[10px] uppercase tracking-[0.2em] text-muted">
+                {group.label}
               </span>
-              {!collapsed && <span>{label}</span>}
-            </Link>
-          );
-        })}
+            )}
+            {group.items.map((item) => {
+              const active = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  data-tour={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex items-center gap-3 rounded-full px-3 py-2.5 text-sm transition duration-300 ease-out ${
+                    active
+                      ? "bg-accent-soft text-accent"
+                      : "text-muted hover:bg-surface-2 hover:text-text"
+                  } ${collapsed ? "justify-center" : ""}`}
+                >
+                  <span className="w-5 text-center text-muted">
+                    <Icon name={item.icon} size={15} />
+                  </span>
+                  {!collapsed && <span>{item.label}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       <div className="mt-auto flex flex-col gap-2">
