@@ -35,6 +35,18 @@ owner.**
 - `docs/START_HERE.md`: run it, add a game, generate ideas, import from SSD, make
   clips, review/schedule, results, local models, and what still needs the owner.
 
+### Final verification
+
+- `make accept` — **67 passed, 2 skipped** (30.5 min).
+- Unit — **60 passed, 1 skipped**; `make check` **2 passed**; `make doctor`
+  **14/14**.
+- a11y — **0 serious/critical on 30 pages** at phone + desktop.
+- `make budgets` — PASS. Cold LCP: `/today` 1760/1828 ms, `/clips` 752/736 ms,
+  `/remote` 24/36 ms, `/admin` 60/64 ms, `/` 864/820 ms; TBT 0 ms everywhere.
+  Warm `/today` paints in **60 ms**.
+- `make flow` — **11 steps**, every handoff a real route, screenshots in
+  `docs/screens/flow/`.
+
 ## Polish sprint — one product, end to end
 
 Status: **the journey walks end to end on real data; the owner's visual verdict
