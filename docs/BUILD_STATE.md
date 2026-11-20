@@ -26,6 +26,8 @@ Last updated after the research-brain sprint.
 | Leading indicators + research-ranking score | yes | yes | yes (unit) | YouTube collector |
 | Long-form builder | yes | yes | partial (no real session clips) | real gameplay fixture |
 | Launch docs (README, licences, launch plan) | yes | yes | yes | history purge decision |
+| START_HERE run guide | yes | yes | yes | — |
+| Grouped admin/gamer nav (core flow only) | yes | yes | yes | — |
 | Admin approval gate + assign + gamer Today | yes | yes | yes (real accounts) | — |
 | Generated idea card image (SVG, no remote image) | yes | yes | yes | — |
 | Mission cards from typed questions (AI) | yes | yes (recorded provider) | no | AI key credit |

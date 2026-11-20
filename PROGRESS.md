@@ -1,5 +1,40 @@
 # Progress
 
+## Final sprint — clean, fast, demo-ready
+
+Status: **the product is demo-ready; the demo clip and live AI/research await the
+owner.**
+
+### Part 1 — cleanup
+
+- Render scratch (42 MB) moved to `trash/` (listed in `trash/README.txt`);
+  `.DS_Store` removed.
+- The nav is trimmed to the core flow. `docs/pages.md` lists the core pages first
+  and the supporting pages (styleguide, templates, jobs, AI usage, audit, public
+  community) separately as reachable-by-URL but off the nav.
+
+### Part 2 — navigation
+
+- **Admin**: Overview, then Plan (Games, Pool), Create (Studio, Calendar,
+  Long-form), Manage (Models, Setup status, Users, Invites). Current page
+  highlighted; the page search filters the groups.
+- **Gamer**: Play (Dashboard, Today, Go Live, Remote), Review (Clips, History,
+  Results), Account (Settings). No admin controls.
+
+### Part 3 — speed
+
+- `/today`: the three sequential Neon queries are now two (dares + assignments in
+  one join), and the generated card image is cached for 60 s (warm 3 ms). The
+  shell already streams via Suspense.
+- `/clips`: the thumbnail is served in place (no temp copy) with a cache header,
+  and the grid thumbnails lazy-load.
+- Numbers: `docs/screens/budgets.json` (`make budgets`).
+
+### Part 5 — demo
+
+- `docs/START_HERE.md`: run it, add a game, generate ideas, import from SSD, make
+  clips, review/schedule, results, local models, and what still needs the owner.
+
 ## Polish sprint — one product, end to end
 
 Status: **the journey walks end to end on real data; the owner's visual verdict
