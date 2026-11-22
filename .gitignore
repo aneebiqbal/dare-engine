@@ -42,6 +42,10 @@ ssd-test/
 trash/
 backups/
 
+# Desktop app
+desktop/node_modules/
+desktop/src-tauri/target/
+
 # OS / editors
 .DS_Store
 *.log

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Clip, type MissionCard, type SsdResponse, type StudioCandidate, type StudioRecording, type SystemLoad } from "@/lib/api";
 import { NextStep } from "./next-step";
+import { DesktopEngine } from "./desktop";
 import {
   Badge,
   Button,
@@ -100,6 +101,17 @@ export function Studio() {
     setClips(res.items.filter((c) => ids.includes(c.id)));
     return res.items;
   }, []);
+
+  const openRecording = useCallback(
+    async (id: string) => {
+      const detail = await api.studioRecording(id);
+      setRecording(detail);
+      setClips([]);
+      setEdits({});
+      toast("Recording imported", "success");
+    },
+    [toast],
+  );
 
   async function upload() {
     if (!file) {
@@ -300,6 +312,7 @@ export function Studio() {
 
   return (
     <div className="flex flex-col gap-6">
+      <DesktopEngine onRecording={openRecording} />
       <Card>
         <div className="flex flex-col gap-4" data-tour="studio-upload">
           <div className="flex items-center justify-between">

@@ -7,7 +7,7 @@ PYTHON := $(VENV)/bin/python
 # live local run.
 TEST_ENV := DEV_AUTH_ENABLED=true NEXT_PUBLIC_DEV_AUTH=1 LLM_PROVIDER=recorded
 
-.PHONY: up down logs accept test check web-accept screens budgets doctor create-admin voice cleanup contract types research setup-engine research-local ssd-bridge mlx-bridge flow backup
+.PHONY: up down logs accept test check web-accept screens budgets doctor create-admin voice cleanup contract types research setup-engine research-local ssd-bridge mlx-bridge flow backup desktop
 
 up:
 	docker compose up -d --wait --build
@@ -75,6 +75,10 @@ voice:
 # Delete recordings and previews past the retention window.
 cleanup:
 	docker compose exec -T api python -c "from app.retention import sweep; print(sweep())"
+
+# Build the admin desktop app (Tauri). Artifact in desktop/src-tauri/target/.
+desktop:
+	cd desktop && npm install && npm run tauri build
 
 # Dump the database to backups/ (see docs/deploy-web.md for the schedule).
 backup:
