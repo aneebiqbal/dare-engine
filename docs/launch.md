@@ -20,7 +20,13 @@ supply. Status detail is in `PROGRESS.md` and `docs/BUILD_STATE.md`.
 | Live research sources | not proven (sample feed) |
 | Production database | Neon configured; the default local run uses container Postgres |
 | Object storage | local disk by default; S3 unproven |
-| TLS, backups, logging, error reporting | not built |
+| TLS termination | documented (`docs/deploy-web.md`, Caddy); not deployed |
+| Backups | `make backup` (pg_dump); no restore drill yet |
+| Error reporting | browser → `/client-error` → admin overview |
+| Rate limiting | per-IP, stricter on `/auth` and `/admin` |
+| Cloud deploy | documented, not deployed (needs a host + domain) |
+| Desktop app | builds a 2.37 MB `.dmg`; not launched by a human |
+| Vision suggestions | built + unit/acceptance tested; needs the model + footage |
 | Publishing to YouTube/TikTok/Instagram | calendar queue + manual marker; YouTube API and TikTok/IG approval blocked |
 | Git remote | exists, URL is clean, but points at `dare-engine` |
 
