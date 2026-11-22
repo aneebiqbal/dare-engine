@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     session_cookie: str = "clipdesk_session"
     csrf_cookie: str = "clipdesk_csrf"
 
+    # --- Rate limiting ------------------------------------------------------
+    # Per-IP sliding window. `/auth/` and `/admin/` get the smaller budget.
+    rate_limit_requests: int = 60
+    rate_limit_window: int = 60
+    rate_limit_auth: int = 10
+
     app_env: str = "development"
     web_origin: str = "http://localhost:3100"
 

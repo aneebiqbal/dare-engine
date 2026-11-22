@@ -7,6 +7,7 @@ import {
   type AiConfig,
   type AiUsage,
   type AuditEntry,
+  type ErrorReport,
   type Invite,
   type Job,
   type PoolEntry,
@@ -62,6 +63,7 @@ export function AdminOverview() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [pool, setPool] = useState<PoolEntry[]>([]);
   const [usage, setUsage] = useState<AiUsage[]>([]);
+  const [errors, setErrors] = useState<ErrorReport[]>([]);
   const [storage, setStorage] = useState<{ driver: string; bytes: number } | null>(null);
   const [setup, setSetup] = useState<{ name: string; ok: boolean; detail: string }[]>([]);
   const [health, setHealth] = useState<SystemLoad | null>(null);
@@ -92,10 +94,11 @@ export function AdminOverview() {
   // The doctor checks and the live system probe are slow (seconds); stream them
   // in after the main dashboard so nothing waits on them.
   useEffect(() => {
-    Promise.all([api.adminSetup(), api.studioSystem().catch(() => null)])
-      .then(([st, h]) => {
+    Promise.all([api.adminSetup(), api.studioSystem().catch(() => null), api.adminErrors()])
+      .then(([st, h, e]) => {
         setSetup(st.checks);
         setHealth(h);
+        setErrors(e.items);
       })
       .catch(() => {});
   }, []);
@@ -184,7 +187,7 @@ export function AdminOverview() {
         </div>
       </PageState>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-3">
         <Card>
           <div className="flex flex-col gap-3">
             <h2 className="text-base font-medium">Job queue</h2>
@@ -212,6 +215,23 @@ export function AdminOverview() {
                   <span>{u.page} · {u.kind}</span>
                   <span className="text-muted">
                     {u.prompt_tokens + u.completion_tokens} tokens · {u.latency_ms} ms
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
+        <Card>
+          <div className="flex flex-col gap-3">
+            <h2 className="text-base font-medium">Recent client errors</h2>
+            {errors.length === 0 ? (
+              <p className="text-sm text-muted">No browser errors reported.</p>
+            ) : (
+              errors.slice(0, 5).map((e) => (
+                <div key={e.id} className="flex flex-col gap-1 text-sm">
+                  <span className="truncate">{e.message}</span>
+                  <span className="text-xs text-muted">
+                    {e.path ?? "—"} · {new Date(e.created_at).toLocaleString()}
                   </span>
                 </div>
               ))

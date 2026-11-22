@@ -14,6 +14,7 @@ from .calendar import router as calendar_router
 from .clips import router as clips_router
 from .community import router as community_router
 from .config import settings
+from .errors import router as errors_router
 from .games import router as games_router
 from .hooks import router as hooks_router
 from .longform import router as longform_router
@@ -21,6 +22,7 @@ from .missions import router as missions_router
 from .models import router as models_router
 from .obs import router as obs_router
 from .provider import router as provider_router
+from .ratelimit import RateLimitMiddleware
 from .ssd import router as ssd_router
 from .studio import router as studio_router
 from .tours import router as tours_router
@@ -54,6 +56,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(
+    RateLimitMiddleware,
+    limit=settings.rate_limit_requests,
+    window_seconds=settings.rate_limit_window,
+    auth_limit=settings.rate_limit_auth,
+)
 
 
 @app.exception_handler(HTTPException)
@@ -76,6 +84,7 @@ for router in (
     account_router,
     admin_router,
     ai_router,
+    errors_router,
     games_router,
     obs_router,
     provider_router,

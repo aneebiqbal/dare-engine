@@ -6,6 +6,7 @@ import type {
   Clip,
   ClipExport,
   EditorResult,
+  ErrorReport,
   Game,
   GameProfile,
   GameSearchEntry,
@@ -51,6 +52,7 @@ export type {
   Clip,
   ClipExport,
   EditorResult,
+  ErrorReport,
   Game,
   GameProfile,
   GameSearchEntry,
@@ -454,6 +456,9 @@ export const api = {
     }>("/studio/ssd/import", { path, release }),
 
   // --- community -------------------------------------------------------
+  reportError: (message: string, stack?: string | null, path?: string) =>
+    post<{ ok: boolean }>("/client-error", { message, stack, path }),
+  adminErrors: () => get<{ items: ErrorReport[] }>("/admin/errors"),
   leaderboard: (id: string, params = "") =>
     get<List<{ rank: number; user_id: string; display_name: string; result_value: number | null; clip_id: string | null }>>(
       `/missions/${id}/leaderboard${params}`,

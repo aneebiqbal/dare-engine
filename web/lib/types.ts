@@ -374,6 +374,9 @@ export type StudioCandidate = {
   state: string;
   template_id: string | null;
   clip_id: string | null;
+  /** audio = the cheap detector; vision = the sampled VLM pass. */
+  source?: "audio" | "vision";
+  thumb_url?: string | null;
 };
 
 export type StudioRecording = {
@@ -391,6 +394,14 @@ export type StudioRecording = {
     gpu: boolean;
   };
   candidates: StudioCandidate[];
+};
+
+export type ErrorReport = {
+  id: string;
+  message: string;
+  path: string | null;
+  created_at: string;
+  user: string | null;
 };
 
 export type SystemLoad = {
