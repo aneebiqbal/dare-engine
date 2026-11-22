@@ -1767,6 +1767,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /client-error:
+    post:
+      summary: Report
+      operationId: report_client_error_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportIn'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/errors:
+    get:
+      summary: Admin Errors
+      operationId: admin_errors_admin_errors_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /admin/games:
     get:
       summary: List Games
@@ -2032,6 +2064,54 @@ paths:
               type: object
               title: Payload
         required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /studio/vision:
+    post:
+      summary: Vision Suggest
+      description: 'Optional: enqueue the sampled VLM pass. Off unless the admin asks.'
+      operationId: vision_suggest_studio_vision_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /studio/candidates/{candidate_id}/thumb:
+    get:
+      summary: Candidate Thumb
+      operationId: candidate_thumb_studio_candidates__candidate_id__thumb_get
+      parameters:
+      - name: candidate_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Candidate Id
       responses:
         '200':
           description: Successful Response
@@ -2398,6 +2478,29 @@ components:
       required:
       - questions
       title: QuestionsIn
+    ReportIn:
+      properties:
+        message:
+          type: string
+          maxLength: 2000
+          minLength: 1
+          title: Message
+        stack:
+          anyOf:
+          - type: string
+            maxLength: 8000
+          - type: 'null'
+          title: Stack
+        path:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Path
+      type: object
+      required:
+      - message
+      title: ReportIn
     ResetPassword:
       properties:
         token:

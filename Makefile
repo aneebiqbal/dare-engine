@@ -5,7 +5,11 @@ PYTHON := $(VENV)/bin/python
 # (docker compose up) keeps DEV_AUTH_ENABLED off.
 # Tests run on the recorded AI provider; set LLM_PROVIDER=openai in .env for a
 # live local run.
-TEST_ENV := DEV_AUTH_ENABLED=true NEXT_PUBLIC_DEV_AUTH=1 LLM_PROVIDER=recorded
+# The acceptance suite makes more requests per minute than the production rate
+# limit allows, so the test run raises the ceiling. Production keeps the
+# defaults from .env.example.
+TEST_ENV := DEV_AUTH_ENABLED=true NEXT_PUBLIC_DEV_AUTH=1 LLM_PROVIDER=recorded \
+	RATE_LIMIT_REQUESTS=100000 RATE_LIMIT_AUTH=100000
 
 .PHONY: up down logs accept test check web-accept screens budgets doctor create-admin voice cleanup contract types research setup-engine research-local ssd-bridge mlx-bridge flow backup desktop
 

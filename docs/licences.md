@@ -71,6 +71,31 @@ Not in the manifest but used by `make types`: `openapi-typescript` (fetched with
 | DejaVu Sans | Bitstream Vera / public domain | installed so libass has a font |
 | Piper voice models | repository front matter: MIT | individual voice cards vary |
 
+### Desktop app — `desktop/` (Tauri + Rust)
+
+| Package | Licence | Use |
+| --- | --- | --- |
+| `tauri` / `tauri-build` 2.x | MIT OR Apache-2.0 | desktop shell |
+| `tao`, `wry`, `tauri-runtime` | Apache-2.0 | windowing / web view |
+| `serde`, `serde_json` | MIT / Apache-2.0 | command arguments |
+| `base64` 0.22 | MIT OR Apache-2.0 | read a recording back to the web UI |
+| `@tauri-apps/cli` 2.x | Apache-2.0 | build tool (dev only) |
+
+OBS Studio (GPL-2.0) is an external application the app talks to over
+obs-websocket; it is not bundled or linked. The FFmpeg binary invoked by the
+desktop recorder carries the same FFmpeg flag as above.
+
+### Models (not code dependencies)
+
+| Model | Licence | Use |
+| --- | --- | --- |
+| Qwen2.5-VL-7B-Instruct | Apache-2.0 | the optional vision pass (`VISION_MODEL`) |
+| MLX Whisper (`mlx-community/whisper-large-v3-mlx`) | MIT | transcription |
+| Ollama models the admin chooses | varies | the writing model; the admin supplies it |
+
+The vision model is downloaded by the admin from Ollama; it is not vendored.
+Verify the licence of any model you switch to.
+
 ## Tests and development only (not shipped)
 
 | Package / file | Licence | Note |

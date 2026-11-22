@@ -1,5 +1,54 @@
 # Progress
 
+## Ship sprint — cloud web, desktop app, vision suggestions
+
+Status: **the split is built and documented; the cloud deploy and the desktop
+capture need the owner's host and a human at a Mac.**
+
+### Architecture
+
+- `docs/architecture.md`: the cloud (web + API + managed Postgres) and the
+  desktop (worker, models, capture, SSD) with a Mermaid diagram and the one API
+  contract between them.
+
+### Cloud web
+
+- `docs/deploy-web.md`: managed Postgres, Caddy TLS, `docker compose up api web`,
+  health check, backups, hardening.
+- Rate limiting: per-IP sliding window, stricter on `/auth` and `/admin`
+  (`api/app/ratelimit.py`, 8 unit tests).
+- Error reporting: the browser posts to `/client-error`; an admin reads them on
+  the overview (`api/app/errors.py`, migration 0014).
+- Backups: `scripts/backup.sh` + `make backup` (pg_dump gzip).
+
+### Desktop app
+
+- `desktop/` — a Tauri v2 shell. Builds a **2.37 MB** `.dmg`
+  (`make desktop`); the artifact mounts and verifies.
+- Rust commands: `app_url`, `app_home`, `start_stack`, `capture_start`,
+  `capture_stop`, `read_file_b64`, `recordings_dir`. ACL-managed
+  (`build.rs` + `capabilities/default.json`).
+- The web UI shows a **Desktop engine** card only inside the app: start the
+  local stack, record the screen, import the recording into the studio.
+- OBS remains the reliable capture default (Go Live); the bundled FFmpeg
+  recorder is the no-OBS path.
+
+### Vision suggestions
+
+- `worker/clip/vision.py`: a bounded, sampled pass (one frame / 5 s, max 40).
+  The VLM scores each window for JSON; suggestions carry a reason and the frame.
+- The VLM unloads after the pass and the unload is verified against the model
+  inventory. Off by default; a studio toggle turns it on.
+- Migration 0015 adds `source`/`thumb_key`; the studio shows vision suggestions
+  with a thumbnail and the pass time.
+- Unit tests use a fake VLM (4 tests) + the bridge endpoint (2 tests). An
+  acceptance test runs the real sampled pass end to end.
+
+### Models & Setup
+
+- A **Suggested engine** card shows transcription, writing and vision models
+  with state, size, fit and one-click install, plus an approximate total.
+
 ## Final sprint — clean, fast, demo-ready
 
 Status: **the product is demo-ready; the demo clip and live AI/research await the

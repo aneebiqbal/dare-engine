@@ -46,6 +46,15 @@ Last updated after the research-brain sprint.
 | Publishing to YouTube/TikTok/Instagram | stub only | no | no | out of scope |
 | Google sign-in | no | no | no | OAuth client |
 | Billing | no | no | no | payment keys |
+| Cloud web deploy (`docs/deploy-web.md`) | yes | yes (compose + Caddy) | no | a host + domain |
+| Rate limiting (per-IP, stricter auth/admin) | yes | yes | yes (unit) | — |
+| Client error reporting + admin view | yes | yes | yes (unit) | — |
+| Database backup (`make backup`) | yes | yes | no | a real restore drill |
+| Desktop app (Tauri shell, builds a .dmg) | yes | yes (build + mount) | no | a human at a Mac |
+| Desktop capture (OBS path) | yes | yes | yes (OBS 33.0.1) | — |
+| Desktop capture (bundled FFmpeg recorder) | yes | yes (command) | no | a real recording |
+| Vision clip suggestions (sampled VLM) | yes | yes (unit, fake VLM) | no | VLM installed + real footage |
+| Models & Setup suggested engine + one-click install | yes | yes | yes (real bridge) | — |
 
 ## Blocked on the user (cannot be closed by code)
 
@@ -58,6 +67,11 @@ Last updated after the research-brain sprint.
 3. **Research source keys.** `YOUTUBE_API_KEY` and the Reddit app (or RAWG for
    live game search). Without them the brain runs on the saved sample feed and
    flags the run as a fallback.
-4. **A git remote with a safe credential.** The token embedded in `origin` was
+4. **A host and a domain for the cloud website.** `docs/deploy-web.md` reproduces
+   the deployment; the owner must supply the VPS/domain and the managed database.
+5. **A git remote with a safe credential.** The token embedded in `origin` was
    removed from the remote URL; revoke it on GitHub and choose the real remote
    (the current one points at `dare-engine`). See `docs/launch.md`.
+6. **The vision model and real footage.** The sampled pass is built and
+   unit-tested; a real ranked-suggestion run needs `qwen2.5vl:7b` installed and a
+   real recording.
