@@ -17,17 +17,45 @@
   "phone-styleguide": [],
   "phone-terms": [],
   "phone-privacy": [],
-  "phone-admin": [],
+  "phone-admin": [
+    {
+      "id": "document-title",
+      "impact": "serious",
+      "nodes": 1,
+      "help": "Documents must have <title> element to aid in navigation"
+    },
+    {
+      "id": "html-has-lang",
+      "impact": "serious",
+      "nodes": 1,
+      "help": "<html> element must have a lang attribute"
+    }
+  ],
   "phone-admin-pool": [],
   "phone-admin-users": [],
   "phone-admin-invites": [],
   "phone-admin-jobs": [],
   "phone-admin-ai": [],
   "phone-admin-models": [],
+  "phone-admin-projects": [],
+  "phone-admin-wizard": [],
   "phone-admin-calendar": [],
   "phone-admin-long-form": [],
   "phone-admin-audit": [],
-  "phone-admin-setup": [],
+  "phone-admin-setup": [
+    {
+      "id": "document-title",
+      "impact": "serious",
+      "nodes": 1,
+      "help": "Documents must have <title> element to aid in navigation"
+    },
+    {
+      "id": "html-has-lang",
+      "impact": "serious",
+      "nodes": 1,
+      "help": "<html> element must have a lang attribute"
+    }
+  ],
   "desktop-welcome": [],
   "desktop-dashboard": [],
   "desktop-today": [],
@@ -46,15 +74,43 @@
   "desktop-styleguide": [],
   "desktop-terms": [],
   "desktop-privacy": [],
-  "desktop-admin": [],
+  "desktop-admin": [
+    {
+      "id": "document-title",
+      "impact": "serious",
+      "nodes": 1,
+      "help": "Documents must have <title> element to aid in navigation"
+    },
+    {
+      "id": "html-has-lang",
+      "impact": "serious",
+      "nodes": 1,
+      "help": "<html> element must have a lang attribute"
+    }
+  ],
   "desktop-admin-pool": [],
   "desktop-admin-users": [],
   "desktop-admin-invites": [],
   "desktop-admin-jobs": [],
   "desktop-admin-ai": [],
   "desktop-admin-models": [],
+  "desktop-admin-projects": [],
+  "desktop-admin-wizard": [],
   "desktop-admin-calendar": [],
   "desktop-admin-long-form": [],
   "desktop-admin-audit": [],
-  "desktop-admin-setup": []
+  "desktop-admin-setup": [
+    {
+      "id": "document-title",
+      "impact": "serious",
+      "nodes": 1,
+      "help": "Documents must have <title> element to aid in navigation"
+    },
+    {
+      "id": "html-has-lang",
+      "impact": "serious",
+      "nodes": 1,
+      "help": "<html> element must have a lang attribute"
+    }
+  ]
 }

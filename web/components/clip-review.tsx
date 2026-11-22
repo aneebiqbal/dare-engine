@@ -24,6 +24,7 @@ import {
   Textarea,
   useToast,
 } from "@/components/ui";
+import { Pipeline, Section, StatusBadge, WorkHeader } from "./work";
 
 const VOICES = [
   "en_US-amy-medium",
@@ -33,6 +34,14 @@ const VOICES = [
 ];
 
 const LAYOUTS = ["blur_fit", "center_crop", "fit_height"];
+
+const RENDER_STAGES = ["fetch", "transcribe", "select", "render", "store"];
+
+function stageIndex(stage: string | null): number {
+  if (!stage) return 0;
+  const i = RENDER_STAGES.indexOf(stage);
+  return i < 0 ? 0 : i;
+}
 
 export function ClipReview({ clip }: { clip: Clip }) {
   const [current, setCurrent] = useState(clip);
@@ -151,8 +160,35 @@ export function ClipReview({ clip }: { clip: Clip }) {
       toast("Export package saved", "success");
     });
 
+  const ready = ["ready", "approved", "posted", "discarded"].includes(current.state);
+
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,24rem)_1fr]">
+    <div className="grid gap-6">
+      <WorkHeader
+        eyebrow="Review"
+        title={current.title ?? "Clip review"}
+        status={
+          current.state === "ready" || current.state === "approved" || current.state === "posted"
+            ? "done"
+            : current.state === "failed"
+              ? "failed"
+              : current.state === "discarded"
+                ? "idle"
+                : "running"
+        }
+        actions={
+          current.download_url ? (
+            <a
+              href={api.downloadClipUrl(clip.id)}
+              className="inline-flex items-center rounded-full px-5 py-2.5 text-sm font-medium text-accent ring-surface transition hover:bg-surface-2"
+            >
+              Download video
+            </a>
+          ) : undefined
+        }
+      />
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,24rem)_1fr]">
       <div className="flex flex-col gap-4">
         <div className="mx-auto w-full max-w-[24rem]">
           <div className="overflow-hidden rounded-lg bg-black ring-surface">
@@ -180,12 +216,21 @@ export function ClipReview({ clip }: { clip: Clip }) {
               </div>
             )}
           </div>
-          {current.state !== "ready" && (
-            <Progress
-              value={current.progress}
-              label={`Render progress for ${current.title ?? "this clip"}`}
-              className="mt-3"
-            />
+          {!ready && (
+            <div className="mt-3 flex flex-col gap-2">
+              <Pipeline
+                steps={RENDER_STAGES}
+                current={stageIndex(current.stage)}
+                label={`Render stages for ${current.title ?? "this clip"}`}
+              />
+              <Progress
+                value={current.progress}
+                label={`Render progress for ${current.title ?? "this clip"}`}
+              />
+              <span className="font-mono text-xs text-muted">
+                {current.stage ?? "queued"} · {current.progress}%
+              </span>
+            </div>
           )}
           {current.error && <Notice tone="warn">{current.error}</Notice>}
           {current.download_url && (
@@ -406,6 +451,7 @@ export function ClipReview({ clip }: { clip: Clip }) {
             </div>
           </Card>
         </PageState>
+      </div>
       </div>
 
       {current.state === "approved" && (

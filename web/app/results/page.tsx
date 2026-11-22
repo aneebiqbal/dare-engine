@@ -16,7 +16,7 @@ async function ResultsData() {
 export default async function ResultsPage() {
   const user = await requireUser();
   return (
-    <AppPage user={user} eyebrow="Results" title="Views and retention">
+    <AppPage user={user} eyebrow="Results" title="Views and retention" header={false}>
       <Suspense fallback={<PageState loading />}>
         <ResultsData />
       </Suspense>

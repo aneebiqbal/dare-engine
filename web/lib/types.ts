@@ -64,6 +64,15 @@ export type Game = {
   candidates?: number;
   approved?: number;
   gamers?: number;
+  last_run?: {
+    id: string;
+    status: string;
+    stage: string | null;
+    detail: string | null;
+    ideas_count: number;
+    fallback: boolean;
+    created_at: string;
+  } | null;
 };
 
 export type GameSearchEntry = {
@@ -77,7 +86,11 @@ export type GameSearchEntry = {
 
 export type ResearchRun = {
   id: string;
+  game_id: string;
+  game_name: string;
   status: string;
+  stage: string | null;
+  detail: string | null;
   source_counts: Record<string, number>;
   ideas_count: number;
   fallback: boolean;
@@ -422,6 +435,7 @@ export type StudioRecording = {
     model: string | null;
     seconds_added: number | null;
   };
+  job: { kind: string; state: string; stage: string | null } | null;
   candidates: StudioCandidate[];
 };
 
@@ -605,4 +619,39 @@ export type ProviderStatus = {
     asr: string;
     configured: boolean;
   };
+};
+
+export type ResultClip = {
+  clip_id: string;
+  title: string | null;
+  views: number;
+  avg_view_percentage: number | null;
+  swiped: number;
+  saves: number;
+};
+
+export type AdminOverview = {
+  generated_at: string;
+  jobs: {
+    counts: Record<string, number>;
+    active: Job[];
+    running: number;
+    failed: number;
+  };
+  research: { active: ResearchRun[]; recent: ResearchRun[] };
+  projects: Project[];
+  pool: { candidate: number; unverified: number; rejected: number };
+  keys: {
+    research_sources_configured: boolean;
+    failing: string[];
+    unreachable: string[];
+    integrations: IntegrationKey[];
+  };
+  system: SystemLoad | null;
+  activity: EngineEvent[];
+  results: { best: ResultClip | null; worst: ResultClip | null; total_views: number };
+  clips_today: number;
+  users: { total: number; admins: number; locked: number };
+  invites: { open: number };
+  storage: { driver: string; bytes: number };
 };

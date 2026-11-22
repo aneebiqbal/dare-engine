@@ -13,13 +13,13 @@ import {
   PageState,
   Progress,
   Select,
-  Stat,
   StatusDot,
   Table,
   Td,
   Tr,
   useToast,
 } from "./ui";
+import { Metric, Section, StatusBadge, WorkHeader } from "./work";
 
 function gb(bytes: number) {
   return bytes > 0 ? `${(bytes / 1e9).toFixed(2)} GB` : "—";
@@ -187,6 +187,16 @@ export function AdminModels() {
 
   return (
     <div className="grid gap-6">
+      <WorkHeader
+        eyebrow="Manage"
+        title="Models"
+        status={running.size > 0 || (task && !task.done) ? "running" : "idle"}
+        actions={
+          <span className="font-mono text-xs text-muted">
+            {status?.provider.configured ? "provider configured" : "provider not configured"}
+          </span>
+        }
+      />
       {status?.bridge === "down" && (
         <Notice tone="warn">
           Local engine bridge is offline, so this page cannot show real models.
@@ -250,52 +260,38 @@ export function AdminModels() {
           </div>
         </Card>
 
-        <Card>
+        <Card className="sm:col-span-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-[0.2em] text-muted">AI provider</span>
-            <Badge tone={status?.provider.configured ? "success" : "muted"}>
-              {status?.provider.configured ? "configured" : "not configured"}
-            </Badge>
-          </div>
-          <div className="mt-4 grid gap-3">
-            <Stat label="Provider" value={status?.provider.llm_provider ?? "—"} />
-            <Stat label="Model" value={status?.provider.llm_model || "—"} />
-            <Stat label="Base URL" value={status?.provider.llm_base_url || "—"} />
-            <Stat
-              label="Transcription"
-              value={status?.provider.asr === "mlx" ? "MLX Whisper (Metal)" : "faster-whisper (CPU)"}
-              hint={status?.provider.mlx_model}
-            />
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-[0.2em] text-muted">Memory</span>
+            <span className="text-xs uppercase tracking-[0.2em] text-muted">Engine</span>
             <StatusDot tone={engine ? "success" : "muted"} label={engine ? "live" : "offline"} />
           </div>
-          <div className="mt-4 grid gap-3">
-            <Stat
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <Metric
               label="Host RAM"
               value={`${gb(host?.used_bytes ?? 0)} / ${gb(host?.total_bytes ?? 0)}`}
               hint={host ? `${host.percent}% used` : undefined}
             />
-            <Stat
-              label="Ollama VRAM"
-              value={gb(vram)}
-              hint={`${running.size} model${running.size === 1 ? "" : "s"} resident`}
-            />
-            <Stat
+            <Metric label="Ollama VRAM" value={gb(vram)} hint={`${running.size} resident`} />
+            <Metric
               label="MLX peak"
               value={gb(mlx?.peak_memory_bytes ?? 0)}
               hint={mlx?.transcribing ? "transcribing now" : "idle"}
             />
-            <Stat
+            <Metric
               label="MLX model"
               value={mlx?.downloaded ? "downloaded" : "not downloaded"}
               hint={mlx?.downloaded ? mlx.model : "downloaded on first use"}
             />
           </div>
+          {task && !task.done && (
+            <div className="mt-4">
+              <Progress value={task.progress} label={`Pulling ${task.name}`} />
+              <p className="mt-2 font-mono text-xs text-muted">
+                {task.status} · {task.progress}%
+              </p>
+            </div>
+          )}
+          {task?.done && task.error && <div className="mt-4"><Notice tone="warn">{task.error}</Notice></div>}
         </Card>
       </div>
 
@@ -359,20 +355,6 @@ export function AdminModels() {
             Pull model
           </Button>
         </div>
-
-        {task && !task.done && (
-          <div className="mt-4">
-            <Progress value={task.progress} label={`Pulling ${task.name}`} />
-            <p className="mt-2 text-xs text-muted">
-              {task.status} · {task.progress}%
-            </p>
-          </div>
-        )}
-        {task?.done && task.error && (
-          <div className="mt-4">
-            <Notice tone="warn">{task.error}</Notice>
-          </div>
-        )}
 
         <div className="mt-4">
           <Table head={["Model", "Size", "Fit", "Status", "Action"]} caption="Local Ollama models">

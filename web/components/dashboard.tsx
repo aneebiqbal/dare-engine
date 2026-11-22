@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { api, type Clip, type HistoryEntry, type Results, type Today } from "@/lib/api";
 import { DareCard } from "./dare-card";
-import { Badge, Button, Card, Notice, PageState, Progress, Stat } from "@/components/ui";
+import { Badge, Button, Card, Notice, PageState, Progress } from "@/components/ui";
+import { Metric, Section, StatusBadge, WorkHeader, WorkQueue, type WorkItem } from "./work";
 
 export function Dashboard({ role }: { role: string }) {
   const [today, setToday] = useState<Today | null>(null);
@@ -56,25 +57,28 @@ export function Dashboard({ role }: { role: string }) {
   ];
   const doneCount = steps.filter((s) => s.done).length;
 
+  const renderItems: WorkItem[] = rendering.map((c) => ({
+    id: c.id,
+    title: c.title ?? "Untitled",
+    subtitle: c.error ?? undefined,
+    status: c.state === "failed" ? "failed" : "running",
+    meta: `${c.stage ?? "queued"} · ${c.progress}%`,
+    href: `/clips/${c.id}`,
+  }));
+
   return (
     <div className="grid gap-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <Stat label="Accepted today" value={Object.keys(today?.accepted ?? {}).length} />
-        </Card>
-        <Card>
-          <Stat label="Shorts ready" value={ready.length} hint={`${clips.length} total`} />
-        </Card>
-        <Card>
-          <Stat
-            label="Views"
-            value={results?.clips.reduce((n, c) => n + c.views, 0)?.toLocaleString() ?? "0"}
-          />
-        </Card>
-        <Card>
-          <Stat label="Last session" value={history[0]?.date ?? "—"} hint={history[0]?.state} />
-        </Card>
-      </div>
+      <WorkHeader
+        eyebrow="Dashboard"
+        title="Your day"
+        status={rendering.length ? "running" : ready.length ? "done" : "idle"}
+        actions={
+          <div className="flex items-center gap-4">
+            <Metric label="Shorts ready" value={ready.length} />
+            <Metric label="Views" value={(results?.clips ?? []).reduce((n, c) => n + c.views, 0).toLocaleString()} />
+          </div>
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <section className="flex flex-col gap-4">
@@ -177,10 +181,12 @@ export function Dashboard({ role }: { role: string }) {
         </Card>
       </div>
 
-      {rendering.length > 0 && (
-        <Notice tone="warn">
-          {rendering.length} Short{rendering.length === 1 ? "" : "s"} still rendering.
-        </Notice>
+      {renderItems.length > 0 && (
+        <Section title="Rendering now" count={renderItems.length} live>
+          <Card>
+            <WorkQueue items={renderItems} />
+          </Card>
+        </Section>
       )}
     </div>
   );

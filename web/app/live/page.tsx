@@ -8,7 +8,7 @@ export default async function LivePage() {
   const user = await requireUser();
   // The stream address is issued client-side so the CSRF header is present.
   return (
-    <AppPage user={user} eyebrow="Go Live" title="Your stream address">
+    <AppPage user={user} eyebrow="Go Live" title="Your stream address" header={false}>
       <Live initial={null} />
     </AppPage>
   );

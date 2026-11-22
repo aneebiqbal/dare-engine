@@ -369,6 +369,31 @@ paths:
           content:
             application/json:
               schema: {}
+  /admin/pool/bulk:
+    post:
+      summary: Pool Bulk
+      description: 'One transaction for many ideas: approve, reject or assign.'
+      operationId: pool_bulk_admin_pool_bulk_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /admin/pool/{mission_id}/approve:
     post:
       summary: Approve
@@ -2128,6 +2153,7 @@ paths:
   /admin/games/{game_id}/research:
     post:
       summary: Run Game Research
+      description: Start a run and return its id; the admin polls the run's real stage.
       operationId: run_game_research_admin_games__game_id__research_post
       parameters:
       - name: game_id
@@ -2148,6 +2174,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /admin/research/{run_id}:
+    get:
+      summary: Research Run
+      operationId: research_run_admin_research__run_id__get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/projects:
+    get:
+      summary: Admin Projects
+      description: 'Every user''s projects, for the admin overview. `/projects` stays
+
+        user-scoped.'
+      operationId: admin_projects_admin_projects_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /games:
     get:
       summary: List Enabled Games
@@ -2259,6 +2321,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /admin/overview:
+    get:
+      summary: Overview
+      operationId: overview_admin_overview_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /admin/provider:
     get:
       summary: Provider

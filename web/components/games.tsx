@@ -22,7 +22,6 @@ import {
   Notice,
   PageState,
   Select,
-  Stat,
   Table,
   Tabs,
   Td,
@@ -30,6 +29,7 @@ import {
   useToast,
 } from "@/components/ui";
 import { ResearchSourceBanner } from "./admin-keys";
+import { Pipeline, StatusBadge, WorkHeader, type WorkStatus } from "./work";
 
 export function Sources({ sources }: { sources?: PoolEntry["sources"] }) {
   if (!sources || sources.length === 0) {
@@ -54,38 +54,117 @@ export function Sources({ sources }: { sources?: PoolEntry["sources"] }) {
   );
 }
 
-function ResearchNow({ id, onDone }: { id: string; onDone: () => void }) {
+const RUN_STAGES = ["fetch", "write", "store"];
+
+function runStageIndex(run: ResearchRun | null): number {
+  if (!run) return 0;
+  if (run.status === "done") return RUN_STAGES.length;
+  if (run.stage === "write") return 1;
+  if (run.stage === "store") return 2;
+  return 0;
+}
+
+function runStatus(run: ResearchRun | null): WorkStatus {
+  if (!run) return "idle";
+  if (run.status === "running") return "running";
+  if (run.status === "failed") return "failed";
+  if (run.status === "done") return "done";
+  return "idle";
+}
+
+/**
+ * Starts a real research run and polls its stage, so the admin watches the
+ * brain fetch sources, write ideas and store them instead of waiting on a
+ * blocking button.
+ */
+function ResearchPanel({ gameId, onDone }: { gameId: string; onDone: () => void }) {
+  const [run, setRun] = useState<ResearchRun | null>(null);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
 
-  async function run() {
+  const start = async () => {
     setBusy(true);
     setError(null);
-    setResult(null);
     try {
-      const res = await api.adminRunResearch(id);
-      setResult(
-        `${res.ideas} sourced idea(s) from ${Object.entries(res.sources)
-          .map(([k, n]) => `${n} ${k}`)
-          .join(", ") || "no sources"}${res.fallback ? " (sample feed)" : ""}`,
-      );
-      toast("Research complete", "success");
-      onDone();
+      const res = await api.adminRunResearch(gameId);
+      setRun({
+        id: res.run_id,
+        game_id: gameId,
+        game_name: "",
+        status: "running",
+        stage: res.stage,
+        detail: null,
+        source_counts: {},
+        ideas_count: 0,
+        fallback: false,
+        error: null,
+        created_at: new Date().toISOString(),
+        finished_at: null,
+      });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Research failed");
+      setError(e instanceof Error ? e.message : "Could not start research");
     } finally {
       setBusy(false);
     }
+  };
+
+  useEffect(() => {
+    if (!run || run.status !== "running") return;
+    const timer = setInterval(async () => {
+      try {
+        const fresh = await api.adminResearchRun(run.id);
+        setRun(fresh);
+        if (fresh.status !== "running") {
+          toast(
+            fresh.status === "failed"
+              ? `Research failed: ${fresh.error ?? "unknown error"}`
+              : `Research stored ${fresh.ideas_count} idea(s)`,
+            fresh.status === "failed" ? "danger" : "success",
+          );
+          onDone();
+        }
+      } catch {
+        /* keep polling; the API may be busy */
+      }
+    }, 2000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run?.id, run?.status]);
+
+  if (run && run.status === "running") {
+    return (
+      <Card>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2 text-sm font-medium">
+              <StatusBadge status="running" label="Researching" />
+            </span>
+            <span className="font-mono text-xs text-muted">
+              {Object.entries(run.source_counts)
+                .map(([k, n]) => `${n} ${k}`)
+                .join(" · ") || "starting…"}
+            </span>
+          </div>
+          <Pipeline steps={RUN_STAGES} current={runStageIndex(run)} label="Research progress" />
+          <p className="text-xs text-muted">{run.detail ?? "Waiting for the first source…"}</p>
+        </div>
+      </Card>
+    );
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <Button size="sm" variant="outline" onClick={run} disabled={busy}>
-        {busy ? "Researching…" : "Research now"}
+    <div className="flex flex-wrap items-center gap-3">
+      <Button variant="outline" onClick={start} disabled={busy}>
+        {busy ? "Starting…" : "Research now"}
       </Button>
-      {result && <Notice tone="info">{result}</Notice>}
+      {run && run.status === "done" && (
+        <Notice tone="info">
+          Stored {run.ideas_count} sourced idea(s)
+          {run.fallback ? " from the sample feed" : ""}.
+        </Notice>
+      )}
+      {run && run.status === "failed" && <Notice tone="warn">{run.error ?? "Research failed."}</Notice>}
       {error && <Notice tone="warn">{error}</Notice>}
     </div>
   );
@@ -160,13 +239,19 @@ export function AdminGames() {
     }
   }
 
+  const anyResearch = items.some((g) => g.last_run?.status === "running");
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="grid gap-6">
+      <WorkHeader
+        eyebrow="Plan"
+        title="Games"
+        status={anyResearch ? "running" : "idle"}
+        actions={
+          <Button onClick={() => setAddOpen(true)}>Add game</Button>
+        }
+      />
       <ResearchSourceBanner />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button onClick={() => setAddOpen(true)}>Add game</Button>
-        <span className="text-xs text-muted">Research runs daily per enabled game.</span>
-      </div>
 
       <PageState
         loading={loading}
@@ -181,7 +266,10 @@ export function AdminGames() {
               <div className="flex h-full flex-col gap-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <Link href={`/admin/games/${game.id}`} className="block truncate text-base font-medium hover:underline">
+                    <Link
+                      href={`/admin/games/${game.id}`}
+                      className="block truncate text-base font-medium hover:underline"
+                    >
                       {game.name}
                     </Link>
                     <p className="text-xs text-muted">
@@ -192,16 +280,43 @@ export function AdminGames() {
                     {game.enabled ? "enabled" : "off"}
                   </Badge>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <Stat label="Ideas" value={game.candidates ?? 0} />
-                  <Stat label="Approved" value={game.approved ?? 0} />
-                  <Stat label="Gamers" value={game.gamers ?? 0} />
+
+                <div className="grid grid-cols-3 gap-2 rounded-xl bg-surface-2 p-3 text-center ring-surface">
+                  <div>
+                    <div className="font-mono text-base font-semibold">{game.candidates ?? 0}</div>
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted">ideas</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-base font-semibold">{game.approved ?? 0}</div>
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted">approved</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-base font-semibold">{game.gamers ?? 0}</div>
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted">gamers</div>
+                  </div>
                 </div>
-                <div className="mt-auto flex flex-wrap gap-2 pt-2">
-                  <ResearchNow id={game.id} onDone={load} />
-                  <Button size="sm" variant="outline" onClick={() => toggle(game)}>
+
+                <div className="flex items-center justify-between gap-2 text-xs text-muted">
+                  <span className="truncate">
+                    {game.last_run
+                      ? `Last run ${game.last_run.status}${
+                          game.last_run.ideas_count ? ` · ${game.last_run.ideas_count} ideas` : ""
+                        }`
+                      : "Never researched"}
+                  </span>
+                  {game.last_run?.fallback && <Badge tone="muted">sample</Badge>}
+                </div>
+
+                <div className="mt-auto flex flex-wrap gap-2 pt-1">
+                  <Button size="sm" variant="outline" onClick={() => void toggle(game)}>
                     {game.enabled ? "Disable" : "Enable"}
                   </Button>
+                  <Link
+                    href={`/admin/games/${game.id}`}
+                    className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
+                  >
+                    Open
+                  </Link>
                 </div>
               </div>
             </Card>
@@ -366,10 +481,18 @@ export function AdminGameProfile({ gameId }: { gameId: string }) {
   if (!profile) return null;
 
   const { game, candidates, approved, assigned, runs } = profile;
+  const activeRun = runs.find((r) => r.status === "running");
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="grid gap-6">
+      <WorkHeader
+        eyebrow="Plan"
+        title={game.name}
+        status={activeRun ? "running" : game.enabled ? "idle" : "idle"}
+        actions={<ResearchPanel gameId={game.id} onDone={load} />}
+      />
       <ResearchSourceBanner />
+
       <Card>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 items-center gap-4">
@@ -382,17 +505,16 @@ export function AdminGameProfile({ gameId }: { gameId: string }) {
               </div>
             )}
             <div className="min-w-0">
-              <h2 className="truncate text-2xl font-semibold tracking-tight">{game.name}</h2>
               <p className="text-sm text-muted">
                 {game.genre ?? "—"} · released {game.release_date ?? "—"} · {game.source}
                 {game.external_id ? ` #${game.external_id}` : ""}
               </p>
+              <p className="mt-1 font-mono text-xs text-muted">
+                {candidates.length} candidates · {approved.length} approved · {assigned.length} assigned
+              </p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Badge tone={game.enabled ? "success" : "muted"}>{game.enabled ? "enabled" : "off"}</Badge>
-            <ResearchNow id={game.id} onDone={load} />
-          </div>
+          <Badge tone={game.enabled ? "success" : "muted"}>{game.enabled ? "enabled" : "off"}</Badge>
         </div>
       </Card>
 
@@ -420,7 +542,7 @@ export function AdminGameProfile({ gameId }: { gameId: string }) {
               <Card key={entry.id}>
                 <div className="flex h-full flex-col gap-3">
                   <div className="flex items-center justify-between">
-                    <Badge tone="accent">{entry.id}</Badge>
+                    <span className="font-mono text-xs text-muted">{entry.id}</span>
                     <img
                       src={api.cardImageUrl(entry.id)}
                       alt={`Card ${entry.id}`}
@@ -429,6 +551,14 @@ export function AdminGameProfile({ gameId }: { gameId: string }) {
                   </div>
                   <h3 className="text-base font-medium leading-snug">{entry.card?.question}</h3>
                   <p className="text-sm text-muted">{entry.card?.hook_text}</p>
+                  <div className="flex items-center gap-2">
+                    <Badge tone={entry.score ? "accent" : "muted"}>
+                      virality {entry.score ? entry.score.toFixed(2) : "—"}
+                    </Badge>
+                    {entry.card?.est_minutes != null && (
+                      <span className="font-mono text-xs text-muted">~{entry.card.est_minutes} min</span>
+                    )}
+                  </div>
                   <Sources sources={entry.sources} />
                   <div className="mt-auto flex flex-wrap gap-2 pt-2">
                     <Button size="sm" onClick={() => approve(entry.id)}>Approve</Button>
@@ -455,7 +585,7 @@ export function AdminGameProfile({ gameId }: { gameId: string }) {
               <Card key={entry.id}>
                 <div className="flex h-full flex-col gap-3">
                   <div className="flex items-center justify-between">
-                    <Badge tone="success">{entry.id}</Badge>
+                    <span className="font-mono text-xs text-muted">{entry.id}</span>
                     <img
                       src={api.cardImageUrl(entry.id)}
                       alt={`Card ${entry.id}`}
@@ -486,7 +616,11 @@ export function AdminGameProfile({ gameId }: { gameId: string }) {
             {assigned.map((a) => (
               <Tr key={a.assignment_id}>
                 <Td>{a.display_name}</Td>
-                <Td>{a.mission_id}</Td>
+                <Td>
+                  <Link href={`/missions/${a.mission_id}`} className="text-accent hover:underline">
+                    {a.mission_id}
+                  </Link>
+                </Td>
                 <Td><Badge tone="muted">{a.state}</Badge></Td>
                 <Td>{a.date}</Td>
               </Tr>
@@ -503,18 +637,45 @@ export function AdminGameProfile({ gameId }: { gameId: string }) {
           emptyTitle="No research runs"
           emptyBody="Run research to see sources and ideas here."
         >
-          <Table caption="Research runs" head={["When", "Status", "Sources", "Ideas", "Fallback", "Error"]}>
+          <div className="flex flex-col gap-3">
             {runs.map((r: ResearchRun) => (
-              <Tr key={r.id}>
-                <Td>{r.created_at.slice(0, 19).replace("T", " ")}</Td>
-                <Td><Badge tone={r.status === "done" ? "success" : r.status === "failed" ? "danger" : "muted"}>{r.status}</Badge></Td>
-                <Td>{Object.entries(r.source_counts).map(([k, n]) => `${n} ${k}`).join(", ") || "—"}</Td>
-                <Td>{r.ideas_count}</Td>
-                <Td>{r.fallback ? <Badge tone="muted">sample</Badge> : <Badge tone="success">live</Badge>}</Td>
-                <Td className="max-w-[20rem] truncate" title={r.error ?? ""}>{r.error ?? "—"}</Td>
-              </Tr>
+              <Card key={r.id}>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span className="font-mono text-xs text-muted">
+                      {r.created_at.slice(0, 19).replace("T", " ")}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {r.fallback && <Badge tone="muted">sample feed</Badge>}
+                      <StatusBadge
+                        status={
+                          r.status === "done"
+                            ? "done"
+                            : r.status === "failed"
+                              ? "failed"
+                              : r.status === "running"
+                                ? "running"
+                                : "idle"
+                        }
+                      />
+                    </div>
+                  </div>
+                  {r.status === "running" ? (
+                    <Pipeline steps={RUN_STAGES} current={runStageIndex(r)} label="Research progress" />
+                  ) : (
+                    <div className="font-mono text-xs text-muted">
+                      {Object.entries(r.source_counts).map(([k, n]) => `${n} ${k}`).join(" · ") || "no sources"}
+                    </div>
+                  )}
+                  {r.detail && <p className="text-xs text-muted">{r.detail}</p>}
+                  <div className="flex items-center gap-3 text-xs text-muted">
+                    <span>{r.ideas_count} idea(s) stored</span>
+                    {r.error && <span className="text-danger">{r.error}</span>}
+                  </div>
+                </div>
+              </Card>
             ))}
-          </Table>
+          </div>
         </PageState>
       )}
 

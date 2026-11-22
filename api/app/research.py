@@ -16,6 +16,7 @@ import hashlib
 import json
 import pathlib
 import re
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -333,7 +334,10 @@ def store_ideas(game_id: str, ideas: list[dict], sources: list[dict]) -> int:
 
 # --- Runs -----------------------------------------------------------------
 
-def run_research(game_id: str, actor_id: str | None = None) -> dict:
+RESEARCH_STAGES = ("fetch", "write", "store")
+
+
+def _game_by_id(game_id: str) -> dict:
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -343,29 +347,51 @@ def run_research(game_id: str, actor_id: str | None = None) -> dict:
             row = cur.fetchone()
     if row is None:
         raise ValueError("game not found")
-    game = {
+    return {
         "id": str(row[0]), "slug": row[1], "name": row[2],
         "genre": row[3],
         "release_date": row[4].isoformat() if row[4] else None,
         "art_url": row[5],
     }
 
+
+def _start_run(game_id: str) -> str:
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO research_runs (game_id) VALUES (%s) RETURNING id",
+                "INSERT INTO research_runs (game_id, status, stage, detail) "
+                "VALUES (%s, 'running', 'queued', 'Waiting for a worker…') RETURNING id",
                 (game_id,),
             )
-            run_id = str(cur.fetchone()[0])
+            return str(cur.fetchone()[0])
 
+
+def _set_stage(run_id: str, stage: str, detail: str) -> None:
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE research_runs SET stage = %s, detail = %s WHERE id = %s",
+                (stage, detail, run_id),
+            )
+
+
+def execute_research(run_id: str, game_id: str, actor_id: str | None) -> dict:
+    """The pipeline, writing its stage as it moves. Raises on failure."""
+    game = _game_by_id(game_id)
     started = time.monotonic()
+    counts: dict[str, int] = {}
     try:
+        _set_stage(run_id, "fetch", "Fetching YouTube, Reddit and gaming news…")
         sources, fallback = gather_sources(game)
-        ideas, ai_fallback = generate_ideas(game, sources)
-        stored = store_ideas(game_id, ideas, sources) if ideas else 0
-        counts = {}
         for source in sources:
             counts[source["kind"]] = counts.get(source["kind"], 0) + 1
+        _set_stage(
+            run_id, "write",
+            f"{len(sources)} sources fetched — the AI is writing ideas…",
+        )
+        ideas, ai_fallback = generate_ideas(game, sources)
+        _set_stage(run_id, "store", f"Storing {len(ideas)} sourced idea(s)…")
+        stored = store_ideas(game_id, ideas, sources) if ideas else 0
         result = {
             "run_id": run_id,
             "game_id": game_id,
@@ -378,8 +404,74 @@ def run_research(game_id: str, actor_id: str | None = None) -> dict:
         audit(actor_id, "research.run", "game", game_id, result)
         return result
     except Exception as exc:
-        _finish_run(run_id, "failed", {}, 0, False, str(exc))
+        _finish_run(run_id, "failed", counts, 0, False, str(exc))
         raise
+
+
+def run_research(game_id: str, actor_id: str | None = None) -> dict:
+    """Synchronous run, used by the daily loop."""
+    _game_by_id(game_id)
+    return execute_research(_start_run(game_id), game_id, actor_id)
+
+
+def start_research(game_id: str, actor_id: str | None = None) -> dict:
+    """Start a run in the background and return at once, so the admin can watch
+    it move through fetch → write → store instead of waiting on a blocking call."""
+    _game_by_id(game_id)
+    run_id = _start_run(game_id)
+    threading.Thread(
+        target=execute_research,
+        args=(run_id, game_id, actor_id),
+        name=f"research-{run_id}",
+        daemon=True,
+    ).start()
+    return {"run_id": run_id, "status": "running", "stage": "queued"}
+
+
+def _serialize_run(r) -> dict:
+    return {
+        "id": str(r[0]),
+        "game_id": str(r[1]),
+        "game_name": r[2],
+        "status": r[3],
+        "stage": r[4],
+        "detail": r[5],
+        "source_counts": r[6],
+        "ideas_count": r[7],
+        "fallback": r[8],
+        "error": r[9],
+        "created_at": r[10].isoformat() if r[10] else None,
+        "finished_at": r[11].isoformat() if r[11] else None,
+    }
+
+
+def get_run(run_id: str) -> dict | None:
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT r.id, r.game_id, g.name, r.status, r.stage, r.detail, "
+                "r.source_counts, r.ideas_count, r.fallback, r.error, "
+                "r.created_at, r.finished_at "
+                "FROM research_runs r JOIN games g ON g.id = r.game_id WHERE r.id = %s",
+                (run_id,),
+            )
+            row = cur.fetchone()
+    return _serialize_run(row) if row else None
+
+
+def recent_runs(limit: int = 10) -> list[dict]:
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT r.id, r.game_id, g.name, r.status, r.stage, r.detail, "
+                "r.source_counts, r.ideas_count, r.fallback, r.error, "
+                "r.created_at, r.finished_at "
+                "FROM research_runs r JOIN games g ON g.id = r.game_id "
+                "ORDER BY r.created_at DESC LIMIT %s",
+                (limit,),
+            )
+            rows = cur.fetchall()
+    return [_serialize_run(r) for r in rows]
 
 
 def _finish_run(run_id: str, status: str, counts: dict, ideas: int, fallback: bool, error: str | None):

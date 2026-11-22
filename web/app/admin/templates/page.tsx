@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminTemplatesPage() {
   const user = await requireAdmin();
   return (
-    <AppPage user={user} eyebrow="Admin" title="Templates">
+    <AppPage user={user} eyebrow="Admin" title="Templates" header={false}>
       <AdminTemplates />
     </AppPage>
   );

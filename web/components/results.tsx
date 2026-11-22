@@ -11,12 +11,12 @@ import {
   Field,
   Input,
   PageState,
-  Stat,
   Table,
   Td,
   Tr,
   useToast,
 } from "@/components/ui";
+import { Metric, Section, StatusBadge, WorkHeader } from "./work";
 
 export function Results({ initial }: { initial: Results | null }) {
   const [data, setData] = useState<Results | null>(initial);
@@ -75,34 +75,87 @@ export function Results({ initial }: { initial: Results | null }) {
   }
 
   const totalViews = data?.clips.reduce((n, c) => n + c.views, 0) ?? 0;
+  const [sort, setSort] = useState<"views" | "avg">("views");
+  const clips = [...(data?.clips ?? [])].sort((a, b) =>
+    sort === "views"
+      ? b.views - a.views
+      : (b.avg_view_percentage ?? 0) - (a.avg_view_percentage ?? 0),
+  );
+  const best = clips[0];
+  const worst = clips.length ? clips[clips.length - 1] : undefined;
 
   return (
     <div className="grid gap-6">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <WorkHeader
+        eyebrow="Review"
+        title="Results"
+        status="idle"
+        actions={<Metric label="Total views" value={totalViews.toLocaleString()} />}
+      />
+
+      <div className="grid gap-4 lg:grid-cols-3">
         <Card>
-          <Stat label="Total views" value={totalViews.toLocaleString()} />
+          <div className="flex flex-col gap-3">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
+              Leading indicators
+            </span>
+            <div className="grid grid-cols-3 gap-3">
+              <Metric
+                label="Swipe-through"
+                value={
+                  data?.leading?.swipe_through_rate != null
+                    ? `${Math.round(data.leading.swipe_through_rate * 100)}%`
+                    : "—"
+                }
+              />
+              <Metric
+                label="Saves / 1k"
+                value={data?.leading?.saves_per_1000 != null ? String(data.leading.saves_per_1000) : "—"}
+              />
+              <Metric
+                label="Shares / 1k"
+                value={data?.leading?.shares_per_1000 != null ? String(data.leading.shares_per_1000) : "—"}
+              />
+            </div>
+            <p className="text-xs text-muted">
+              {data?.leading?.swiped.toLocaleString() ?? 0} swiped ·{" "}
+              {data?.leading?.saves.toLocaleString() ?? 0} saves ·{" "}
+              {data?.leading?.shares.toLocaleString() ?? 0} shares
+            </p>
+          </div>
         </Card>
         <Card>
-          <Stat
-            label="Swipe-through"
-            value={
-              data?.leading?.swipe_through_rate != null
-                ? `${Math.round(data.leading.swipe_through_rate * 100)}%`
-                : "—"
-            }
-            hint={data?.leading ? `${data.leading.swiped.toLocaleString()} swiped` : undefined}
-          />
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-success">Best clip</span>
+            {best ? (
+              <>
+                <span className="truncate text-sm font-medium">{best.title ?? best.clip_id}</span>
+                <span className="font-mono text-xs text-muted">
+                  {best.views.toLocaleString()} views
+                  {best.avg_view_percentage != null ? ` · ${best.avg_view_percentage}% avg` : ""}
+                </span>
+              </>
+            ) : (
+              <p className="text-sm text-muted">No metrics recorded yet.</p>
+            )}
+          </div>
         </Card>
         <Card>
-          <Stat
-            label="Saves / shares"
-            value={`${data?.leading?.saves?.toLocaleString() ?? 0} / ${data?.leading?.shares?.toLocaleString() ?? 0}`}
-            hint={
-              data?.leading?.saves_per_1000 != null
-                ? `${data.leading.saves_per_1000} saves per 1k views`
-                : undefined
-            }
-          />
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-danger">
+              Weakest retention
+            </span>
+            {worst && clips.length > 1 ? (
+              <>
+                <span className="truncate text-sm font-medium">{worst.title ?? worst.clip_id}</span>
+                <span className="font-mono text-xs text-muted">
+                  {worst.avg_view_percentage ?? "—"}% avg · {worst.views.toLocaleString()} views
+                </span>
+              </>
+            ) : (
+              <p className="text-sm text-muted">Not enough clips to compare yet.</p>
+            )}
+          </div>
         </Card>
       </div>
 
@@ -126,29 +179,47 @@ export function Results({ initial }: { initial: Results | null }) {
         emptyBody="Record views for a clip and the numbers show up here."
       >
         <div className="grid gap-6">
-          <Table
-            caption="Views and retention per clip"
-            head={["Clip", "Views", "Avg. view %", "Record"]}
+          <Section
+            title="Clips"
+            count={clips.length}
+            action={
+              <div className="flex gap-1 rounded-full bg-surface-2 p-1 ring-surface">
+                {(["views", "avg"] as const).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSort(key)}
+                    className={`rounded-full px-3 py-1 text-xs transition ${
+                      sort === key ? "bg-surface text-text shadow-ambient" : "text-muted hover:text-text"
+                    }`}
+                  >
+                    {key === "views" ? "By views" : "By retention"}
+                  </button>
+                ))}
+              </div>
+            }
           >
-            {data?.clips?.map((c) => (
-              <Tr key={c.clip_id}>
-                <Td>{c.title}</Td>
-                <Td>{c.views?.toLocaleString() ?? "—"}</Td>
-                <Td>{c.avg_view_percentage != null ? `${c.avg_view_percentage}%` : "—"}</Td>
-                <Td>
-                  <Button size="sm" variant="outline" onClick={() => setMetricFor({ clip_id: c.clip_id, title: c.title })}>
-                    Add metrics
-                  </Button>
-                </Td>
-              </Tr>
-            ))}
-          </Table>
+            <Table caption="Views and retention per clip" head={["Clip", "Views", "Avg. view %", "Record"]}>
+              {clips.map((c) => (
+                <Tr key={c.clip_id}>
+                  <Td>{c.title}</Td>
+                  <Td>{c.views?.toLocaleString() ?? "—"}</Td>
+                  <Td>{c.avg_view_percentage != null ? `${c.avg_view_percentage}%` : "—"}</Td>
+                  <Td>
+                    <Button size="sm" variant="outline" onClick={() => setMetricFor({ clip_id: c.clip_id, title: c.title })}>
+                      Add metrics
+                    </Button>
+                  </Td>
+                </Tr>
+              ))}
+            </Table>
+          </Section>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data?.by_type?.map((t) => (
               <Card key={t.mode}>
                 <div className="flex items-center justify-between">
                   <Badge tone="accent">{t.mode}</Badge>
-                  <span className="text-sm text-muted">
+                  <span className="font-mono text-xs text-muted">
                     {t.clips} clips · {t.views?.toLocaleString() ?? "—"} views
                     {t.avg_view_percentage != null ? ` · ${t.avg_view_percentage}%` : ""}
                   </span>

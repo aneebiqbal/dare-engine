@@ -16,7 +16,7 @@ async function ClipsData() {
 export default async function ClipsPage() {
   const user = await requireUser();
   return (
-    <AppPage user={user} eyebrow="Clips" title="Your Shorts">
+    <AppPage user={user} eyebrow="Clips" title="Your Shorts" header={false}>
       <Suspense fallback={<PageState loading />}>
         <ClipsData />
       </Suspense>

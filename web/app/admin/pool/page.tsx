@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminPoolPage() {
   const user = await requireAdmin();
   return (
-    <AppPage user={user} eyebrow="Admin" title="Mission pool">
+    <AppPage user={user} eyebrow="Admin" title="Mission pool" header={false}>
       <AdminPool />
     </AppPage>
   );

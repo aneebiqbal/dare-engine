@@ -22,7 +22,7 @@ async function SettingsData({ user }: { user: Me }) {
 export default async function SettingsPage() {
   const user = await requireUser();
   return (
-    <AppPage user={user} eyebrow="Settings" title="Account settings">
+    <AppPage user={user} eyebrow="Settings" title="Account settings" header={false}>
       <Suspense fallback={<PageState loading />}>
         <SettingsData user={user} />
       </Suspense>

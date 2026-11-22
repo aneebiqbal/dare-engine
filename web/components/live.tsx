@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api, type ObsStatus, type Stream } from "@/lib/api";
 import { NextStep } from "./next-step";
 import { Badge, Button, Card, Field, Input, PageState, Progress, StatusDot, useToast } from "@/components/ui";
+import { StatusBadge, WorkHeader } from "./work";
 
 function masked(key: string | null) {
   if (!key || key.length <= 6) return "••••••";
@@ -136,6 +137,16 @@ export function Live({ initial }: { initial: Stream | null }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <WorkHeader
+        eyebrow="Play"
+        title="Go live"
+        status={connected ? "running" : "idle"}
+        actions={
+          <span className="font-mono text-xs text-muted">
+            {obs?.connected ? `OBS ${obs.obs_version}` : "OBS not connected"}
+          </span>
+        }
+      />
       <PageState loading={busy && !stream} error={error} empty={false}>
         {stream && (
           <div className="grid gap-4 lg:grid-cols-2">

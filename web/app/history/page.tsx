@@ -16,7 +16,7 @@ async function HistoryData() {
 export default async function HistoryPage() {
   const user = await requireUser();
   return (
-    <AppPage user={user} eyebrow="History" title="Mission history">
+    <AppPage user={user} eyebrow="History" title="Mission history" header={false}>
       <Suspense fallback={<PageState loading />}>
         <HistoryData />
       </Suspense>

@@ -126,14 +126,15 @@ export function Badge({
   ...props
 }: {
   children: ReactNode;
-  tone?: "muted" | "accent" | "success" | "danger";
+  tone?: "muted" | "accent" | "success" | "danger" | "needs";
   className?: string;
 } & HTMLAttributes<HTMLSpanElement>) {
   const tones = {
     muted: "bg-surface-2 text-muted",
     accent: "bg-accent-soft text-accent",
-    success: "bg-success/10 text-success",
-    danger: "bg-danger/10 text-danger",
+    needs: "bg-needs-soft text-needs",
+    success: "bg-success-soft text-success",
+    danger: "bg-danger-soft text-danger",
   }[tone];
   return (
     <span

@@ -45,6 +45,7 @@ import type {
   IntegrationKey,
   KeyStatusResponse,
   KeyTestResponse,
+  AdminOverview,
   Today,
   TourProgress,
   User,
@@ -98,6 +99,7 @@ export type {
   IntegrationKey,
   KeyStatusResponse,
   KeyTestResponse,
+  AdminOverview,
   Today,
   TourProgress,
   User,
@@ -372,6 +374,11 @@ export const api = {
     "/admin/setup",
   ),
   adminTemplates: (params = "") => get<List<unknown>>(`/admin/templates${params}`),
+  adminOverview: () => get<AdminOverview>("/admin/overview"),
+  adminProjects: () => get<{ items: Project[] }>("/admin/projects"),
+  adminResearchRun: (run_id: string) => get<ResearchRun>(`/admin/research/${run_id}`),
+  poolBulk: (ids: string[], action: "approve" | "reject" | "assign", user_id?: string) =>
+    post<{ updated: number }>("/admin/pool/bulk", { ids, action, user_id }),
 
   // --- admin: local models -----------------------------------------------
   adminModels: () => get<ModelStatus>("/admin/models"),
@@ -421,14 +428,10 @@ export const api = {
   adminUpdateGame: (id: string, fields: Record<string, unknown>) =>
     patch<{ id: string; enabled: boolean }>(`/admin/games/${id}`, fields),
   adminRunResearch: (id: string) =>
-    post<{
-      run_id: string;
-      game_id: string;
-      sources: Record<string, number>;
-      ideas: number;
-      fallback: boolean;
-      latency_ms: number;
-    }>(`/admin/games/${id}/research`, {}),
+    post<{ run_id: string; status: string; stage: string }>(
+      `/admin/games/${id}/research`,
+      {},
+    ),
   cardImageUrl: (id: string) => `${browserBase()}/missions/${id}/card.svg`,
 
   // --- studio -----------------------------------------------------------

@@ -14,6 +14,7 @@ import {
   PageState,
   useToast,
 } from "@/components/ui";
+import { StatusBadge, WorkHeader } from "./work";
 
 export function Today({ initial }: { initial: TodayResponse | null }) {
   const [data, setData] = useState<TodayResponse | null>(initial);
@@ -95,6 +96,16 @@ export function Today({ initial }: { initial: TodayResponse | null }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <WorkHeader
+        eyebrow="Today"
+        title="Play today's mission"
+        status={accepted ? "done" : cards.length ? "needs" : "idle"}
+        actions={
+          <span className="font-mono text-xs text-muted">
+            {cards.length} dare{cards.length === 1 ? "" : "s"} available
+          </span>
+        }
+      />
       <PageState
         loading={loading}
         error={error}

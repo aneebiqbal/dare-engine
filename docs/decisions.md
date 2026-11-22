@@ -217,6 +217,11 @@ the two differ in either direction.
 | Rate limit per IP, stricter on `/auth` and `/admin` | Login already locks out; this caps a script that scrapes or hammers the API. | — |
 | Error reports in Postgres, read on the admin overview | No external service needed; survives a restart. | — |
 | `make backup` → `pg_dump` gzip | A managed database has PITR; a self-hosted one needs a dump. | — |
+| A project's stage is derived, never stored | It is computed from the real recording, jobs, clips and exports, so the dashboard cannot claim a stage the artifacts do not support. | — |
+| The analysis queue is one lane (advisory lock) | Two projects never analyse — and never load models — at the same time; the oldest queued project runs first. | — |
+| The setup wizard verifies the real endpoint before marking a step done | A step is not "done" because the user clicked; the SSD bridge, OBS WebSocket, model bridge and provider config are actually asked. | — |
+| Caption edits are a stored override, not a re-transcribe | The transcript is cached on the clip; editing words or timings re-renders from the cache, so an edit is fast and the source is untouched. | — |
+| Engine activity is logged to Postgres, not stdout | The admin overview can show what loaded, what unloaded and what was cleaned up, and it survives a restart. | — |
 
 ### Capture and clip projects studied
 

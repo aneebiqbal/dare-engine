@@ -16,7 +16,7 @@ async function TodayData() {
 export default async function TodayPage() {
   const user = await requireUser();
   return (
-    <AppPage user={user} eyebrow="Today" title="Play today's mission">
+    <AppPage user={user} eyebrow="Today" title="Play today's mission" header={false}>
       <Suspense fallback={<PageState loading />}>
         <TodayData />
       </Suspense>

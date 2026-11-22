@@ -14,6 +14,8 @@ import {
   type Project,
   type EngineEvent,
   type SystemLoad,
+  type AdminOverview,
+  type Game,
   type User,
 } from "@/lib/api";
 import {
@@ -35,6 +37,21 @@ import {
 } from "@/components/ui";
 import { Sources } from "./games";
 import { AdminKeys } from "./admin-keys";
+import {
+  ActivityFeed,
+  DataTable,
+  FilterBar,
+  LiveStrip,
+  Metric,
+  ProgressCard,
+  Rail,
+  Section,
+  StatusBadge,
+  WorkHeader,
+  WorkQueue,
+  type Column,
+  type WorkItem,
+} from "./work";
 
 function useList<T>(fetcher: (params?: string) => Promise<{ items: T[]; total: number }>, params = "") {
   const [items, setItems] = useState<T[]>([]);
@@ -61,252 +78,249 @@ function useList<T>(fetcher: (params?: string) => Promise<{ items: T[]; total: n
 }
 
 export function AdminOverview() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [invites, setInvites] = useState<Invite[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [pool, setPool] = useState<PoolEntry[]>([]);
-  const [usage, setUsage] = useState<AiUsage[]>([]);
-  const [errors, setErrors] = useState<ErrorReport[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [engineEvents, setEngineEvents] = useState<EngineEvent[]>([]);
-  const [storage, setStorage] = useState<{ driver: string; bytes: number } | null>(null);
-  const [setup, setSetup] = useState<{ name: string; ok: boolean; detail: string }[]>([]);
-  const [health, setHealth] = useState<SystemLoad | null>(null);
+  const [data, setData] = useState<AdminOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const toast = useToast();
 
-  useEffect(() => {
-    Promise.all([
-      api.adminUsers(),
-      api.adminInvites(),
-      api.adminJobs("?page_size=50"),
-      api.pool(),
-      api.adminAiUsage(),
-      api.adminStorage(),
-      api.projects(),
-    ])
-      .then(([u, i, j, p, a, s, pr]) => {
-        setUsers(u.items);
-        setInvites(i.items);
-        setJobs(j.items);
-        setPool(p.items);
-        setUsage(a.items);
-        setStorage(s);
-        setProjects(pr.items);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
-      .finally(() => setLoading(false));
+  const load = useCallback(async () => {
+    try {
+      setData(await api.adminOverview());
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load the overview");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // The doctor checks and the live system probe are slow (seconds); stream them
-  // in after the main dashboard so nothing waits on them.
   useEffect(() => {
-    Promise.all([api.adminSetup(), api.studioSystem().catch(() => null), api.adminErrors(), api.engineEvents(10)])
-      .then(([st, h, e, ev]) => {
-        setSetup(st.checks);
-        setHealth(h);
-        setErrors(e.items);
-        setEngineEvents(ev.items);
-      })
-      .catch(() => {});
-  }, []);
+    void load();
+    const timer = setInterval(() => void load(), 5000);
+    return () => clearInterval(timer);
+  }, [load]);
 
-  const failed = jobs.filter((j) => j.state === "failed").length;
-  const running = jobs.filter((j) => j.state === "running" || j.state === "queued").length;
-  const fallback = usage.filter((u) => u.fallback).length;
-  const tokens = usage.reduce((n, u) => n + u.prompt_tokens + u.completion_tokens, 0);
-  const avgLatency = usage.length
-    ? Math.round(usage.reduce((n, u) => n + u.latency_ms, 0) / usage.length)
-    : null;
-  const activeJobs = jobs.filter(
-    (j) => j.state === "failed" || j.state === "running" || j.state === "queued",
+  async function retry(id: string) {
+    try {
+      await api.retryJob(id);
+      toast("Job requeued", "success");
+      await load();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not retry", "danger");
+    }
+  }
+
+  const needs: WorkItem[] = [];
+  if (data) {
+    for (const job of data.jobs.active.filter((j) => j.state === "failed").slice(0, 4)) {
+      needs.push({
+        id: job.id,
+        title: job.kind,
+        subtitle: job.error ?? "Failed",
+        status: "failed",
+        meta: job.stage ?? undefined,
+        href: "/admin/jobs",
+        action: (
+          <Button size="sm" variant="outline" onClick={() => void retry(job.id)}>
+            Retry
+          </Button>
+        ),
+      });
+    }
+    for (const key of data.keys.integrations.filter((k) => k.configured && k.status !== "connected")) {
+      needs.push({
+        id: key.name,
+        title: key.label,
+        subtitle: key.status_detail ?? key.status,
+        status: "needs",
+        href: "/admin/setup",
+      });
+    }
+    if (data.pool.candidate > 0) {
+      needs.push({
+        id: "pool",
+        title: `${data.pool.candidate} idea${data.pool.candidate === 1 ? "" : "s"} awaiting review`,
+        subtitle: "Approve, reject or assign",
+        status: "needs",
+        href: "/admin/pool",
+      });
+    }
+    if (data.users.locked > 0) {
+      needs.push({
+        id: "locked",
+        title: `${data.users.locked} locked account${data.users.locked === 1 ? "" : "s"}`,
+        subtitle: "Someone cannot sign in",
+        status: "needs",
+        href: "/admin/users",
+      });
+    }
+  }
+
+  const jobItems: WorkItem[] = (data?.jobs.active ?? []).map((j) => ({
+    id: j.id,
+    title: j.kind,
+    subtitle: j.error ?? undefined,
+    status: j.state === "failed" ? "failed" : "running",
+    meta: j.stage ?? j.state,
+    href: "/admin/jobs",
+  }));
+
+  const live = Boolean(
+    data && (data.jobs.running > 0 || data.research.active.length > 0 || data.projects.some((p) => p.stage === "analyzing")),
   );
 
   return (
     <div className="grid gap-6" data-tour="admin-overview">
+      <WorkHeader
+        eyebrow="Admin"
+        title="Overview"
+        status={live ? "running" : "idle"}
+        actions={
+          <Button variant="outline" onClick={() => void load()} disabled={loading}>
+            {loading ? "Refreshing…" : "Refresh"}
+          </Button>
+        }
+      />
       <PageState loading={loading} error={error} empty={false}>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Link href="/admin/users"><Card><Stat label="Users" value={users.length} /></Card></Link>
-          <Link href="/admin/invites">
-            <Card>
-              <Stat label="Invites" value={invites.length} hint={`${invites.filter((i) => !i.used && !i.revoked).length} open`} />
-            </Card>
-          </Link>
-          <Link href="/admin/jobs"><Card><Stat label="Jobs" value={running} hint={`${failed} failed`} /></Card></Link>
-          <Link href="/admin/projects">
-            <Card>
-              <Stat
-                label="Projects"
-                value={projects.length}
-                hint={
-                  projects.length
-                    ? `${projects.filter((p) => p.stage === "exported").length} exported`
-                    : "none yet"
-                }
-              />
-            </Card>
-          </Link>
-          <Link href="/admin/pool"><Card><Stat label="Dares awaiting review" value={pool.length} /></Card></Link>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Link href="/admin/ai">
-            <Card>
-              <Stat label="AI calls" value={usage.length} hint={`${fallback} fallbacks`} />
-            </Card>
-          </Link>
-          <Card>
-            <Stat
-              label="Storage"
-              value={storage ? `${(storage.bytes / 1_000_000).toFixed(1)} MB` : "—"}
-              hint={storage?.driver}
-            />
-          </Card>
-          <Link href="/admin/setup">
-            <Card>
-              <Stat
-                label="Setup"
-                value={`${setup.filter((c) => c.ok).length}/${setup.length}`}
-                hint="checks passing"
-              />
-            </Card>
-          </Link>
-          <Card>
-            <Stat
-              label="System"
-              value={health && Number.isFinite(health.cpu_percent) ? `${Math.round(health.cpu_percent)}%` : "—"}
-              hint={
-                health && Number.isFinite(health.memory_percent)
-                  ? `CPU · ${Math.round(health.memory_percent)}% memory`
-                  : "unavailable"
-              }
-            />
-          </Card>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card><Stat label="Tokens" value={tokens.toLocaleString()} hint="prompt + completion" /></Card>
-          <Card>
-            <Stat label="Avg. latency" value={avgLatency != null ? `${avgLatency} ms` : "—"} hint="per AI call" />
-          </Card>
-          <Card>
-            <Stat
-              label="GPU"
-              value={
-                health?.gpu && Number.isFinite(health.gpu.utilization_percent)
-                  ? `${Math.round(health.gpu.utilization_percent)}%`
-                  : "—"
-              }
-              hint={
-                health?.gpu && Number.isFinite(health.gpu.memory_used_mb)
-                  ? `${health.gpu.memory_used_mb}/${health.gpu.memory_total_mb} MB`
-                  : "not detected"
-              }
-            />
-          </Card>
-          <Card>
-            <Stat label="Failed jobs" value={failed} hint={failed ? "needs attention" : "clear"} />
-          </Card>
-        </div>
-      </PageState>
+        {data && (
+          <>
+            <LiveStrip overview={data} />
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+              <div className="flex min-w-0 flex-col gap-6">
+                <Section title="Needs you" count={needs.length} live={needs.length > 0}>
+                  <Card>
+                    <WorkQueue
+                      items={needs}
+                      empty={<p className="px-2 py-3 text-sm text-muted">Nothing needs you right now.</p>}
+                    />
+                  </Card>
+                </Section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card>
-          <div className="flex flex-col gap-3">
-            <h2 className="text-base font-medium">Job queue</h2>
-            {activeJobs.length === 0 ? (
-              <p className="text-sm text-muted">No active or failed jobs.</p>
-            ) : (
-              activeJobs.slice(0, 6).map((j) => (
-                <div key={j.id} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="truncate">{j.kind}</span>
-                  <span className="text-muted">{j.stage ?? "—"}</span>
-                  <Badge tone={j.state === "failed" ? "danger" : "muted"}>{j.state}</Badge>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-        <Card>
-          <div className="flex flex-col gap-3">
-            <h2 className="text-base font-medium">Recent AI calls</h2>
-            {usage.slice(0, 5).length === 0 ? (
-              <p className="text-sm text-muted">No AI calls yet.</p>
-            ) : (
-              usage.slice(0, 5).map((u) => (
-                <div key={u.id} className="flex items-center justify-between text-sm">
-                  <span>{u.page} · {u.kind}</span>
-                  <span className="text-muted">
-                    {u.prompt_tokens + u.completion_tokens} tokens · {u.latency_ms} ms
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-        <Card>
-          <div className="flex flex-col gap-3">
-            <h2 className="text-base font-medium">Recent client errors</h2>
-            {errors.length === 0 ? (
-              <p className="text-sm text-muted">No browser errors reported.</p>
-            ) : (
-              errors.slice(0, 5).map((e) => (
-                <div key={e.id} className="flex flex-col gap-1 text-sm">
-                  <span className="truncate">{e.message}</span>
-                  <span className="text-xs text-muted">
-                    {e.path ?? "—"} · {new Date(e.created_at).toLocaleString()}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-      </div>
+                <Section
+                  title="Projects"
+                  count={data.projects.length}
+                  action={
+                    <Link href="/admin/projects" className="text-xs text-accent hover:underline">
+                      All projects
+                    </Link>
+                  }
+                >
+                  {data.projects.length === 0 ? (
+                    <Card>
+                      <p className="px-2 py-3 text-sm text-muted">
+                        No projects yet. Import a recording to start one.
+                      </p>
+                    </Card>
+                  ) : (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {data.projects.slice(0, 4).map((p) => (
+                        <ProgressCard
+                          key={p.id}
+                          title={p.name}
+                          status={p.stage === "exported" ? "done" : p.queued || p.stage === "analyzing" ? "running" : "idle"}
+                          progress={p.progress}
+                          stage={p.stage.replace(/_/g, " ")}
+                          meta={`${p.candidates} candidates · ${p.clips.ready}/${p.clips.total} clips`}
+                          action={
+                            <Link
+                              href="/admin/projects"
+                              className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
+                            >
+                              Open
+                            </Link>
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+                </Section>
 
-      <Card>
-        <div className="flex flex-col gap-3">
-          <h2 className="text-base font-medium">Engine activity</h2>
-          {engineEvents.length === 0 ? (
-            <p className="text-sm text-muted">No engine jobs yet.</p>
-          ) : (
-            engineEvents.slice(0, 6).map((e) => (
-              <div key={e.id} className="flex items-center justify-between gap-3 text-sm">
-                <span className="font-mono text-xs">{e.kind}</span>
-                <span className="truncate text-muted" title={e.detail ?? ""}>{e.detail ?? "—"}</span>
-                <span className="text-xs text-muted">
-                  {e.created_at ? new Date(e.created_at).toLocaleTimeString() : ""}
-                </span>
+                <Section
+                  title="Job queue"
+                  count={jobItems.length}
+                  action={
+                    <Link href="/admin/jobs" className="text-xs text-accent hover:underline">
+                      All jobs
+                    </Link>
+                  }
+                >
+                  <Card>
+                    <WorkQueue
+                      items={jobItems}
+                      empty={<p className="px-2 py-3 text-sm text-muted">No queued, running or failed jobs.</p>}
+                    />
+                  </Card>
+                </Section>
               </div>
-            ))
-          )}
-        </div>
-      </Card>
 
-      <Card>
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-medium">Projects</h2>
-            <Link href="/admin/projects" className="text-xs text-accent hover:underline">
-              View all
-            </Link>
-          </div>
-          {projects.length === 0 ? (
-            <p className="text-sm text-muted">
-              No projects yet. Import a recording to start one.
-            </p>
-          ) : (
-            projects.slice(0, 5).map((p) => (
-              <Link
-                key={p.id}
-                href="/admin/projects"
-                className="flex items-center justify-between gap-3 text-sm"
-              >
-                <span className="truncate">{p.name}</span>
-                <span className="text-muted">{p.stage.replace(/_/g, " ")}</span>
-                <span className="w-16 text-right text-muted">{p.progress}%</span>
-              </Link>
-            ))
-          )}
-        </div>
-      </Card>
+              <Rail>
+                <Card>
+                  <div className="flex flex-col gap-3">
+                    <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">
+                      Engine activity
+                    </h2>
+                    <ActivityFeed items={data.activity} />
+                  </div>
+                </Card>
+
+                <Card>
+                  <div className="flex flex-col gap-3">
+                    <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">
+                      Results
+                    </h2>
+                    {data.results.best || data.results.worst ? (
+                      <div className="flex flex-col gap-3">
+                        {data.results.best && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] uppercase tracking-[0.18em] text-success">Best</span>
+                            <span className="truncate text-sm font-medium">{data.results.best.title ?? data.results.best.clip_id}</span>
+                            <span className="font-mono text-xs text-muted">
+                              {data.results.best.views.toLocaleString()} views
+                            </span>
+                          </div>
+                        )}
+                        {data.results.worst && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] uppercase tracking-[0.18em] text-danger">Worst retention</span>
+                            <span className="truncate text-sm font-medium">{data.results.worst.title ?? data.results.worst.clip_id}</span>
+                            <span className="font-mono text-xs text-muted">
+                              {data.results.worst.avg_view_percentage ?? "—"}% avg view
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted">No metrics recorded yet.</p>
+                    )}
+                    <Link href="/results" className="text-xs text-accent hover:underline">
+                      Open results
+                    </Link>
+                  </div>
+                </Card>
+
+                <Card>
+                  <div className="flex flex-col gap-3">
+                    <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">Keys</h2>
+                    <div className="flex flex-col gap-2">
+                      {data.keys.integrations.map((k) => (
+                        <div key={k.name} className="flex items-center justify-between gap-2 text-sm">
+                          <span className="truncate">{k.label}</span>
+                          <StatusBadge
+                            status={k.status === "connected" ? "done" : k.status === "invalid" ? "failed" : k.status === "unreachable" ? "needs" : "idle"}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <Link href="/admin/setup" className="text-xs text-accent hover:underline">
+                      Manage keys
+                    </Link>
+                  </div>
+                </Card>
+              </Rail>
+            </div>
+          </>
+        )}
+      </PageState>
     </div>
   );
 }
@@ -337,6 +351,18 @@ export function AdminUsers() {
 
   return (
     <div className="flex flex-col gap-4">
+      <WorkHeader
+        eyebrow="Manage"
+        title="Users"
+        status={items.some((u) => u.locked) ? "needs" : "idle"}
+        actions={
+          <div className="flex items-center gap-4">
+            <Metric label="Total" value={items.length} />
+            <Metric label="Admins" value={items.filter((u) => u.role === "admin").length} />
+            <Metric label="Locked" value={items.filter((u) => u.locked).length} />
+          </div>
+        }
+      />
       {resetUrl && (
         <Notice>
           One-time reset link (give it to the creator): <code className="break-all">{resetUrl}</code>
@@ -412,6 +438,17 @@ export function AdminInvites() {
 
   return (
     <div className="flex flex-col gap-4">
+      <WorkHeader
+        eyebrow="Manage"
+        title="Invites"
+        status={items.some((i) => !i.used && !i.revoked) ? "needs" : "idle"}
+        actions={
+          <Metric
+            label="Open invites"
+            value={items.filter((i) => !i.used && !i.revoked).length}
+          />
+        }
+      />
       <Card>
         <div className="flex flex-col gap-3">
           <Field label="Invite" hint="Optional email; leave empty for a general code.">
@@ -469,14 +506,62 @@ type PoolReview = {
 };
 
 export function AdminPool() {
-  const { items, loading, error, reload } = useList(api.pool);
+  const [items, setItems] = useState<PoolEntry[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [review, setReview] = useState<PoolReview | null>(null);
   const [users, setUsers] = useState<User[]>([]);
-  const [assignFor, setAssignFor] = useState<PoolEntry | null>(null);
+  const [games, setGames] = useState<Game[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [assignee, setAssignee] = useState("");
+  const [filters, setFilters] = useState({
+    q: "",
+    game_id: "",
+    source: "",
+    min_score: "",
+    sort: "created_at",
+    order: "desc",
+  });
   const toast = useToast();
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        status: "candidate",
+        page_size: "100",
+        sort: filters.sort,
+        order: filters.order,
+      });
+      if (filters.game_id) params.set("game_id", filters.game_id);
+      if (filters.source) params.set("source", filters.source);
+      if (filters.q) params.set("q", filters.q);
+      if (filters.min_score) params.set("min_score", filters.min_score);
+      const res = await api.pool(`?${params.toString()}`);
+      setItems(res.items);
+      setTotal(res.total);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load the pool");
+    } finally {
+      setLoading(false);
+    }
+  }, [filters]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    api.adminGames("?page_size=100").then((r) => setGames(r.items)).catch(() => {});
+    api.adminUsers("?page_size=100")
+      .then((r) => setUsers(r.items.filter((u) => u.role !== "admin")))
+      .catch(() => {});
+  }, []);
 
   async function write(questions?: string[]) {
     const list = questions ?? text.split("\n").map((q) => q.trim()).filter(Boolean);
@@ -485,7 +570,7 @@ export function AdminPool() {
     try {
       await api.writeCards(list);
       setText("");
-      await reload();
+      await load();
       toast("Cards written", "success");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Failed", "danger");
@@ -507,65 +592,142 @@ export function AdminPool() {
     }
   }
 
-  async function approve(id: string) {
+  async function actOne(id: string, action: "approve" | "reject") {
+    setBusy(true);
     try {
-      await api.approve(id);
-      await reload();
-      toast("Dare approved", "success");
+      const res = await api.poolBulk([id], action);
+      toast(`${res.updated} idea(s) ${action === "approve" ? "approved" : "rejected"}`, "success");
+      await load();
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Could not approve", "danger");
+      toast(e instanceof Error ? e.message : "Action failed", "danger");
+    } finally {
+      setBusy(false);
     }
   }
 
-  async function reject(id: string) {
+  async function bulk(action: "approve" | "reject" | "assign", user_id?: string) {
+    if (!selected.size) return;
+    setBusy(true);
     try {
-      await api.reject(id);
-      await reload();
-      toast("Dare rejected", "success");
+      const res = await api.poolBulk(Array.from(selected), action, user_id);
+      toast(
+        `${res.updated} idea(s) ${action === "approve" ? "approved" : action === "reject" ? "rejected" : "assigned"}`,
+        "success",
+      );
+      setSelected(new Set());
+      setAssignee("");
+      await load();
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Could not reject", "danger");
+      toast(e instanceof Error ? e.message : "Bulk action failed", "danger");
+    } finally {
+      setBusy(false);
     }
   }
 
-  async function openAssign(entry: PoolEntry) {
-    setAssignFor(entry);
-    setAssignee("");
-    try {
-      const res = await api.adminUsers("?page_size=100");
-      setUsers(res.items.filter((u) => u.role !== "admin"));
-    } catch {
-      setUsers([]);
-    }
+  function toggleSelected(key: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   }
 
-  async function assign() {
-    if (!assignFor || !assignee) return;
-    try {
-      await api.assign(assignFor.id, assignee);
-      toast("Dare assigned", "success");
-      setAssignFor(null);
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "Could not assign", "danger");
-    }
+  function toggleExpanded(key: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   }
+
+  const columns: Column<PoolEntry>[] = [
+    {
+      key: "question",
+      label: "Idea",
+      sortable: false,
+      render: (e) => (
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="font-medium leading-snug">{e.card?.question ?? "Untitled"}</span>
+          {e.card?.hook_text && <span className="truncate text-xs text-muted">{e.card.hook_text}</span>}
+        </div>
+      ),
+    },
+    {
+      key: "mode",
+      label: "Mode",
+      sortable: false,
+      render: (e) => (
+        <span className="font-mono text-xs text-muted">
+          {e.card?.mode ?? "—"}
+          {e.card?.est_minutes != null ? ` · ~${e.card.est_minutes}m` : ""}
+        </span>
+      ),
+    },
+    {
+      key: "score",
+      label: "Virality",
+      sortable: true,
+      render: (e) => (
+        <span className="font-mono text-xs font-semibold">{e.score ? e.score.toFixed(2) : "—"}</span>
+      ),
+    },
+    {
+      key: "sources",
+      label: "Sources",
+      sortable: false,
+      render: (e) => (
+        <div className="flex flex-wrap gap-1">
+          {(e.sources ?? []).slice(0, 3).map((s) => (
+            <Badge key={s.url} tone="muted">{s.kind}</Badge>
+          ))}
+          {(e.sources ?? []).length === 0 && <span className="text-xs text-danger">none</span>}
+        </div>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      sortable: false,
+      render: (e) => (
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => void actOne(e.id, "approve")} disabled={busy}>
+            Approve
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => void actOne(e.id, "reject")} disabled={busy}>
+            Reject
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="grid gap-6">
+      <WorkHeader
+        eyebrow="Plan"
+        title="Mission pool"
+        status={items.length ? "needs" : "idle"}
+        actions={
+          <Button data-testid="write-cards" onClick={() => void write()} disabled={busy || !text.trim()}>
+            Write cards
+          </Button>
+        }
+      />
+
       <Card>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
           <Textarea
             data-testid="questions"
             aria-label="Audience questions, one per line"
-            rows={5}
+            rows={3}
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={"One question per line.\nCan you outrun five stars on a bicycle?"}
           />
           <div className="flex flex-wrap gap-2">
-            <Button data-testid="write-cards" onClick={() => void write()} disabled={busy}>
-              Write cards
-            </Button>
-            <Button variant="outline" onClick={reviewQuestions} disabled={busy}>
+            <Button variant="outline" onClick={reviewQuestions} disabled={busy || !text.trim()}>
               Review with AI
             </Button>
           </div>
@@ -611,65 +773,138 @@ export function AdminPool() {
         </div>
       )}
 
+      <FilterBar
+        aside={
+          selected.size > 0 ? (
+            <>
+              <span className="font-mono text-xs text-muted">{selected.size} selected</span>
+              <Button size="sm" variant="outline" onClick={() => void bulk("approve")} disabled={busy}>
+                Approve
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => void bulk("reject")} disabled={busy}>
+                Reject
+              </Button>
+              <Select
+                aria-label="Assign selected to"
+                value={assignee}
+                onChange={(e) => setAssignee(e.target.value)}
+                className="w-40"
+              >
+                <option value="">Assign to…</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.display_name ?? u.email ?? u.id}
+                  </option>
+                ))}
+              </Select>
+              <Button size="sm" onClick={() => void bulk("assign", assignee)} disabled={busy || !assignee}>
+                Assign
+              </Button>
+            </>
+          ) : undefined
+        }
+      >
+        <Input
+          aria-label="Search ideas"
+          value={filters.q}
+          onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
+          placeholder="Search question or hook…"
+          className="sm:w-64"
+        />
+        <Select
+          aria-label="Game"
+          value={filters.game_id}
+          onChange={(e) => setFilters((f) => ({ ...f, game_id: e.target.value }))}
+          className="sm:w-48"
+        >
+          <option value="">All games</option>
+          {games.map((g) => (
+            <option key={g.id} value={g.id}>{g.name}</option>
+          ))}
+        </Select>
+        <Select
+          aria-label="Source kind"
+          value={filters.source}
+          onChange={(e) => setFilters((f) => ({ ...f, source: e.target.value }))}
+          className="sm:w-40"
+        >
+          <option value="">Any source</option>
+          <option value="youtube">YouTube</option>
+          <option value="reddit">Reddit</option>
+          <option value="news">News</option>
+        </Select>
+        <Input
+          aria-label="Minimum virality"
+          type="number"
+          min={0}
+          value={filters.min_score}
+          onChange={(e) => setFilters((f) => ({ ...f, min_score: e.target.value }))}
+          placeholder="Min score"
+          className="sm:w-28"
+        />
+        <Select
+          aria-label="Sort by"
+          value={filters.sort}
+          onChange={(e) => setFilters((f) => ({ ...f, sort: e.target.value }))}
+          className="sm:w-40"
+        >
+          <option value="created_at">Newest</option>
+          <option value="score">Virality</option>
+        </Select>
+      </FilterBar>
+
       <PageState
         loading={loading}
         error={error}
-        empty={items.length === 0}
+        empty={!loading && items.length === 0}
         emptyTitle="No dares awaiting review"
         emptyBody="Write cards from audience questions to fill the pool."
       >
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {items.map((entry) => (
-            <Card key={entry.id}>
-              <div className="flex h-full flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <Badge tone="accent">{entry.id}</Badge>
-                  <Badge tone={entry.state === "candidate" ? "muted" : "success"}>{entry.state}</Badge>
-                </div>
-                <h3 className="text-base font-medium leading-snug">{entry.card?.question ?? "Untitled"}</h3>
-                <p className="text-sm text-muted">{entry.card?.hook_text}</p>
-                <Sources sources={entry.sources} />
-                <div className="mt-auto flex gap-2 pt-2">
-                  <Button size="sm" data-testid="approve-button" onClick={() => void approve(entry.id)}>
-                    Approve
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => void openAssign(entry)}>
-                    Assign
-                  </Button>
-                  <Button size="sm" variant="danger" onClick={() => void reject(entry.id)}>
-                    Reject
-                  </Button>
-                </div>
+        <DataTable
+          columns={columns}
+          rows={items}
+          rowKey={(e) => e.id}
+          selected={selected}
+          onSelect={toggleSelected}
+          onSelectAll={() =>
+            setSelected((prev) => (prev.size === items.length ? new Set() : new Set(items.map((e) => e.id))))
+          }
+          sort={{ key: filters.sort, dir: filters.order as "asc" | "desc" }}
+          onSort={(key) =>
+            setFilters((f) => ({
+              ...f,
+              sort: key,
+              order: f.sort === key && f.order === "desc" ? "asc" : "desc",
+            }))
+          }
+          expanded={expanded}
+          onToggleExpand={toggleExpanded}
+          detail={(e) => (
+            <div className="grid gap-4 sm:grid-cols-[1fr_14rem]">
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-medium">{e.card?.question}</p>
+                {e.card?.hook_text && <p className="text-sm text-muted">Hook: {e.card.hook_text}</p>}
+                {e.card?.setup && <p className="text-sm text-muted">Setup: {e.card.setup}</p>}
+                {e.card?.win_condition && (
+                  <p className="text-sm text-muted">Win condition: {e.card.win_condition}</p>
+                )}
+                {e.card?.title_options?.length ? (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Title options</span>
+                    {e.card.title_options.map((t, i) => (
+                      <span key={i} className="text-sm">{t}</span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-            </Card>
-          ))}
-        </div>
+              <Sources sources={e.sources} />
+            </div>
+          )}
+        />
+        <p className="text-xs text-muted">
+          {total} candidate(s). Select rows to approve, reject or assign in bulk.
+        </p>
       </PageState>
-
-      <Dialog
-        open={Boolean(assignFor)}
-        onClose={() => setAssignFor(null)}
-        title={`Assign ${assignFor?.id ?? ""}`}
-      >
-        <div className="flex flex-col gap-4">
-          <Select aria-label="Gamer" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
-            <option value="">Choose a gamer…</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.display_name ?? u.email ?? u.id}
-              </option>
-            ))}
-          </Select>
-          <div className="flex justify-end gap-3">
-            <Button variant="ghost" onClick={() => setAssignFor(null)}>
-              Cancel
-            </Button>
-            <Button onClick={assign} disabled={!assignee || busy}>
-              Assign dare
-            </Button>
-          </div>
-        </div>
-      </Dialog>
     </div>
   );
 }
@@ -677,16 +912,19 @@ export function AdminPool() {
 export function AdminTemplates() {
   const { items, loading, error } = useList(api.adminTemplates);
   return (
-    <PageState loading={loading} error={error} empty={items.length === 0}>
-      <Table head={["Template", "Weight"]}>
-        {(items as { id: string; weight: number }[]).map((t) => (
-          <Tr key={t.id}>
-            <Td>{t.id}</Td>
-            <Td>{t.weight}</Td>
-          </Tr>
-        ))}
-      </Table>
-    </PageState>
+    <div className="flex flex-col gap-4">
+      <WorkHeader eyebrow="Manage" title="Templates" status="idle" actions={<Metric label="Templates" value={items.length} />} />
+      <PageState loading={loading} error={error} empty={items.length === 0}>
+        <Table head={["Template", "Weight"]}>
+          {(items as { id: string; weight: number }[]).map((t) => (
+            <Tr key={t.id}>
+              <Td>{t.id}</Td>
+              <Td>{t.weight}</Td>
+            </Tr>
+          ))}
+        </Table>
+      </PageState>
+    </div>
   );
 }
 
@@ -703,28 +941,44 @@ export function AdminJobs() {
     }
   }
   return (
-    <PageState loading={loading} error={error} empty={items.length === 0}>
-      <Table head={["Kind", "State", "Stage", "Attempts", "Retry", "Error", "Updated", "Actions"]}>
-        {items.map((j) => (
-          <Tr key={j.id}>
-            <Td>{j.kind}</Td>
-            <Td><Badge tone={j.state === "failed" ? "danger" : j.state === "done" ? "success" : "muted"}>{j.state}</Badge></Td>
-            <Td>{j.stage ?? "—"}</Td>
-            <Td>{j.attempts}</Td>
-            <Td>{j.retry_count}</Td>
-            <Td className="max-w-[20rem] truncate" title={j.error ?? ""}>{j.error ?? "—"}</Td>
-            <Td>{j.updated_at.slice(0, 19).replace("T", " ")}</Td>
-            <Td>
-              {j.state === "failed" && (
-                <Button size="sm" variant="outline" onClick={() => void retry(j.id)}>
-                  Retry
-                </Button>
-              )}
-            </Td>
-          </Tr>
-        ))}
-      </Table>
-    </PageState>
+    <div className="flex flex-col gap-4">
+      <WorkHeader
+        eyebrow="Manage"
+        title="Job queue"
+        status={items.some((j) => j.state === "queued" || j.state === "running") ? "running" : items.some((j) => j.state === "failed") ? "failed" : "idle"}
+        actions={
+          <div className="flex items-center gap-4">
+            <Metric label="Failed" value={items.filter((j) => j.state === "failed").length} />
+            <Metric
+              label="Active"
+              value={items.filter((j) => j.state === "queued" || j.state === "running").length}
+            />
+          </div>
+        }
+      />
+      <PageState loading={loading} error={error} empty={items.length === 0}>
+        <Table head={["Kind", "State", "Stage", "Attempts", "Retry", "Error", "Updated", "Actions"]}>
+          {items.map((j) => (
+            <Tr key={j.id}>
+              <Td>{j.kind}</Td>
+              <Td><StatusBadge status={j.state === "failed" ? "failed" : j.state === "done" ? "done" : j.state === "queued" || j.state === "running" ? "running" : "idle"} label={j.state} /></Td>
+              <Td>{j.stage ?? "—"}</Td>
+              <Td>{j.attempts}</Td>
+              <Td>{j.retry_count}</Td>
+              <Td className="max-w-[20rem] truncate" title={j.error ?? ""}>{j.error ?? "—"}</Td>
+              <Td>{j.updated_at.slice(0, 19).replace("T", " ")}</Td>
+              <Td>
+                {j.state === "failed" && (
+                  <Button size="sm" variant="outline" onClick={() => void retry(j.id)}>
+                    Retry
+                  </Button>
+                )}
+              </Td>
+            </Tr>
+          ))}
+        </Table>
+      </PageState>
+    </div>
   );
 }
 
@@ -741,20 +995,51 @@ export function AdminAi() {
     : null;
   return (
     <div className="flex flex-col gap-6">
+      <WorkHeader
+        eyebrow="Manage"
+        title="AI usage"
+        status={config?.configured ? "done" : "needs"}
+        actions={
+          <div className="flex items-center gap-4">
+            <Metric label="Calls" value={items.length} />
+            <Metric label="Tokens" value={tokens.toLocaleString()} />
+            <Metric label="Avg. latency" value={avg != null ? `${avg} ms` : "—"} />
+            <Metric label="Fallbacks" value={items.filter((u) => u.fallback).length} />
+          </div>
+        }
+      />
       <PageState loading={false} error={configError} empty={false}>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
-            <Stat label="Provider" value={config?.provider ?? "—"} hint={config ? (config.configured ? "configured" : "not configured") : undefined} />
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Provider</span>
+              <span className="font-mono text-sm font-semibold">{config?.provider ?? "—"}</span>
+              <span className="text-xs text-muted">{config?.base_url || "no base URL"}</span>
+            </div>
           </Card>
-          <Card><Stat label="Model" value={config?.model || "—"} /></Card>
-          <Card><Stat label="Key present" value={config ? (config.key_present ? "yes" : "no") : "—"} /></Card>
-          <Card><Stat label="Base URL" value={config?.base_url ?? "—"} /></Card>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card><Stat label="Calls" value={items.length} /></Card>
-          <Card><Stat label="Tokens" value={tokens.toLocaleString()} hint="prompt + completion" /></Card>
-          <Card><Stat label="Avg. latency" value={avg != null ? `${avg} ms` : "—"} /></Card>
-          <Card><Stat label="Fallbacks" value={items.filter((u) => u.fallback).length} /></Card>
+          <Card>
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Model</span>
+              <span className="font-mono text-sm font-semibold">{config?.model || "—"}</span>
+              <span className="text-xs text-muted">{config?.key_present ? "key present" : "no key"}</span>
+            </div>
+          </Card>
+          <Card>
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Configured</span>
+              <StatusBadge status={config?.configured ? "done" : "needs"} label={config?.configured ? "yes" : "no"} />
+              <span className="text-xs text-muted">provider · base URL · model · key</span>
+            </div>
+          </Card>
+          <Card>
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Live vs fallback</span>
+              <span className="font-mono text-sm font-semibold">
+                {items.filter((u) => !u.fallback).length} / {items.length}
+              </span>
+              <span className="text-xs text-muted">live calls</span>
+            </div>
+          </Card>
         </div>
       </PageState>
       <PageState
@@ -786,8 +1071,10 @@ export function AdminAi() {
 export function AdminAudit() {
   const { items, loading, error } = useList(api.adminAudit);
   return (
-    <PageState loading={loading} error={error} empty={items.length === 0}>
-      <Table head={["When", "Actor", "Action", "Target", "Detail"]}>
+    <div className="flex flex-col gap-4">
+      <WorkHeader eyebrow="Manage" title="Audit log" status="idle" actions={<Metric label="Entries" value={items.length} />} />
+      <PageState loading={loading} error={error} empty={items.length === 0}>
+        <Table head={["When", "Actor", "Action", "Target", "Detail"]}>
         {items.map((a) => (
           <Tr key={a.id}>
             <Td>{a.created_at.slice(0, 19).replace("T", " ")}</Td>
@@ -801,8 +1088,9 @@ export function AdminAudit() {
             </Td>
           </Tr>
         ))}
-      </Table>
-    </PageState>
+        </Table>
+      </PageState>
+    </div>
   );
 }
 
@@ -824,8 +1112,46 @@ export function AdminSetup() {
       .finally(() => setLoading(false));
   }, []);
 
+  const failing = checks?.filter((c) => !c.ok) ?? [];
+  const passingCount = (checks?.length ?? 0) - failing.length;
+  const groups = [
+    {
+      name: "Failing",
+      items: failing,
+    },
+    { name: "Database", items: (checks ?? []).filter((c) => /database/i.test(c.name)) },
+    { name: "AI provider", items: (checks ?? []).filter((c) => /LLM|AI /i.test(c.name)) },
+    { name: "Research sources", items: (checks ?? []).filter((c) => /research/i.test(c.name)) },
+    { name: "Storage", items: (checks ?? []).filter((c) => /storage/i.test(c.name)) },
+    {
+      name: "Security",
+      items: (checks ?? []).filter((c) => /SESSION_SECRET/.test(c.name)),
+    },
+    {
+      name: "Worker",
+      items: (checks ?? []).filter((c) => /worker|TTS|voice/i.test(c.name)),
+    },
+    {
+      name: "Web",
+      items: (checks ?? []).filter((c) => /WEB_ORIGIN/.test(c.name)),
+    },
+  ].filter((g) => g.items.length > 0);
+  const grouped = new Set(groups.flatMap((g) => g.items.map((c) => c.name)));
+  const other = (checks ?? []).filter((c) => !grouped.has(c.name));
+  if (other.length) groups.push({ name: "Other", items: other });
+
   return (
     <div className="grid gap-6">
+      <WorkHeader
+        eyebrow="Manage"
+        title="Setup status"
+        status={loading ? "idle" : failing.length ? "failed" : "done"}
+        actions={
+          <span className="font-mono text-xs text-muted">
+            {passingCount}/{checks?.length ?? 0} checks passing
+          </span>
+        }
+      />
       <AdminKeys />
       <PageState
         loading={loading}
@@ -834,25 +1160,55 @@ export function AdminSetup() {
         emptyTitle="No checks"
         emptyBody="The setup checks did not return anything."
       >
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card><Stat label="Provider" value={config?.provider ?? "—"} /></Card>
-          <Card><Stat label="Model" value={config?.model || "—"} /></Card>
-          <Card><Stat label="Key present" value={config ? (config.key_present ? "yes" : "no") : "—"} /></Card>
-          <Card><Stat label="Storage" value={storage ? `${(storage.bytes / 1_000_000).toFixed(1)} MB` : "—"} /></Card>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card>
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Provider</span>
+              <span className="font-mono text-sm font-semibold">{config?.provider ?? "—"}</span>
+              <span className="text-xs text-muted">{config?.model || "no model"}</span>
+            </div>
+          </Card>
+          <Card>
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase tracking-[0.18em] text-muted">AI key</span>
+              <StatusBadge status={config?.key_present ? "done" : "needs"} label={config?.key_present ? "present" : "missing"} />
+              <span className="text-xs text-muted">{config?.configured ? "configured" : "not configured"}</span>
+            </div>
+          </Card>
+          <Card>
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Storage</span>
+              <span className="font-mono text-sm font-semibold">
+                {storage ? `${(storage.bytes / 1_000_000).toFixed(1)} MB` : "—"}
+              </span>
+              <span className="text-xs text-muted">{storage?.driver ?? "unknown"}</span>
+            </div>
+          </Card>
         </div>
-        <Card>
-          <div className="flex flex-col gap-3">
-            {checks?.map((c) => (
-              <div key={c.name} className="flex items-center justify-between gap-4">
-                <span className="text-sm">
-                  <Badge tone={c.ok ? "success" : "danger"}>{c.ok ? "PASS" : "FAIL"}</Badge>{" "}
-                  {c.name}
-                </span>
-                <span className="text-xs text-muted">{c.detail}</span>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          {groups.map((group) => (
+            <Card key={group.name}>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-[0.18em] text-muted">{group.name}</span>
+                  <span className="font-mono text-xs text-muted">
+                    {group.items.filter((c) => c.ok).length}/{group.items.length}
+                  </span>
+                </div>
+                {group.items.map((c) => (
+                  <div key={c.name} className="flex items-start justify-between gap-4">
+                    <span className="flex items-start gap-2 text-sm">
+                      <StatusBadge status={c.ok ? "done" : "failed"} label={c.ok ? "PASS" : "FAIL"} />
+                      <span>{c.name}</span>
+                    </span>
+                    {c.detail && <span className="text-right text-xs text-muted">{c.detail}</span>}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </Card>
+            </Card>
+          ))}
+        </div>
       </PageState>
     </div>
   );

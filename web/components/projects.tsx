@@ -6,15 +6,14 @@ import {
   Badge,
   Button,
   Card,
-  EmptyState,
   Field,
   Input,
   Notice,
   PageState,
-  Progress,
   Select,
   useToast,
 } from "@/components/ui";
+import { Pipeline, StatusBadge, WorkHeader, type WorkStatus } from "./work";
 
 const STAGES = [
   "planned",
@@ -35,6 +34,14 @@ const LABELS: Record<string, string> = {
   reviewed: "Reviewed",
   exported: "Exported",
 };
+
+function statusFor(p: Project): WorkStatus {
+  if (p.stage === "exported") return "done";
+  if (p.stage === "analyzing" || p.queued) return "running";
+  if (p.stage === "clips_ready" || p.stage === "reviewed") return "needs";
+  if (p.stage === "imported") return "needs";
+  return "idle";
+}
 
 type RecordingOption = { id: string; filename: string };
 
@@ -63,7 +70,7 @@ export function Projects() {
 
   useEffect(() => {
     void load();
-    const timer = setInterval(() => void load(), 5000);
+    const timer = setInterval(() => void load(), 4000);
     return () => clearInterval(timer);
   }, [load]);
 
@@ -123,24 +130,59 @@ export function Projects() {
     }
   }
 
+  const live = items.some((p) => p.queued || p.stage === "analyzing");
+  const counts = STAGES.map((s) => ({
+    stage: s,
+    label: LABELS[s],
+    count: items.filter((p) => p.stage === s).length,
+  }));
+
   return (
     <div className="flex flex-col gap-6" data-tour="admin-projects">
+      <WorkHeader
+        eyebrow="Create"
+        title="Projects"
+        status={live ? "running" : "idle"}
+        actions={
+          <span className="font-mono text-xs text-muted">
+            {items.filter((p) => p.queued || p.stage === "analyzing").length} in the analysis lane
+          </span>
+        }
+      />
+
       <Card>
         <div className="flex flex-col gap-3">
-          <Field label="New project" hint="One stream or recording is one project. It moves through the stages below.">
-            <div className="flex gap-2">
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Friday stream — GTA"
-              />
-              <Button onClick={create} disabled={busy || !name.trim()}>
-                Create project
-              </Button>
-            </div>
-          </Field>
+          <span className="text-[10px] uppercase tracking-[0.18em] text-muted">New project</span>
+          <div className="flex flex-wrap gap-2">
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Friday stream — GTA"
+              className="sm:max-w-sm"
+            />
+            <Button onClick={create} disabled={busy || !name.trim()}>
+              Create project
+            </Button>
+          </div>
+          <p className="text-xs text-muted">
+            One stream or recording is one project. Import a recording and it starts a project
+            automatically.
+          </p>
         </div>
       </Card>
+
+      <div className="flex flex-wrap gap-2">
+        {counts.map((c) => (
+          <span
+            key={c.stage}
+            className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.14em] ring-surface ${
+              c.count ? "bg-accent-soft text-accent" : "bg-surface-2 text-muted"
+            }`}
+          >
+            {c.label} · <span className="font-mono">{c.count}</span>
+          </span>
+        ))}
+      </div>
 
       <PageState
         loading={loading}
@@ -154,44 +196,39 @@ export function Projects() {
             <Card key={p.id}>
               <div className="flex h-full flex-col gap-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex flex-col gap-1">
-                    <h3 className="text-base font-medium">{p.name}</h3>
-                    <span className="text-xs text-muted">
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <h3 className="truncate text-base font-medium">{p.name}</h3>
+                    <span className="font-mono text-xs text-muted">
                       {p.created_at ? new Date(p.created_at).toLocaleString() : "—"}
                     </span>
                   </div>
-                  <Badge tone={p.stage === "exported" ? "success" : p.queued ? "accent" : "muted"}>
-                    {p.queued ? `Queued #${p.queue_position ?? "…"}` : LABELS[p.stage]}
-                  </Badge>
+                  <StatusBadge status={statusFor(p)} label={
+                    p.queued ? `Queued #${p.queue_position ?? "…"}` : LABELS[p.stage]
+                  } />
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <Progress value={p.progress} label={`${p.name} progress`} />
-                  <div className="flex flex-wrap gap-1">
-                    {STAGES.map((s, i) => (
-                      <Badge key={s} tone={i <= p.stage_index ? "accent" : "muted"}>
-                        {LABELS[s]}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
+                <Pipeline steps={STAGES.map((s) => LABELS[s])} current={p.stage_index} label={`${p.name} stage`} />
 
                 <p className="text-sm text-muted" data-testid={`project-stage-${p.id}`}>
                   {p.stage_note ?? "Waiting for the next step."}
                 </p>
 
-                <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                  <div className="rounded-xl bg-surface-2 p-2">
-                    <div className="text-base font-medium">{p.candidates}</div>
-                    <div className="text-muted">candidates</div>
+                <div className="grid grid-cols-3 gap-2 rounded-xl bg-surface-2 p-2 text-center ring-surface">
+                  <div>
+                    <div className="font-mono text-base font-semibold">{p.candidates}</div>
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted">candidates</div>
                   </div>
-                  <div className="rounded-xl bg-surface-2 p-2">
-                    <div className="text-base font-medium">{p.clips.ready}/{p.clips.total}</div>
-                    <div className="text-muted">clips ready</div>
+                  <div>
+                    <div className="font-mono text-base font-semibold">
+                      {p.clips.ready}/{p.clips.total}
+                    </div>
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted">clips ready</div>
                   </div>
-                  <div className="rounded-xl bg-surface-2 p-2">
-                    <div className="text-base font-medium">{p.clips.reviewed}/{p.clips.total}</div>
-                    <div className="text-muted">reviewed</div>
+                  <div>
+                    <div className="font-mono text-base font-semibold">
+                      {p.clips.reviewed}/{p.clips.total}
+                    </div>
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted">reviewed</div>
                   </div>
                 </div>
 
@@ -225,7 +262,7 @@ export function Projects() {
                     </Field>
                   )}
 
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-3">
                     <Button size="sm" onClick={() => queue(p.id, p.vision)} disabled={!p.recording_id}>
                       {p.queued ? "Queued…" : "Run analysis"}
                     </Button>
@@ -234,6 +271,7 @@ export function Projects() {
                         type="checkbox"
                         checked={p.vision}
                         onChange={(e) => toggleVision(p.id, e.target.checked)}
+                        className="h-4 w-4 accent-[var(--accent)]"
                       />
                       Vision pass
                     </label>
@@ -251,6 +289,11 @@ export function Projects() {
                       The vision pass is sampled, off unless you enable it, and unloads the model
                       when it finishes.
                     </Notice>
+                  )}
+                  {p.queued && (
+                    <p className="font-mono text-xs text-muted">
+                      Position {p.queue_position ?? "…"} in the lane — projects analyse one at a time.
+                    </p>
                   )}
                 </div>
               </div>

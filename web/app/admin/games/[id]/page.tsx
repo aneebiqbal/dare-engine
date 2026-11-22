@@ -12,7 +12,7 @@ export default async function AdminGameProfilePage({
   const { id } = await params;
   const user = await requireAdmin();
   return (
-    <AppPage user={user} eyebrow="Admin · Games" title="Game profile">
+    <AppPage user={user} eyebrow="Admin · Games" title="Game profile" header={false}>
       <AdminGameProfile gameId={id} />
     </AppPage>
   );

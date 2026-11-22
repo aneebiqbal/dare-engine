@@ -18,13 +18,13 @@ import {
   Tr,
   useToast,
 } from "./ui";
+import { Metric, Section, StatusBadge, WorkHeader } from "./work";
 
 export function AdminCalendar() {
   const toast = useToast();
   const [data, setData] = useState<CalendarResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [clipId, setClipId] = useState("");
   const [date, setDate] = useState("");
   const [platform, setPlatform] = useState("youtube");
 
@@ -42,11 +42,6 @@ export function AdminCalendar() {
   useEffect(() => {
     load();
   }, [load]);
-
-  async function schedule() {
-    if (!clipId || !date) return;
-    await scheduleClip(clipId, date);
-  }
 
   async function scheduleClip(id: string, day: string) {
     if (!day) return;
@@ -84,6 +79,7 @@ export function AdminCalendar() {
 
   const entries = data?.entries ?? [];
   const unscheduled = data?.unscheduled ?? [];
+  const limit = data?.daily_limit ?? 2;
   const byDay: Record<string, number> = {};
   for (const e of entries) byDay[e.date] = (byDay[e.date] ?? 0) + 1;
   const week = (() => {
@@ -98,9 +94,23 @@ export function AdminCalendar() {
   })();
   const dayKey = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const todayKey = dayKey(new Date());
 
   return (
     <div className="grid gap-6">
+      <WorkHeader
+        eyebrow="Create"
+        title="Calendar"
+        status={unscheduled.length ? "needs" : entries.length ? "idle" : "idle"}
+        actions={
+          <div className="flex items-center gap-4">
+            <Metric label="Scheduled" value={entries.length} />
+            <Metric label="Waiting" value={unscheduled.length} />
+            <Metric label="Cadence" value={`${limit}/day`} />
+          </div>
+        }
+      />
+
       {data && data.warnings.length > 0 && (
         <Notice tone="warn">
           <ul className="list-disc pl-4">
@@ -111,130 +121,142 @@ export function AdminCalendar() {
         </Notice>
       )}
 
-      <Card>
-        <div className="flex flex-col gap-4">
-          <div>
-            <span className="text-xs uppercase tracking-[0.2em] text-muted">Schedule a Short</span>
-            <p className="mt-1 text-sm text-muted">
-              Review the export, pick a day, and publish manually. The default cadence is{" "}
-              {data?.daily_limit ?? 2} Shorts a day.
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <Card>
+          <Section
+            title="This week"
+            count={entries.length}
+            action={<span className="font-mono text-xs text-muted">{limit} Shorts/day</span>}
+          >
+            <div className="mt-1 grid grid-cols-7 gap-2">
+              {week.map((d) => {
+                const key = dayKey(d);
+                const count = byDay[key] ?? 0;
+                const over = count > limit;
+                const isToday = key === todayKey;
+                return (
+                  <div
+                    key={key}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const id = e.dataTransfer.getData("text/clip-id");
+                      if (id) void scheduleClip(id, key);
+                    }}
+                    className={`flex min-h-[6rem] flex-col items-center gap-1 rounded-xl px-2 py-3 ring-surface transition ${
+                      over ? "bg-danger-soft ring-danger/40" : isToday ? "bg-accent-soft" : "bg-surface-2"
+                    }`}
+                  >
+                    <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
+                      {d.toLocaleDateString(undefined, { weekday: "short" })}
+                    </span>
+                    <span className="text-base font-semibold">{d.getDate()}</span>
+                    <span className="font-mono text-xs text-muted">
+                      {count}/{limit}
+                    </span>
+                    {over && <Badge tone="danger">over</Badge>}
+                    {isToday && <span className="text-[10px] uppercase tracking-[0.14em] text-accent">today</span>}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-3 text-xs text-muted">
+              Drag an approved Short onto a day. The guardrail lights up when a day is over the
+              cadence.
             </p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Date">
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            </Field>
-            <Field label="Platform">
-              <Select value={platform} onChange={(e) => setPlatform(e.target.value)}>
-                <option value="youtube">YouTube</option>
-                <option value="tiktok" disabled>
-                  TikTok (approval required)
-                </option>
-                <option value="instagram" disabled>
-                  Instagram (approval required)
-                </option>
-              </Select>
-            </Field>
-          </div>
+          </Section>
+        </Card>
 
-          <div className="flex flex-col gap-2">
-            {unscheduled.length === 0 && (
-              <p className="text-xs text-muted">
-                No approved clips waiting. Approve a clip from its review page first.
-              </p>
-            )}
-            {unscheduled.map((c) => (
-              <div
-                key={c.id}
-                draggable
-                onDragStart={(e) => e.dataTransfer.setData("text/clip-id", c.id)}
-                className="flex cursor-grab items-center justify-between gap-3 rounded-xl bg-surface px-4 py-3 ring-surface transition hover:bg-surface-2"
-              >
-                <span className="truncate text-sm">{c.title ?? c.id}</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!date}
-                  onClick={() => scheduleClip(c.id, date)}
-                >
-                  Add
-                </Button>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-2">
-            {week.map((d) => {
-              const key = dayKey(d);
-              const count = byDay[key] ?? 0;
-              const over = count > (data?.daily_limit ?? 2);
-              return (
-                <div
-                  key={key}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const id = e.dataTransfer.getData("text/clip-id");
-                    if (id) void scheduleClip(id, key);
-                  }}
-                  className={`flex flex-col items-center gap-1 rounded-xl px-2 py-3 ring-surface transition ${
-                    over ? "bg-danger/10 ring-danger/30" : "bg-surface-2"
-                  }`}
-                >
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-muted">
-                    {d.toLocaleDateString(undefined, { weekday: "short" })}
-                  </span>
-                  <span className="text-base font-semibold">{d.getDate()}</span>
-                  <span className="text-xs text-muted">
-                    {count} {count === 1 ? "Short" : "Shorts"}
-                  </span>
-                  {over && <Badge tone="danger">over</Badge>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </Card>
-
-      <Card>
-        <span className="text-xs uppercase tracking-[0.2em] text-muted">Queue</span>
-        <div className="mt-4">
-          <Table head={["Date", "Clip", "Platform", "State", "Actions"]} caption="Scheduled posts">
-            {entries.length === 0 && (
-              <Tr>
-                <Td colSpan={5}>Nothing scheduled yet.</Td>
-              </Tr>
-            )}
-            {entries.map((e) => (
-              <Tr key={e.id}>
-                <Td>{e.date}</Td>
-                <Td>{e.title ?? e.clip_id}</Td>
-                <Td>{data?.platforms?.[e.platform] ?? e.platform}</Td>
-                <Td>
-                  <Badge tone={e.state === "published" ? "success" : "muted"}>{e.state}</Badge>
-                </Td>
-                <Td>
-                  <div className="flex gap-2">
-                    {e.state !== "published" && (
-                      <Button size="sm" variant="outline" onClick={() => publish(e.id)}>
-                        Mark published
-                      </Button>
-                    )}
-                    <Button size="sm" variant="ghost" onClick={() => remove(e.id)}>
-                      Remove
+        <Card>
+          <Section title="Schedule a Short" count={unscheduled.length}>
+            <div className="mt-1 flex flex-col gap-3">
+              <Field label="Date">
+                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              </Field>
+              <Field label="Platform">
+                <Select value={platform} onChange={(e) => setPlatform(e.target.value)}>
+                  <option value="youtube">YouTube</option>
+                  <option value="tiktok" disabled>
+                    TikTok (approval required)
+                  </option>
+                  <option value="instagram" disabled>
+                    Instagram (approval required)
+                  </option>
+                </Select>
+              </Field>
+              <div className="flex flex-col gap-2">
+                {unscheduled.length === 0 && (
+                  <p className="text-xs text-muted">
+                    No approved clips waiting. Approve a clip from its review page first.
+                  </p>
+                )}
+                {unscheduled.map((c) => (
+                  <div
+                    key={c.id}
+                    draggable
+                    onDragStart={(e) => e.dataTransfer.setData("text/clip-id", c.id)}
+                    className="flex cursor-grab items-center justify-between gap-3 rounded-xl bg-surface px-4 py-3 ring-surface transition hover:bg-surface-2"
+                  >
+                    <span className="truncate text-sm">{c.title ?? c.id}</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!date}
+                      onClick={() => scheduleClip(c.id, date)}
+                    >
+                      Add
                     </Button>
                   </div>
-                </Td>
-              </Tr>
-            ))}
-          </Table>
-        </div>
-        <p className="mt-3 text-xs text-muted">
-          Publishing is manual or YouTube-API only. TikTok and Instagram need platform
-          approval and are disabled. The YouTube API is not connected, so “Mark published”
-          records your own upload — it is not an API post.
-        </p>
-      </Card>
+                ))}
+              </div>
+            </div>
+          </Section>
+        </Card>
+      </div>
+
+      <Section title="Queue" count={entries.length}>
+        <Card>
+          <div className="mt-1">
+            <Table head={["Date", "Clip", "Platform", "State", "Actions"]} caption="Scheduled posts">
+              {entries.length === 0 && (
+                <Tr>
+                  <Td colSpan={5}>Nothing scheduled yet.</Td>
+                </Tr>
+              )}
+              {entries.map((e) => (
+                <Tr key={e.id}>
+                  <Td>{e.date}</Td>
+                  <Td>{e.title ?? e.clip_id}</Td>
+                  <Td>{data?.platforms?.[e.platform] ?? e.platform}</Td>
+                  <Td>
+                    <StatusBadge
+                      status={e.state === "published" ? "done" : e.state === "failed" ? "failed" : "idle"}
+                      label={e.state}
+                    />
+                  </Td>
+                  <Td>
+                    <div className="flex gap-2">
+                      {e.state !== "published" && (
+                        <Button size="sm" variant="outline" onClick={() => publish(e.id)}>
+                          Mark published
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => remove(e.id)}>
+                        Remove
+                      </Button>
+                    </div>
+                  </Td>
+                </Tr>
+              ))}
+            </Table>
+          </div>
+          <p className="mt-3 text-xs text-muted">
+            Publishing is manual or YouTube-API only. TikTok and Instagram need platform approval
+            and are disabled. The YouTube API is not connected, so “Mark published” records your
+            own upload — it is not an API post.
+          </p>
+        </Card>
+      </Section>
 
       {entries.length > 0 ? (
         <NextStep

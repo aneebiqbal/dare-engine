@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import { Button, Card, Field, Input, Notice, useToast } from "./ui";
+import { Button, Card, Input, Notice, Progress } from "./ui";
+import { StatusBadge } from "./work";
 
 type Row = { start: string; end: string; text: string };
 
@@ -15,8 +16,10 @@ export function CaptionEditor({ clipId }: { clipId: string }) {
   const [source, setSource] = useState<"override" | "transcript" | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [rendering, setRendering] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const toast = useToast();
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     api
@@ -28,6 +31,12 @@ export function CaptionEditor({ clipId }: { clipId: string }) {
       .catch((e) => setError(e instanceof Error ? e.message : "Could not load captions"))
       .finally(() => setLoading(false));
   }, [clipId]);
+
+  useEffect(() => {
+    return () => {
+      if (timer.current) clearInterval(timer.current);
+    };
+  }, []);
 
   function update(index: number, patch: Partial<Row>) {
     setRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
@@ -46,6 +55,24 @@ export function CaptionEditor({ clipId }: { clipId: string }) {
     ]);
   }
 
+  function watchRender() {
+    if (timer.current) clearInterval(timer.current);
+    setRendering(true);
+    setProgress(0);
+    timer.current = setInterval(async () => {
+      try {
+        const clip = await api.clip(clipId);
+        setProgress(clip.progress);
+        if (["ready", "approved", "posted", "failed", "discarded"].includes(clip.state)) {
+          if (timer.current) clearInterval(timer.current);
+          setRendering(false);
+        }
+      } catch {
+        /* keep polling */
+      }
+    }, 2000);
+  }
+
   async function save() {
     setBusy(true);
     setError(null);
@@ -56,7 +83,7 @@ export function CaptionEditor({ clipId }: { clipId: string }) {
         .filter((c) => Number.isFinite(c.start) && Number.isFinite(c.end) && c.end >= c.start);
       await api.updateClip(clipId, { captions });
       setSource("override");
-      toast("Captions saved; re-rendering", "success");
+      watchRender();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save captions");
     } finally {
@@ -67,18 +94,22 @@ export function CaptionEditor({ clipId }: { clipId: string }) {
   return (
     <Card>
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-medium">Captions</h2>
-          {source && (
-            <span className="text-xs text-muted">
-              {source === "override" ? "your edits" : "from the transcript"}
-            </span>
-          )}
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Captions</span>
+          <div className="flex items-center gap-2">
+            {rendering && <StatusBadge status="running" label="Re-rendering" />}
+            {source && !rendering && (
+              <span className="text-xs text-muted">
+                {source === "override" ? "your edits" : "from the transcript"}
+              </span>
+            )}
+          </div>
         </div>
         <p className="text-xs text-muted">
           Edit the words and their timings. The cached transcript is reused — nothing is
           re-transcribed.
         </p>
+        {rendering && <Progress value={progress} label="Caption re-render" />}
         {loading && <p className="text-sm text-muted">Loading captions…</p>}
         {error && <Notice tone="warn">{error}</Notice>}
         <div className="flex flex-col gap-2">

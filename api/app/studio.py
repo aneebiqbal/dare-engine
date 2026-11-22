@@ -262,6 +262,13 @@ def recording_detail(request: Request, recording_id: str):
                 }
                 for r in cur.fetchall()
             ]
+            cur.execute(
+                "SELECT kind, state, stage FROM jobs "
+                "WHERE payload->>'recording_id' = %s AND state IN ('queued', 'running') "
+                "ORDER BY updated_at DESC LIMIT 1",
+                (recording_id,),
+            )
+            active = cur.fetchone()
     return {
         "recording": {
             "id": str(row[0]),
@@ -280,6 +287,9 @@ def recording_detail(request: Request, recording_id: str):
             "model": row[10],
             "seconds_added": row[11],
         },
+        "job": (
+            {"kind": active[0], "state": active[1], "stage": active[2]} if active else None
+        ),
         "candidates": candidates,
     }
 

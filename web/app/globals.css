@@ -3,20 +3,31 @@
 @tailwind utilities;
 
 /* One token file for colour, type, spacing, radius and motion.
-   Identity: "Volt" — OLED black, electric volt + deep violet, broadcast type. */
+   Identity: "Control room" — a working tool. Accent means running, the other
+   status colours mean needs-you / done / failed. Light is the default theme. */
 :root {
-  --bg: #f6f6f1;
+  --bg: #f3f4f6;
   --surface: #ffffff;
-  --surface-2: #efefe7;
-  --border: rgb(16 16 20 / 0.08);
-  --text: #101014;
-  --muted: rgb(16 16 20 / 0.58);
-  --accent: #4f46e5;
+  --surface-2: #eef0f3;
+  --surface-3: #e3e6ea;
+  --border: rgb(20 24 29 / 0.09);
+  --text: #14181d;
+  --muted: rgb(20 24 29 / 0.58);
+
+  --accent: #2f6bff;
   --accent-2: #7c6cff;
-  --accent-soft: rgb(79 70 229 / 0.1);
+  --accent-soft: rgb(47 107 255 / 0.1);
   --accent-contrast: #ffffff;
-  --danger: #c2410c;
+
+  --needs: #b45309;
+  --needs-soft: rgb(180 83 9 / 0.12);
   --success: #047857;
+  --success-soft: rgb(4 120 87 / 0.1);
+  --danger: #b91c1c;
+  --danger-soft: rgb(185 28 28 / 0.1);
+
+  /* Brand / signature moments only (the dare card). */
+  --signature: #4f46e5;
 
   --radius-sm: 0.75rem;
   --radius: 1.25rem;
@@ -33,23 +44,35 @@
   --space-24: 6rem;
 
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --shadow: 0 1px 2px rgb(20 19 17 / 0.04), 0 12px 32px -12px rgb(20 19 17 / 0.12);
+  --shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 12px 32px -12px rgb(16 24 40 / 0.14);
+  --shadow-bar: 0 1px 2px rgb(16 24 40 / 0.06), 0 8px 24px -12px rgb(16 24 40 / 0.18);
 }
 
 .dark {
-  --bg: #06070a;
-  --surface: #0d0f14;
-  --surface-2: rgb(255 255 255 / 0.05);
+  --bg: #0a0c0f;
+  --surface: #12151a;
+  --surface-2: #1a1f26;
+  --surface-3: #232932;
   --border: rgb(255 255 255 / 0.1);
-  --text: #f5f7fa;
-  --muted: rgb(245 247 250 / 0.56);
-  --accent: #c8ff3d;
+  --text: #e8ecf1;
+  --muted: rgb(232 236 241 / 0.56);
+
+  --accent: #5b8cff;
   --accent-2: #8b7cff;
-  --accent-soft: rgb(200 255 61 / 0.12);
-  --accent-contrast: #06070a;
-  --danger: #ff6b6b;
-  --success: #4ade80;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 20px 48px -20px rgb(0 0 0 / 0.85);
+  --accent-soft: rgb(91 140 255 / 0.14);
+  --accent-contrast: #0a0c0f;
+
+  --needs: #f59e0b;
+  --needs-soft: rgb(245 158 11 / 0.14);
+  --success: #34d399;
+  --success-soft: rgb(52 211 153 / 0.12);
+  --danger: #f87171;
+  --danger-soft: rgb(248 113 113 / 0.13);
+
+  --signature: #c8ff3d;
+
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 20px 48px -20px rgb(0 0 0 / 0.8);
+  --shadow-bar: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 12px 32px -16px rgb(0 0 0 / 0.8);
 }
 
 @layer base {
@@ -61,8 +84,8 @@
 
   .dark body {
     background:
-      radial-gradient(1100px 560px at 85% -10%, rgb(139 124 255 / 0.14), transparent 62%),
-      radial-gradient(900px 520px at -12% 8%, rgb(200 255 61 / 0.09), transparent 58%),
+      radial-gradient(1100px 560px at 85% -10%, rgb(91 140 255 / 0.07), transparent 62%),
+      radial-gradient(900px 520px at -12% 8%, rgb(124 108 255 / 0.05), transparent 58%),
       var(--bg);
     background-attachment: fixed;
   }
@@ -84,7 +107,22 @@
     box-shadow: inset 0 0 0 1px var(--border);
   }
 
-  /* Signature moments: a volt edge and a soft glow. */
+  /* A raised control: the surface-3 tone, used for inputs and filters. */
+  .raised {
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+
+  /* Dark cards get a top highlight instead of a glow. */
+  .dark .bezel {
+    box-shadow: inset 0 0 0 1px var(--border), inset 0 1px 0 rgb(255 255 255 / 0.04);
+  }
+
+  .bezel {
+    box-shadow: var(--shadow), inset 0 0 0 1px var(--border);
+  }
+
+  /* Signature moments: the dare card keeps the brand edge. */
   .signature {
     position: relative;
     overflow: hidden;
@@ -94,7 +132,7 @@
     position: absolute;
     inset: 0 auto 0 0;
     width: 3px;
-    background: linear-gradient(180deg, var(--accent), var(--accent-2));
+    background: linear-gradient(180deg, var(--signature), var(--accent-2));
   }
   .glow {
     box-shadow:
@@ -117,6 +155,15 @@
   .animate-pop {
     animation: pop 420ms var(--ease) both;
   }
+  /* The one live pulse. Only rendered while work is actually running. */
+  .animate-live {
+    animation: live 1.6s var(--ease) infinite;
+  }
+  /* A thin progress bar fills; transform-only, GPU safe. */
+  .progress-fill {
+    transform-origin: left center;
+    animation: fill 520ms var(--ease) both;
+  }
 }
 
 @keyframes entry {
@@ -138,6 +185,25 @@
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+@keyframes live {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
   }
 }
 

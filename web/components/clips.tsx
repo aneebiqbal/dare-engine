@@ -16,6 +16,7 @@ import {
   Select,
   useToast,
 } from "@/components/ui";
+import { Metric, StatusBadge, WorkHeader } from "./work";
 
 type MarkRow = { mission_id: string; start: string; end: string; result: string };
 
@@ -101,6 +102,17 @@ export function Clips({ initial }: { initial: Clip[] }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <WorkHeader
+        eyebrow="Review"
+        title="Clips"
+        status={clips.some((c) => !["ready", "approved", "posted", "discarded"].includes(c.state)) ? "running" : "idle"}
+        actions={
+          <div className="flex items-center gap-4">
+            <Metric label="Total" value={clips.length} />
+            <Metric label="Ready" value={clips.filter((c) => c.state === "ready" || c.state === "approved").length} />
+          </div>
+        }
+      />
       <Card>
         <div className="flex flex-col gap-4" data-tour="clips-upload">
           <div className="flex items-center justify-between">
@@ -228,10 +240,17 @@ export function Clips({ initial }: { initial: Clip[] }) {
             <Card key={clip.id}>
               <div className="flex h-full flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <Badge tone={clip.state === "ready" ? "success" : clip.state === "failed" ? "danger" : "muted"}>
-                    {clip.state}
-                  </Badge>
-                  <span className="text-xs text-muted">{clip.stage ?? ""}</span>
+                  <StatusBadge
+                    status={
+                      clip.state === "ready" || clip.state === "approved" || clip.state === "posted"
+                        ? "done"
+                        : clip.state === "failed"
+                          ? "failed"
+                          : "running"
+                    }
+                    label={clip.state}
+                  />
+                  <span className="font-mono text-xs text-muted">{clip.stage ?? ""}</span>
                 </div>
                 {clip.thumb_url && (
                   // eslint-disable-next-line @next/next/no-img-element

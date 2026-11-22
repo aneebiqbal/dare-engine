@@ -24,6 +24,18 @@ def _cleanup(game_id: str) -> None:
     sql(f"DELETE FROM games WHERE id = '{game_id}';")
 
 
+def _run_research(admin, game_id: str) -> dict:
+    """Start a run and poll its real stage until it finishes."""
+    started = admin.post(f"/admin/games/{game_id}/research", {})
+    run_id = started["run_id"]
+    for _ in range(60):
+        run = admin.get(f"/admin/research/{run_id}")
+        if run["status"] != "running":
+            return run
+        time.sleep(2)
+    raise AssertionError("research run did not finish")
+
+
 def test_research_brain_to_gamer_today():
     admin = dev_sign_in("admin")
     slug = f"research-test-{int(time.time())}"
@@ -31,14 +43,17 @@ def test_research_brain_to_gamer_today():
     game_id = game["id"]
 
     try:
-        run = admin.post(f"/admin/games/{game_id}/research", {})
-        assert run["ideas"] >= 1, "research produced no ideas"
+        started = admin.post(f"/admin/games/{game_id}/research", {})
+        assert started["status"] == "running"
+        assert started["run_id"]
+        run = _run_research(admin, game_id)
+        assert run["ideas_count"] >= 1, "research produced no ideas"
         assert run["fallback"] is True, "recorded mode must be flagged as a fallback"
-        assert sum(run["sources"].values()) >= 1
+        assert sum(run["source_counts"].values()) >= 1
 
         profile = admin.get(f"/admin/games/{game_id}")
         assert profile["game"]["name"] == "Research Test Game"
-        assert len(profile["candidates"]) == run["ideas"]
+        assert len(profile["candidates"]) == run["ideas_count"]
         assert profile["runs"][0]["status"] == "done"
 
         # Accuracy: every candidate cites a real source from the feed, and the
@@ -87,7 +102,8 @@ def test_pool_filters_by_game():
     game = admin.post("/admin/games", {"slug": slug, "name": "Filter Test Game"})
     game_id = game["id"]
     try:
-        admin.post(f"/admin/games/{game_id}/research", {})
+        run = _run_research(admin, game_id)
+        assert run["ideas_count"] >= 1
         items = admin.get(f"/admin/pool?game_id={game_id}")["items"]
         assert items, "game filter returned nothing"
         # Every returned candidate belongs to the game (via its sources/card).

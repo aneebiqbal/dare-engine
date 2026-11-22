@@ -23,7 +23,7 @@ export default async function ClipPage({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const user = await requireUser();
   return (
-    <AppPage user={user} eyebrow="Review" title="Clip review">
+    <AppPage user={user} eyebrow="Review" title="Clip review" header={false}>
       <Suspense fallback={<PageState loading />}>
         <ClipData id={id} />
       </Suspense>

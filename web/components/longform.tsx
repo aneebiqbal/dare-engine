@@ -15,6 +15,7 @@ import {
   Tr,
   useToast,
 } from "./ui";
+import { Section, StatusBadge, WorkHeader } from "./work";
 
 export function AdminLongForm() {
   const toast = useToast();
@@ -43,7 +44,11 @@ export function AdminLongForm() {
 
   useEffect(() => {
     load();
-  }, [load]);
+    const timer = setInterval(() => {
+      if (items.some((l) => l.state === "queued" || l.state === "running")) load();
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [load]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -75,8 +80,20 @@ export function AdminLongForm() {
   if (loading) return <PageState loading />;
   if (error && !items.length) return <PageState error={error} />;
 
+  const building = items.some((l) => l.state === "queued" || l.state === "running");
+
   return (
     <div className="grid gap-6">
+      <WorkHeader
+        eyebrow="Create"
+        title="Long-form"
+        status={building ? "running" : "idle"}
+        actions={
+          <span className="font-mono text-xs text-muted">
+            {clips.length} finished clip(s) available
+          </span>
+        }
+      />
       <Card>
         <div className="flex flex-col gap-4">
           <div>
@@ -135,39 +152,51 @@ export function AdminLongForm() {
         </div>
       </Card>
 
-      <Card>
-        <span className="text-xs uppercase tracking-[0.2em] text-muted">Builds</span>
-        <div className="mt-4">
-          <Table head={["Title", "Clips", "State", "Download"]} caption="Long-form builds">
-            {items.length === 0 && (
-              <Tr>
-                <Td colSpan={4}>No long-form videos yet.</Td>
-              </Tr>
-            )}
-            {items.map((l) => (
-              <Tr key={l.id}>
-                <Td>{l.title}</Td>
-                <Td>{l.clip_ids.length}</Td>
-                <Td>
-                  <Badge tone={l.state === "ready" ? "success" : l.state === "failed" ? "danger" : "muted"}>
-                    {l.state}
-                  </Badge>
-                  {l.error && <span className="ml-2 text-xs text-danger">{l.error}</span>}
-                </Td>
-                <Td>
-                  {l.download_url ? (
-                    <a href={api.adminLongFormUrl(l.id)} className="text-accent hover:underline">
-                      Download
-                    </a>
-                  ) : (
-                    "—"
-                  )}
-                </Td>
-              </Tr>
-            ))}
-          </Table>
-        </div>
-      </Card>
+      <Section title="Builds" count={items.length}>
+        <Card>
+          <div className="mt-1">
+            <Table head={["Title", "Clips", "State", "Download"]} caption="Long-form builds">
+              {items.length === 0 && (
+                <Tr>
+                  <Td colSpan={4}>No long-form videos yet.</Td>
+                </Tr>
+              )}
+              {items.map((l) => (
+                <Tr key={l.id}>
+                  <Td>{l.title}</Td>
+                  <Td>{l.clip_ids.length}</Td>
+                  <Td>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge
+                        status={
+                          l.state === "ready"
+                            ? "done"
+                            : l.state === "failed"
+                              ? "failed"
+                              : l.state === "queued" || l.state === "running"
+                                ? "running"
+                                : "idle"
+                        }
+                        label={l.state}
+                      />
+                      {l.error && <span className="text-xs text-danger">{l.error}</span>}
+                    </div>
+                  </Td>
+                  <Td>
+                    {l.download_url ? (
+                      <a href={api.adminLongFormUrl(l.id)} className="text-accent hover:underline">
+                        Download
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </Td>
+                </Tr>
+              ))}
+            </Table>
+          </div>
+        </Card>
+      </Section>
     </div>
   );
 }

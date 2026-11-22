@@ -117,11 +117,29 @@ def pool(request: Request):
     page, size, sort, order = parse(request, "created_at")
     status = request.query_params.get("status", "candidate")
     game_id = request.query_params.get("game_id")
+    q = (request.query_params.get("q") or "").strip()
+    source = request.query_params.get("source")
+    min_score = request.query_params.get("min_score")
     where = "m.status = %s"
     params: list = [status]
     if game_id:
         where += " AND m.game_id = %s"
         params.append(game_id)
+    if q:
+        where += " AND (m.card->>'question' ILIKE %s OR m.card->>'hook_text' ILIKE %s)"
+        params += [f"%{q}%", f"%{q}%"]
+    if source:
+        where += (
+            " AND EXISTS (SELECT 1 FROM mission_sources s "
+            "WHERE s.mission_id = m.id AND s.kind = %s)"
+        )
+        params.append(source)
+    if min_score:
+        try:
+            where += " AND m.score >= %s"
+            params.append(float(min_score))
+        except ValueError:
+            pass
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(f"SELECT count(*) FROM missions m WHERE {where}", params)
@@ -140,6 +158,49 @@ def pool(request: Request):
                 entry["sources"] = sources.get(r[0], [])
                 items.append(entry)
     return envelope(items, total, page, size)
+
+
+@router.post("/admin/pool/bulk", dependencies=[Depends(require_admin)])
+def pool_bulk(request: Request, payload: dict):
+    """One transaction for many ideas: approve, reject or assign."""
+    user = current_user(request)
+    ids = payload.get("ids") or []
+    action = payload.get("action")
+    if not isinstance(ids, list) or not ids or action not in ("approve", "reject", "assign"):
+        raise HTTPException(422, "ids and a valid action are required")
+    user_id = payload.get("user_id")
+    updated = 0
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            if action == "assign":
+                if not user_id:
+                    raise HTTPException(422, "user_id is required to assign")
+                cur.execute("SELECT id FROM users WHERE id = %s", (user_id,))
+                if cur.fetchone() is None:
+                    raise HTTPException(404, "gamer not found")
+                today = datetime.date.today()
+                for mission_id in ids:
+                    cur.execute("SELECT id FROM missions WHERE id = %s", (mission_id,))
+                    if cur.fetchone() is None:
+                        continue
+                    cur.execute(
+                        "INSERT INTO assignments (user_id, mission_id, date, state) "
+                        "VALUES (%s, %s, %s, 'assigned') ON CONFLICT DO NOTHING",
+                        (user_id, mission_id, today),
+                    )
+                    updated += 1
+            else:
+                target = "unverified" if action == "approve" else "rejected"
+                for mission_id in ids:
+                    cur.execute(
+                        "UPDATE missions SET status = %s "
+                        "WHERE id = %s AND status = 'candidate' RETURNING id",
+                        (target, mission_id),
+                    )
+                    if cur.fetchone() is not None:
+                        updated += 1
+    audit(user["id"], f"pool.bulk.{action}", "mission", "", {"count": updated})
+    return {"updated": updated}
 
 
 @router.post("/admin/pool/{mission_id}/approve", dependencies=[Depends(require_admin)])

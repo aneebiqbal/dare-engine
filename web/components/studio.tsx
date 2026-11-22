@@ -16,8 +16,18 @@ import {
   Select,
   useToast,
 } from "@/components/ui";
+import { Metric, Pipeline, Section, StatusBadge, WorkHeader } from "./work";
 
 const TEMPLATES = ["cold_open", "center", "punch", "clean", "wide"];
+
+const DETECT_STAGES = ["upload", "transcribe", "detect", "rank"];
+const RENDER_STAGES = ["fetch", "transcribe", "select", "render", "store"];
+
+function stageIndex(stage: string | null, steps: string[]): number {
+  if (!stage) return 0;
+  const i = steps.indexOf(stage);
+  return i < 0 ? 0 : i;
+}
 
 type Window = { candidate_id: string; start: number; end: number; template_id: string | null };
 
@@ -312,7 +322,42 @@ export function Studio() {
 
   return (
     <div className="flex flex-col gap-6">
+      <WorkHeader
+        eyebrow="Create"
+        title="Clip studio"
+        status={detecting || visionBusy || generating || rendering ? "running" : "idle"}
+        actions={
+          <span className="font-mono text-xs text-muted">
+            {recording
+              ? `${recording.recording.filename} · ${recording.recording.duration_seconds.toFixed(1)}s`
+              : "no recording loaded"}
+          </span>
+        }
+      />
       <DesktopEngine onRecording={openRecording} />
+
+      {recording?.job && (
+        <Card>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <StatusBadge status="running" label={recording.job.kind} />
+              <span className="font-mono text-xs text-muted">
+                {recording.job.state}
+                {recording.job.stage ? ` · ${recording.job.stage}` : ""}
+              </span>
+            </div>
+            <Pipeline
+              steps={DETECT_STAGES}
+              current={stageIndex(recording.job.stage, DETECT_STAGES)}
+              label="Detection progress"
+            />
+            <p className="text-xs text-muted">
+              The worker reports its real stage. Detection loads a model, so the first run is
+              slower than a warm one.
+            </p>
+          </div>
+        </Card>
+      )}
       <Card>
         <div className="flex flex-col gap-4" data-tour="studio-upload">
           <div className="flex items-center justify-between">
@@ -456,8 +501,8 @@ export function Studio() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <div className="flex flex-col gap-2">
-            <h3 className="text-sm font-medium">Compute path</h3>
+          <div className="flex flex-col gap-3">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Compute path</span>
             <div data-testid="studio-compute" className="flex flex-wrap gap-2">
               <Badge tone={recording?.compute.gpu ? "success" : "muted"}>
                 {recording?.compute.gpu ? "GPU" : "CPU"}
@@ -468,12 +513,18 @@ export function Studio() {
           </div>
         </Card>
         <Card>
-          <div className="flex flex-col gap-2">
-            <h3 className="text-sm font-medium">System load</h3>
-            <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
-              <span>CPU {load?.cpu_percent ?? "—"}%</span>
-              <span>Memory {load?.memory_percent ?? "—"}%</span>
-              <span>GPU {load?.gpu ? `${load.gpu.utilization_percent}%` : "none"}</span>
+          <div className="flex flex-col gap-3">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-muted">System load</span>
+            <div className="grid grid-cols-3 gap-3">
+              <Metric label="CPU" value={load?.cpu_percent != null ? `${Math.round(load.cpu_percent)}%` : "—"} />
+              <Metric
+                label="Memory"
+                value={load?.memory_percent != null ? `${Math.round(load.memory_percent)}%` : "—"}
+              />
+              <Metric
+                label="GPU"
+                value={load?.gpu ? `${load.gpu.utilization_percent}%` : "none"}
+              />
             </div>
             <div data-testid="studio-idle" className="text-xs text-muted">
               {idle && !rendering ? "Idle — no jobs running" : "Working…"}
@@ -598,72 +649,92 @@ export function Studio() {
 
       {clips.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {clips.map((clip, i) => (
-            <Card key={clip.id}>
-              <div className="flex h-full flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <Badge tone={clip.state === "ready" ? "success" : "muted"}>{clip.state}</Badge>
-                  <span className="text-xs text-muted">
-                    {clip.duration_seconds ? `${clip.duration_seconds.toFixed(1)}s` : "—"}
-                  </span>
+          {clips.map((clip, i) => {
+            const working = !["ready", "approved", "posted", "discarded", "failed"].includes(clip.state);
+            return (
+              <Card key={clip.id}>
+                <div className="flex h-full flex-col gap-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <StatusBadge
+                      status={
+                        clip.state === "ready" || clip.state === "approved" || clip.state === "posted"
+                          ? "done"
+                          : clip.state === "failed"
+                            ? "failed"
+                            : "running"
+                      }
+                      label={clip.state}
+                    />
+                    <span className="font-mono text-xs text-muted">
+                      {clip.duration_seconds ? `${clip.duration_seconds.toFixed(1)}s` : "—"}
+                    </span>
+                  </div>
+                  {clip.state === "ready" ? (
+                    <video
+                      controls
+                      src={api.downloadClipUrl(clip.id)}
+                      className="w-full rounded-md"
+                      data-testid={`studio-clip-${i}`}
+                    />
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <Pipeline
+                        steps={RENDER_STAGES}
+                        current={stageIndex(clip.stage, RENDER_STAGES)}
+                        label={`Render progress for ${clip.title ?? "this clip"}`}
+                      />
+                      <Progress value={clip.progress} label={`${clip.title ?? "Clip"} render progress`} />
+                    </div>
+                  )}
+                  <h3 className="text-sm font-medium">{clip.title ?? "Untitled"}</h3>
+                  {working && clip.error && <Notice tone="warn">{clip.error}</Notice>}
+                  <div className="mt-auto flex flex-wrap items-center gap-2">
+                    <Select
+                      aria-label="Clip template"
+                      value={clipEdits[clip.id]?.template ?? "cold_open"}
+                      onChange={(e) =>
+                        setClipEdits((prev) => ({
+                          ...prev,
+                          [clip.id]: {
+                            template: e.target.value,
+                            captions: prev[clip.id]?.captions ?? "word",
+                          },
+                        }))
+                      }
+                    >
+                      {templates.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </Select>
+                    <Select
+                      aria-label="Clip caption style"
+                      value={clipEdits[clip.id]?.captions ?? "word"}
+                      onChange={(e) =>
+                        setClipEdits((prev) => ({
+                          ...prev,
+                          [clip.id]: {
+                            template: prev[clip.id]?.template ?? "cold_open",
+                            captions: e.target.value,
+                          },
+                        }))
+                      }
+                    >
+                      {captionStyles.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </Select>
+                    <Button variant="ghost" onClick={() => rerender(clip)}>
+                      Re-render
+                    </Button>
+                  </div>
                 </div>
-                {clip.state === "ready" ? (
-                  <video
-                    controls
-                    src={api.downloadClipUrl(clip.id)}
-                    className="w-full rounded-md"
-                    data-testid={`studio-clip-${i}`}
-                  />
-                ) : (
-                  <Progress value={clip.progress} />
-                )}
-                <h3 className="text-sm font-medium">{clip.title ?? "Untitled"}</h3>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Select
-                    aria-label="Clip template"
-                    value={clipEdits[clip.id]?.template ?? "cold_open"}
-                    onChange={(e) =>
-                      setClipEdits((prev) => ({
-                        ...prev,
-                        [clip.id]: {
-                          template: e.target.value,
-                          captions: prev[clip.id]?.captions ?? "word",
-                        },
-                      }))
-                    }
-                  >
-                    {templates.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </Select>
-                  <Select
-                    aria-label="Clip caption style"
-                    value={clipEdits[clip.id]?.captions ?? "word"}
-                    onChange={(e) =>
-                      setClipEdits((prev) => ({
-                        ...prev,
-                        [clip.id]: {
-                          template: prev[clip.id]?.template ?? "cold_open",
-                          captions: e.target.value,
-                        },
-                      }))
-                    }
-                  >
-                    {captionStyles.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </Select>
-                  <Button variant="ghost" onClick={() => rerender(clip)}>
-                    Re-render
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
       {recording && recording.candidates.length === 0 && !detecting && (

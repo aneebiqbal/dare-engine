@@ -93,6 +93,7 @@ def _game_row(cur, game_id: str):
 
 
 def _serialize(row) -> dict:
+    last = row[10] if len(row) > 10 else None
     return {
         "id": str(row[0]),
         "slug": row[1],
@@ -104,6 +105,7 @@ def _serialize(row) -> dict:
         "art_url": row[7],
         "enabled": row[8],
         "created_at": row[9].isoformat(),
+        "last_run": last,
     }
 
 
@@ -116,7 +118,11 @@ def list_games(request: Request):
             total = cur.fetchone()[0]
             cur.execute(
                 "SELECT g.id, g.slug, g.name, g.external_id, g.source, g.genre, g.release_date, "
-                "g.art_url, g.enabled, g.created_at "
+                "g.art_url, g.enabled, g.created_at, "
+                "(SELECT json_build_object('id', r.id, 'status', r.status, 'stage', r.stage, "
+                "'detail', r.detail, 'ideas_count', r.ideas_count, 'fallback', r.fallback, "
+                "'created_at', r.created_at) "
+                "FROM research_runs r WHERE r.game_id = g.id ORDER BY r.created_at DESC LIMIT 1) "
                 f"FROM games g ORDER BY {order_clause(sort, GAME_SORT, 'g.created_at', order)} "
                 "LIMIT %s OFFSET %s",
                 (size, (page - 1) * size),
@@ -247,7 +253,8 @@ def game_profile(request: Request, game_id: str):
                 for r in cur.fetchall()
             ]
             cur.execute(
-                "SELECT id, status, source_counts, ideas_count, fallback, error, created_at, finished_at "
+                "SELECT id, status, stage, detail, source_counts, ideas_count, fallback, error, "
+                "created_at, finished_at "
                 "FROM research_runs WHERE game_id = %s ORDER BY created_at DESC LIMIT 10",
                 (game_id,),
             )
@@ -255,12 +262,14 @@ def game_profile(request: Request, game_id: str):
                 {
                     "id": str(r[0]),
                     "status": r[1],
-                    "source_counts": r[2],
-                    "ideas_count": r[3],
-                    "fallback": r[4],
-                    "error": r[5],
-                    "created_at": r[6].isoformat(),
-                    "finished_at": r[7].isoformat() if r[7] else None,
+                    "stage": r[2],
+                    "detail": r[3],
+                    "source_counts": r[4],
+                    "ideas_count": r[5],
+                    "fallback": r[6],
+                    "error": r[7],
+                    "created_at": r[8].isoformat(),
+                    "finished_at": r[9].isoformat() if r[9] else None,
                 }
                 for r in cur.fetchall()
             ]
@@ -284,12 +293,33 @@ def update_game(request: Request, game_id: str, payload: dict):
 
 @router.post("/admin/games/{game_id}/research", dependencies=[Depends(require_admin)])
 def run_game_research(request: Request, game_id: str):
+    """Start a run and return its id; the admin polls the run's real stage."""
     user = current_user(request)
     try:
-        result = research.run_research(game_id, actor_id=user["id"])
+        return research.start_research(game_id, actor_id=user["id"])
     except ValueError:
         raise HTTPException(404, "game not found")
-    return result
+
+
+@router.get("/admin/research/{run_id}", dependencies=[Depends(require_admin)])
+def research_run(request: Request, run_id: str):
+    run = research.get_run(run_id)
+    if run is None:
+        raise HTTPException(404, "run not found")
+    return run
+
+
+@router.get("/admin/projects", dependencies=[Depends(require_admin)])
+def admin_projects(request: Request):
+    """Every user's projects, for the admin overview. `/projects` stays
+    user-scoped."""
+    from .projects import project_state
+
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM projects ORDER BY created_at DESC LIMIT 50")
+            items = [project_state(cur, str(r[0])) for r in cur.fetchall()]
+    return {"items": [i for i in items if i]}
 
 
 @router.get("/games")

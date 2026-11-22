@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { api, type Me, type Settings } from "@/lib/api";
 import { Badge, Button, Card, Field, Input, Notice, PageState, Select, useToast } from "@/components/ui";
+import { WorkHeader } from "./work";
 
 export function Settings({ user, initial, loadError }: { user: Me; initial: Settings | null; loadError?: boolean }) {
   const [settings, setSettings] = useState<Settings | null>(initial);
@@ -65,6 +66,7 @@ export function Settings({ user, initial, loadError }: { user: Me; initial: Sett
       error={loadError ? "Could not load your settings. Try again in a moment." : null}
       empty={false}
     >
+      <WorkHeader eyebrow="Account" title="Settings" status="idle" />
       {settings && (
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>

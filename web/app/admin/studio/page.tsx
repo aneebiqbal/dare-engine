@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminStudioPage() {
   const user = await requireAdmin();
   return (
-    <AppPage user={user} eyebrow="Admin" title="Clip studio">
+    <AppPage user={user} eyebrow="Admin" title="Clip studio" header={false}>
       <Studio />
     </AppPage>
   );

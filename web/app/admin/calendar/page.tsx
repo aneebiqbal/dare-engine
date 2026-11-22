@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminCalendarPage() {
   const user = await requireAdmin();
   return (
-    <AppPage user={user} eyebrow="Admin" title="Calendar">
+    <AppPage user={user} eyebrow="Admin" title="Calendar" header={false}>
       <AdminCalendar />
     </AppPage>
   );
