@@ -33,6 +33,17 @@ def _run_ffmpeg(cmd: list[str]) -> None:
         raise RuntimeError(f"ffmpeg failed: {proc.stderr[-1500:]}")
 
 
+def _require_disk(path: str, needed_mb: int = 2000) -> None:
+    """A render writes several GB; fail with a clear message, not a full disk."""
+    import shutil
+
+    free = shutil.disk_usage(path).free
+    if free < needed_mb * 1_000_000:
+        raise RuntimeError(
+            f"not enough free disk space ({free / 1_000_000:.0f} MB free, need {needed_mb} MB)"
+        )
+
+
 def _stage(clip_id: str, stage: str, progress: int, error: str | None = None,
            job_id: str | None = None) -> None:
     with db.session() as conn:
@@ -74,6 +85,7 @@ def render_clip(payload: dict) -> None:
 
     with tempfile.TemporaryDirectory(prefix="render-") as tmp:
         tmp = pathlib.Path(tmp)
+        _require_disk(str(tmp))
         _stage(clip_id, "fetch", STAGES["fetch"], job_id=payload.get("_job_id"))
 
         if payload.get("recording_dir"):

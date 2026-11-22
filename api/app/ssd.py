@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from . import db, storage
 from .config import settings
 from .projects import create_for_recording
-from .studio import _probe
+from .studio import _probe, require_disk
 from .users import current_user, require_admin
 
 router = APIRouter(dependencies=[Depends(require_admin)])
@@ -64,6 +64,7 @@ def ssd_import(request: Request, payload: dict):
     suffix = local.suffix or ".mp4"
     key = f"recordings/{user['id']}/studio-{recording_id}{suffix}"
     specs = _probe(str(local))
+    require_disk(settings.storage_local_dir)
     storage.put_file(key, str(local))
     # Process-and-release: once the file is safely in local storage, drop the
     # inbox copy so a long session cannot fill the disk.

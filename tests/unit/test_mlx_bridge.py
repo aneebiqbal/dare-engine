@@ -40,6 +40,8 @@ def test_mlx_bridge_transcribes_words(monkeypatch):
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     monkeypatch.setattr(settings, "mlx_whisper_url", f"http://127.0.0.1:{server.server_port}")
+    # The stored ASR choice lives in the DB; keep the test hermetic.
+    monkeypatch.setattr("worker_app.settings_store.get", lambda key, default=None: default)
     try:
         assert whisper_compute() == ("mlx", "metal")
         with tempfile.TemporaryDirectory() as tmp:

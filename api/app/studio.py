@@ -30,26 +30,42 @@ CHUNK_SIZE = 1024 * 1024
 
 
 def _probe(path: str) -> dict:
-    out = subprocess.run(
-        [
-            "ffprobe", "-v", "error",
-            "-show_entries", "format=duration",
-            "-show_entries", "stream=codec_type,width,height",
-            "-of", "json", path,
-        ],
-        capture_output=True, text=True, check=True,
-    ).stdout
-    data = json.loads(out)
+    """ffprobe a recording, or a clear 422 — never an opaque 500."""
+    try:
+        out = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-show_entries", "stream=codec_type,width,height",
+                "-of", "json", path,
+            ],
+            capture_output=True, text=True, check=True, timeout=60,
+        ).stdout
+        data = json.loads(out)
+        duration = float(data["format"]["duration"])
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, KeyError, ValueError, json.JSONDecodeError) as exc:
+        raise HTTPException(422, f"that file is not a readable video ({type(exc).__name__})")
+    if duration < 1.0:
+        raise HTTPException(422, f"that recording is too short ({duration:.1f}s) to clip")
     width = height = 0
     for stream in data.get("streams", []):
         if stream.get("codec_type") == "video":
             width, height = stream.get("width", 0), stream.get("height", 0)
             break
     return {
-        "duration_seconds": round(float(data["format"]["duration"]), 3),
+        "duration_seconds": round(duration, 3),
         "width": width,
         "height": height,
     }
+
+
+def require_disk(path: str, needed_mb: int = 500) -> None:
+    """Fail with a clear message before a long upload or render fills the disk."""
+    free = shutil.disk_usage(path).free
+    if free < needed_mb * 1_000_000:
+        raise HTTPException(
+            507, f"not enough free disk space ({free / 1_000_000:.0f} MB free, need {needed_mb} MB)"
+        )
 
 
 def _owned_recording(cur, request, recording_id: str):
@@ -73,6 +89,7 @@ async def upload(request: Request, file: UploadFile = File(...)):
     recording_id = str(uuid.uuid4())
     key = f"recordings/{user['id']}/studio-{recording_id}{suffix}"
     with tempfile.TemporaryDirectory(prefix="studio-") as tmp:
+        require_disk(tmp)
         local = pathlib.Path(tmp) / f"recording{suffix}"
         with open(local, "wb") as out:
             while chunk := await file.read(CHUNK_SIZE):

@@ -22,6 +22,8 @@ from clip.llm import get_llm  # noqa: E402
 def test_get_llm_is_none_without_a_key(monkeypatch):
     from worker_app.config import settings
 
+    # The provider picker's stored values live in the DB; keep the test hermetic.
+    monkeypatch.setattr("worker_app.settings_store.get", lambda key, default=None: default)
     monkeypatch.setattr(settings, "llm_api_key", "")
     assert get_llm() is None
 
@@ -29,6 +31,7 @@ def test_get_llm_is_none_without_a_key(monkeypatch):
 def test_get_llm_returns_the_shared_client_with_a_key(monkeypatch):
     from worker_app.config import settings
 
+    monkeypatch.setattr("worker_app.settings_store.get", lambda key, default=None: default)
     monkeypatch.setattr(settings, "llm_provider", "openai")
     monkeypatch.setattr(settings, "llm_api_key", "k")
     monkeypatch.setattr(settings, "llm_base_url", "http://example.invalid/v1")
