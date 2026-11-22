@@ -8,11 +8,16 @@ suggestions with the model's reason and the frame it judged, plus the seconds th
 pass added and whether the unload was verified.
 """
 import json
+import os
 import pathlib
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "worker"))
+
+# This script runs on the host, where the bridge is localhost. The worker
+# container uses host.docker.internal (the default in clip.vision).
+os.environ.setdefault("MODEL_BRIDGE_URL", "http://127.0.0.1:8798")
 
 from clip.vision import suggest  # noqa: E402
 

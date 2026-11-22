@@ -88,3 +88,27 @@ def test_skips_windows_the_model_rejects(tmp_path):
         unload_fn=bridge.unload,
     )
     assert suggestions == []
+
+
+def test_prompt_formats_without_raising():
+    # The prompt embeds a literal JSON example; .format must not read its braces.
+    text = vision.PROMPT.format(start=1.0, end=13.0)
+    assert "clippable" in text
+    assert "{start" not in text
+
+
+def test_unload_polls_until_the_model_is_gone(monkeypatch):
+    calls = {"n": 0}
+    monkeypatch.setattr(vision, "_post", lambda *a, **k: {})
+    def fake_get(url, timeout=10):
+        calls["n"] += 1
+        return {"ollama": {"running": [{"name": "m"}] if calls["n"] == 1 else []}}
+    monkeypatch.setattr(vision, "_get", fake_get)
+    assert vision.unload("m") is True
+    assert calls["n"] == 2
+
+
+def test_unload_false_when_it_stays_resident(monkeypatch):
+    monkeypatch.setattr(vision, "_post", lambda *a, **k: {})
+    monkeypatch.setattr(vision, "_get", lambda *a, **k: {"ollama": {"running": [{"name": "m"}]}})
+    assert vision.unload("m", timeout=0.2) is False

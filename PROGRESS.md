@@ -49,6 +49,32 @@ capture need the owner's host and a human at a Mac.**
 - A **Suggested engine** card shows transcription, writing and vision models
   with state, size, fit and one-click install, plus an approximate total.
 
+### Real vision run (2026-11-23)
+
+`qwen2.5vl:7b` (6.0 GB, Apache-2.0), on `fixtures/gameplay_4min.mp4`:
+
+- **40 frames sampled** (one every 5 s, capped at 40) — not every frame.
+- **447 s** for the 4-minute recording; **unloaded: true** (verified against the
+  model inventory; Ollama unloads asynchronously, so the check polls).
+- **5 ranked suggestions**, each with a reason and the frame it judged, e.g.
+  - `94–106 s · 0.8` — "The character is rappelling down a building, showcasing a
+    tense and action-packed moment in the game."
+  - `9–21 s · 0.8` — "The dramatic silhouette of the character against the dark,
+    ruined backdrop creates a visually striking moment."
+
+This is a real VLM run on a real recording (the publisher trailer already in the
+repo). It is **not** the owner's gameplay, so it proves the pass works, not clip
+quality. Reproduce with `make vision-model` then `make vision-run FILE=...`.
+
+### Verification
+
+- Acceptance — **69 passed, 2 skipped** (run in bounded chunks; the only failure
+  was a missing Playwright browser, installed).
+- Unit — **63 passed, 1 skipped** fast, plus the detect/transcribe suites;
+  vision **9/9**; `make check` **2 passed**; `make doctor` **14/14**.
+- Desktop — `make desktop` builds a **2.37 MB** `.dmg` that mounts and verifies.
+- Contract — regenerated (`make contract`); 111 paths.
+
 ## Final sprint — clean, fast, demo-ready
 
 Status: **the product is demo-ready; the demo clip and live AI/research await the

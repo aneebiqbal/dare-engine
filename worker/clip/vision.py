@@ -35,7 +35,7 @@ PROMPT = (
     "You are a clip editor watching a gameplay recording. This frame is from "
     "{start:.1f}s to {end:.1f}s. Decide whether this window holds a striking, "
     "clippable moment worth a short vertical video. Answer with JSON only: "
-    '{"clippable": true|false, "score": 0.0-1.0, "reason": "one short sentence"}'
+    '{{"clippable": true|false, "score": 0.0-1.0, "reason": "one short sentence"}}'
 )
 
 
@@ -102,15 +102,23 @@ def describe(frame_path: str, start: float, end: float, model: str = MODEL) -> d
         return {"error": f"{type(exc).__name__}: {exc}"}
 
 
-def unload(model: str = MODEL) -> bool:
-    """Unload the VLM and verify it is gone. Real, not assumed."""
+def unload(model: str = MODEL, timeout: float = 10.0) -> bool:
+    """Unload the VLM and verify it is gone. Ollama unloads asynchronously, so poll."""
     try:
         _post(BRIDGE + "/models/unload", {"name": model}, timeout=60)
-        status = _get(BRIDGE + "/models", timeout=10)
     except Exception:
         return False
-    running = [m.get("name") for m in status.get("ollama", {}).get("running", [])]
-    return model not in running
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            status = _get(BRIDGE + "/models", timeout=10)
+        except Exception:
+            return False
+        running = [m.get("name") for m in status.get("ollama", {}).get("running", [])]
+        if model not in running:
+            return True
+        time.sleep(0.5)
+    return False
 
 
 def _overlaps(a: Suggestion, b: Suggestion) -> bool:

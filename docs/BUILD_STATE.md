@@ -50,10 +50,10 @@ Last updated after the research-brain sprint.
 | Rate limiting (per-IP, stricter auth/admin) | yes | yes | yes (unit) | — |
 | Client error reporting + admin view | yes | yes | yes (unit) | — |
 | Database backup (`make backup`) | yes | yes | no | a real restore drill |
-| Desktop app (Tauri shell, builds a .dmg) | yes | yes (build + mount) | no | a human at a Mac |
+| Desktop app (Tauri shell, builds a .dmg) | yes | yes (build + mount) | partial (no human launch) | a human at a Mac |
 | Desktop capture (OBS path) | yes | yes | yes (OBS 33.0.1) | — |
 | Desktop capture (bundled FFmpeg recorder) | yes | yes (command) | no | a real recording |
-| Vision clip suggestions (sampled VLM) | yes | yes (unit, fake VLM) | no | VLM installed + real footage |
+| Vision clip suggestions (sampled VLM) | yes | yes | yes (real run, 4-min trailer) | owner's gameplay footage |
 | Models & Setup suggested engine + one-click install | yes | yes | yes (real bridge) | — |
 
 ## Blocked on the user (cannot be closed by code)
