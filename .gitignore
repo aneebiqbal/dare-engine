@@ -41,6 +41,7 @@ ssd-test/
 .pytest-outputs/
 trash/
 backups/
+vision-out/
 
 # Desktop app
 desktop/node_modules/
