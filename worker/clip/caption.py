@@ -59,10 +59,14 @@ def group_words(words: list[Word], per: str, max_words: int = 4) -> list[Word]:
     groups: list[Word] = []
     current: list[Word] = []
     for w in words:
-        current.append(w)
-        if len(current) >= max_words or (w.end - current[0].start) > 2.5:
+        # Close before a word that would overflow the phrase or bridge a pause,
+        # so a caption never spans silence.
+        if current and (
+            len(current) >= max_words or (w.start - current[-1].end) > 1.0
+        ):
             groups.append(Word(current[0].start, current[-1].end, " ".join(c.text for c in current)))
             current = []
+        current.append(w)
     if current:
         groups.append(Word(current[0].start, current[-1].end, " ".join(c.text for c in current)))
     return groups
@@ -72,10 +76,12 @@ def karaoke_groups(words: list[Word], max_words: int = 4) -> list[list[Word]]:
     groups: list[list[Word]] = []
     current: list[Word] = []
     for w in words:
-        current.append(w)
-        if len(current) >= max_words or (w.end - current[0].start) > 3.0:
+        if current and (
+            len(current) >= max_words or (w.start - current[-1].end) > 1.0
+        ):
             groups.append(current)
             current = []
+        current.append(w)
     if current:
         groups.append(current)
     return groups

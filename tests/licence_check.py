@@ -20,6 +20,7 @@ PYTHON_LICENCES = {
     "psycopg": "LGPL-3.0",
     "pydantic-settings": "MIT",
     "jsonschema": "MIT",
+    "cryptography": "BSD-3-Clause",
     "boto3": "Apache-2.0",
     "python-multipart": "Apache-2.0",
     "argon2-cffi": "MIT",

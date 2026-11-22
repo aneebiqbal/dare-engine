@@ -176,6 +176,7 @@ def render_short(
     words_abs: list["Word"] | None = None,
     caption_style: str = "word",
     template_id: str | None = None,
+    caption_override: list[dict] | None = None,
 ) -> Result:
     src = str(input_path)
     out_dir = Path(out_dir)
@@ -270,6 +271,18 @@ def render_short(
                     break
         mapped.sort(key=lambda w: w.start)
 
+        # An editor's caption text/timing override replaces the transcript-derived
+        # captions on the output timeline. The transcript itself is never re-run.
+        caption_words = mapped
+        if caption_override is not None:
+            caption_words = sorted(
+                (
+                    Word(float(c["start"]), float(c["end"]), str(c.get("text", "")))
+                    for c in caption_override
+                ),
+                key=lambda w: w.start,
+            )
+
         mission_num = str(card.get("id", "")).replace("m_", "")
         end_lines = [f"MISSION {mission_num}" if mission_num else "MISSION"]
         if result_value:
@@ -280,11 +293,11 @@ def render_short(
         hook_dur = min(tpl.hook_seconds, beats[-1].length) if beats else 2.0
         write_ass(
             str(ass_path), card.get("hook_text", ""), hook_dur,
-            mapped if captions != "none" else [], end_lines, end_start, total,
+            caption_words if captions != "none" else [], end_lines, end_start, total,
             caption_style=captions,
         )
         srt_path = out_dir / "captions.srt"
-        write_srt(str(srt_path), mapped, caption_style=captions)
+        write_srt(str(srt_path), caption_words, caption_style=captions)
 
         out_path = out_dir / "short.mp4"
         vf = f"{filtergraph(layout)};[v]subtitles=filename={ass_path}[outv]"

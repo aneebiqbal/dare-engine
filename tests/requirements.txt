@@ -12,3 +12,4 @@ python-multipart==0.0.20
 # wheels. The API image stays on the pinned 3.2.3.
 psycopg[binary]
 psycopg-pool
+cryptography==44.0.0

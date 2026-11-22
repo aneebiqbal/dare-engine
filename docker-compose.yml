@@ -103,6 +103,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://clipdesk:clipdesk@db:5432/clipdesk}
       DATABASE_URL_DIRECT: ${DATABASE_URL_DIRECT:-postgresql://clipdesk:clipdesk@db:5432/clipdesk}
+      SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret-change-me}
       STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
       STORAGE_LOCAL_DIR: /data/storage
       S3_ENDPOINT: ${S3_ENDPOINT:-http://storage:9090}

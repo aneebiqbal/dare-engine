@@ -13,7 +13,7 @@ from clip.transcribe import Word
 from clip.tts import speak
 from clip.voice import mix_voice_over
 
-from . import db, jobs, storage
+from . import db, events, jobs, storage
 from .config import settings
 
 STAGES = {
@@ -62,7 +62,7 @@ def _clip_row(clip_id: str):
             cur.execute(
                 "SELECT state, file_key, transcript, recording_key, source_start, "
                 "source_end, trim_start, trim_end, layout, caption_style, voice_over, "
-                "voice, render_key FROM clips WHERE id = %s",
+                "voice, render_key, captions_override FROM clips WHERE id = %s",
                 (clip_id,),
             )
             return cur.fetchone()
@@ -74,8 +74,10 @@ def render_clip(payload: dict) -> None:
     row = _clip_row(clip_id)
     if row is None:
         raise RuntimeError(f"clip {clip_id} not found")
+    events.log("job_start", f"render_clip {clip_id}")
     (state, file_key, transcript, recording_key, source_start, source_end,
-     trim_start, trim_end, layout, caption_style, voice_over, voice, render_key) = row
+     trim_start, trim_end, layout, caption_style, voice_over, voice, render_key,
+     captions_override) = row
 
     idem = f"render:{clip_id}:{payload.get('start')}:{payload.get('end')}:" \
            f"{payload.get('layout')}:{payload.get('caption_style')}:" \
@@ -138,6 +140,7 @@ def render_clip(payload: dict) -> None:
             words_abs=words_abs,
             caption_style=payload.get("caption_style") or caption_style or "word",
             template_id=payload.get("template_id"),
+            caption_override=captions_override,
         )
 
         out_path = result.out_path
@@ -191,6 +194,7 @@ def render_clip(payload: dict) -> None:
                 )
         if payload.get("_job_id"):
             jobs.set_stage(payload["_job_id"], "store")
+    events.log("cleanup", f"render_clip {clip_id}")
 
 
 @jobs.register("detect_moments")
@@ -204,6 +208,7 @@ def detect_moments(payload: dict) -> None:
     # Store the path before the expensive pass so the studio shows which
     # compute path is live, not only after the candidates land.
     compute = detect_compute_path()
+    events.log("model_load", f"whisper {compute.whisper_device}/{compute.whisper_compute_type}")
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -216,6 +221,7 @@ def detect_moments(payload: dict) -> None:
         path = str(pathlib.Path(tmp) / "recording.mp4")
         storage.get_file(key, path)
         candidates, _ = run_detection(path, top_n=top_n)
+    events.log("model_unload", "whisper")
     with db.session() as conn:
         with conn.cursor() as cur:
             for c in candidates:
@@ -236,6 +242,7 @@ def suggest_clips(payload: dict) -> None:
     """
     from clip.vision import suggest
 
+    events.log("model_load", f"vision {settings.vision_model}")
     recording_id = payload["recording_id"]
     key = payload["storage_key"]
     with tempfile.TemporaryDirectory(prefix="vision-") as tmp:
@@ -269,6 +276,7 @@ def suggest_clips(payload: dict) -> None:
                     "WHERE id = %s",
                     (meta.get("model"), meta.get("seconds_added"), recording_id),
                 )
+    events.log("model_unload", f"vision {settings.vision_model}")
     if payload.get("_job_id"):
         jobs.set_stage(payload["_job_id"], "vision")
 

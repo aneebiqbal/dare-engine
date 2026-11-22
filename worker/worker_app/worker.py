@@ -6,7 +6,7 @@ import threading
 import time
 import traceback
 
-from . import db, jobs
+from . import db, events, jobs
 
 CONCURRENCY = max(1, int(os.environ.get("WORKER_CONCURRENCY", os.cpu_count() or 2)))
 STALE_SECONDS = int(os.environ.get("WORKER_STALE_SECONDS", 600))
@@ -23,10 +23,13 @@ def run_once(worker_id: str) -> bool:
         print(f"no handler for job {job_id} kind={kind}")
         jobs.finish(job_id, "failed")
         return True
+    events.log("job_start", f"{kind} {job_id}")
     try:
         handler(payload)
+        events.log("job_done", f"{kind} {job_id}")
         jobs.finish(job_id, "done")
     except Exception as exc:
+        events.log("job_failed", f"{kind} {job_id}: {type(exc).__name__}")
         traceback.print_exc()
         jobs.fail(job_id, f"{type(exc).__name__}: {exc}")
     return True

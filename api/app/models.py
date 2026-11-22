@@ -12,6 +12,7 @@ import urllib.request
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from .config import settings
+from .keys import resolve
 from .users import require_admin
 
 router = APIRouter(dependencies=[Depends(require_admin)])
@@ -42,15 +43,20 @@ def _post(path: str, payload: dict, timeout: float = 60):
 
 @router.get("/admin/models")
 def models(request: Request):
+    from .settings_store import get as stored
+
     engine, error = _get("/models")
+    provider = stored("llm_provider") or settings.llm_provider
+    base_url = stored("llm_base_url") or settings.llm_base_url
+    model = stored("llm_model") or settings.llm_model
     return {
         "bridge": "up" if error is None else "down",
         "error": error,
         "provider": {
-            "llm_provider": settings.llm_provider,
-            "llm_model": settings.llm_model,
-            "llm_base_url": settings.llm_base_url,
-            "configured": settings.ai_configured,
+            "llm_provider": provider,
+            "llm_model": model,
+            "llm_base_url": base_url,
+            "configured": bool(provider == "openai" and base_url and model and resolve("llm")),
             "asr": "mlx" if settings.mlx_whisper_url else "cpu",
             "mlx_model": settings.mlx_whisper_model,
             "vision_model": settings.vision_model,

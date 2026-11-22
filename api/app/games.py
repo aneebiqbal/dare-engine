@@ -12,8 +12,8 @@ import urllib.request
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from . import db, research
+from .keys import resolve
 from .research import sources_map
-from .config import settings
 from .paging import envelope, order_clause, parse
 from .users import audit, current_user, require_admin
 
@@ -42,9 +42,10 @@ SAMPLE_GAMES = [
 
 
 def _rawg(path: str, params: dict) -> dict | None:
-    if not settings.rawg_api_key:
+    api_key = resolve("rawg")
+    if not api_key:
         return None
-    params = {**params, "key": settings.rawg_api_key}
+    params = {**params, "key": api_key}
     url = f"https://api.rawg.io/api/{path}?{urllib.parse.urlencode(params)}"
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "clipdesk-research/0.1"})

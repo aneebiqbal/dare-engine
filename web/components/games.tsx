@@ -29,6 +29,7 @@ import {
   Tr,
   useToast,
 } from "@/components/ui";
+import { ResearchSourceBanner } from "./admin-keys";
 
 export function Sources({ sources }: { sources?: PoolEntry["sources"] }) {
   if (!sources || sources.length === 0) {
@@ -161,6 +162,7 @@ export function AdminGames() {
 
   return (
     <div className="flex flex-col gap-6">
+      <ResearchSourceBanner />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button onClick={() => setAddOpen(true)}>Add game</Button>
         <span className="text-xs text-muted">Research runs daily per enabled game.</span>
@@ -367,6 +369,7 @@ export function AdminGameProfile({ gameId }: { gameId: string }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <ResearchSourceBanner />
       <Card>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 items-center gap-4">

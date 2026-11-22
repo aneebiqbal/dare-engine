@@ -6,6 +6,8 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql://clipdesk:clipdesk@db:5432/clipdesk"
     database_url_direct: str = ""
+    # Same value as the API: the key-store encryption key is derived from it.
+    session_secret: str = ""
 
     storage_driver: str = "local"
     storage_local_dir: str = "/data/storage"

@@ -1,10 +1,11 @@
 """Per-IP rate limiting.
 
 Login already counts failures per email and per IP; this adds a general ceiling
-so one client cannot hold a worker or scrape the public pages. The budgets are
-deliberately small on `/auth/` and `/admin/`, where a script does the most
-damage, and the health check is never throttled (a load balancer must be able to
-probe a busy container).
+so one client cannot hold a worker or scrape the public pages. The budget is
+deliberately small on `/auth/` and on mutating `/admin/` requests, where a
+script does the most damage. Admin reads share the general budget because the
+Models page polls them; the health check is never throttled (a load balancer
+must be able to probe a busy container).
 
 `X-Forwarded-For` is honoured because the app sits behind a proxy in
 production; the first hop is the client address.
@@ -66,7 +67,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if path.startswith("/healthz"):
             return await call_next(request)
         key = client_ip(request)
-        strict = path.startswith("/auth/") or path.startswith("/admin/")
+        strict = path.startswith("/auth/") or (
+            path.startswith("/admin/") and request.method != "GET"
+        )
         allowed = (self.auth if strict else self.general).allow(key, self._clock())
         if not allowed:
             return JSONResponse(

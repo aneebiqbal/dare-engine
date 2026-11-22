@@ -12,6 +12,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from starlette.background import BackgroundTask
 
 from . import db, storage
+from .caption_events import group
 from .config import settings
 from .paging import envelope, order_clause, parse
 from .projects import attach_stream
@@ -311,6 +312,53 @@ def clip_detail(request: Request, clip_id: str):
     return _clip(row)
 
 
+@router.get("/clips/{clip_id}/captions")
+def clip_captions(request: Request, clip_id: str):
+    """The caption events an editor should show: the override, or the transcript
+    grouped the way the worker will burn it."""
+    user = current_user(request)
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT c.captions_override, c.transcript, c.caption_style "
+                "FROM clips c JOIN assignments a ON a.id = c.assignment_id "
+                "WHERE c.id = %s AND a.user_id = %s",
+                (clip_id, user["id"]),
+            )
+            row = cur.fetchone()
+    if row is None:
+        raise HTTPException(404, "clip not found")
+    override, transcript, style = row
+    if override:
+        return {"captions": override, "source": "override", "caption_style": style}
+    words = [
+        {"start": w["start"], "end": w["end"], "text": w["text"]}
+        for w in (transcript or [])
+    ]
+    return {"captions": group(words, style or "word"), "source": "transcript", "caption_style": style}
+
+
+def _clean_captions(payload) -> list[dict]:
+    if not isinstance(payload, list):
+        raise HTTPException(422, "captions must be a list")
+    clean = []
+    for item in payload:
+        if not isinstance(item, dict) or "start" not in item or "end" not in item:
+            raise HTTPException(422, "each caption needs start, end and text")
+        try:
+            start = float(item["start"])
+            end = float(item["end"])
+        except (TypeError, ValueError):
+            raise HTTPException(422, "caption start/end must be numbers")
+        if end < start or start < 0:
+            raise HTTPException(422, "caption end must be after start")
+        text = str(item.get("text", "")).strip()
+        if not text:
+            continue
+        clean.append({"start": round(start, 3), "end": round(end, 3), "text": text[:200]})
+    return clean
+
+
 @router.patch("/clips/{clip_id}")
 def update_clip(request: Request, clip_id: str, payload: dict):
     user = current_user(request)
@@ -318,6 +366,10 @@ def update_clip(request: Request, clip_id: str, payload: dict):
     for key in ("title", "layout", "caption_style", "voice_over", "voice", "export_title", "export_description", "export_tags", "commentary"):
         if key in payload:
             fields[key] = payload[key]
+    captions = None
+    if "captions" in payload:
+        captions = _clean_captions(payload["captions"])
+        fields["captions_override"] = json.dumps(captions)
     template_id = payload.get("template_id")
     if not fields and not template_id:
         raise HTTPException(422, "nothing to update")
@@ -328,7 +380,7 @@ def update_clip(request: Request, clip_id: str, payload: dict):
                 set_clause = ", ".join(f"{k} = %s" for k in fields)
                 cur.execute(f"UPDATE clips SET {set_clause} WHERE id = %s", (*fields.values(), clip_id))
             # A template, layout or caption change re-renders in place.
-            if template_id or "layout" in fields or "caption_style" in fields:
+            if template_id or "layout" in fields or "caption_style" in fields or captions is not None:
                 cur.execute(
                     "SELECT c.recording_key, c.source_start, c.source_end, m.card, "
                     "c.trim_start, c.trim_end, c.voice_over, c.voice "

@@ -57,6 +57,8 @@ Last updated after the research-brain sprint.
 | Models & Setup suggested engine + one-click install | yes | yes | yes (real bridge) | — |
 | Projects: derived stages, dashboard, sequential analysis queue | yes | yes | yes (acceptance, real stack) | — |
 | First-run setup wizard (persisted, verified steps) | yes | yes | yes (acceptance, real endpoints) | — |
+| In-window caption editor (text/timing, no re-transcribe) | yes | yes | yes (acceptance, real render) | — |
+| Engine activity log (model load/unload, cleanup) on the dashboard | yes | yes | yes (acceptance, real worker) | — |
 
 ## Blocked on the user (cannot be closed by code)
 

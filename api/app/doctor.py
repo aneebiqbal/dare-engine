@@ -50,6 +50,8 @@ def run_checks() -> list[dict]:
         bool(settings.session_secret) and settings.session_secret != "change-me",
         "generate one locally: openssl rand -hex 32",
     ))
+    from .keys import resolve
+
     checks.append(_check(
         "LLM_BASE_URL set",
         bool(settings.llm_base_url),
@@ -57,7 +59,7 @@ def run_checks() -> list[dict]:
     ))
     checks.append(_check(
         "LLM_API_KEY present",
-        bool(settings.llm_api_key),
+        bool(resolve("llm")),
         "never printed",
     ))
     checks.append(_check(
@@ -66,9 +68,9 @@ def run_checks() -> list[dict]:
         "model id from the provider",
     ))
     research_keys = bool(
-        settings.youtube_api_key
-        or (settings.reddit_client_id and settings.reddit_client_secret)
-        or settings.rawg_api_key
+        resolve("youtube")
+        or (resolve("reddit_client") and resolve("reddit_secret"))
+        or resolve("rawg")
     )
     checks.append(_check(
         "research sources (optional)",

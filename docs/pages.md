@@ -14,7 +14,7 @@ app code may not import (`make check`).
 | `/missions/[id]` | Idea detail and dare editor. | Reads what to do, edits hook/setup/win condition. |
 | `/live` | OBS / Go Live: stream address, key, connection status, checklist. | Connects OBS and checks HDCP, mic, radio. |
 | `/remote` | Phone remote. | Taps Start and Done; the clip window is stored. |
-| `/clips`, `/clips/[id]`, `/export/[id]` | Clip review and export. | Watches, retitles, restyles, adds commentary, exports a zip. |
+| `/clips`, `/clips/[id]`, `/export/[id]` | Clip review and export, including the caption editor. | Watches, retitles, restyles, edits caption text/timing, adds commentary, exports a zip. |
 | `/history` | Session history with search. | Finds a past session and its result. |
 | `/results` | Metrics and summary. | Reads views, swipe-through, saves/shares per dare type. |
 | `/settings` | Caption style, layout, voice-over defaults. | Sets preferences. |

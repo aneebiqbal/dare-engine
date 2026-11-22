@@ -10,6 +10,7 @@ import {
   type VoiceOver,
 } from "@/lib/api";
 import { NextStep } from "./next-step";
+import { CaptionEditor } from "./caption-editor";
 import {
   Badge,
   Button,
@@ -348,6 +349,8 @@ export function ClipReview({ clip }: { clip: Clip }) {
               </div>
             </div>
           </Card>
+
+          <CaptionEditor clipId={clip.id} />
 
           <Card>
             <div className="flex flex-col gap-4">

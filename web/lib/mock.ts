@@ -370,6 +370,15 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
       next: "models",
     } as T;
   }
+  if (method === "GET" && pathname === "/admin/engine-events") {
+    return {
+      items: [
+        { id: "e_1", kind: "model_load", detail: "whisper mlx/metal", created_at: "2026-11-23T00:00:00Z" },
+        { id: "e_2", kind: "model_unload", detail: "whisper", created_at: "2026-11-23T00:00:05Z" },
+        { id: "e_3", kind: "cleanup", detail: "render_clip abc", created_at: "2026-11-23T00:00:10Z" },
+      ],
+    } as T;
+  }
   if (method === "POST" && pathname.startsWith("/admin/wizard/")) {
     return { steps: [], ready: false, next: null } as T;
   }

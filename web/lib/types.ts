@@ -365,6 +365,31 @@ export type AiConfig = {
   configured: boolean;
 };
 
+export type IntegrationKey = {
+  name: string;
+  label: string;
+  group: string;
+  docs: string;
+  env_var: string;
+  masked: string;
+  configured: boolean;
+  source: "stored" | "env" | "none";
+  status: "connected" | "invalid" | "unreachable" | "untested";
+  status_detail: string | null;
+  tested_at: string | null;
+};
+
+export type KeyStatusResponse = {
+  integrations: IntegrationKey[];
+  research_sources_configured: boolean;
+};
+
+export type KeyTestResponse = {
+  ok: boolean;
+  status: IntegrationKey["status"];
+  detail: string;
+};
+
 export type StudioCandidate = {
   id: string;
   start: number;
@@ -398,6 +423,13 @@ export type StudioRecording = {
     seconds_added: number | null;
   };
   candidates: StudioCandidate[];
+};
+
+export type EngineEvent = {
+  id: string;
+  kind: string;
+  detail: string | null;
+  created_at: string | null;
 };
 
 export type WizardStep = {
@@ -571,5 +603,6 @@ export type ProviderStatus = {
     llm_model: string;
     llm_base_url: string;
     asr: string;
+    configured: boolean;
   };
 };

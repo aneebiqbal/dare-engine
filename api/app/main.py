@@ -15,8 +15,10 @@ from .clips import router as clips_router
 from .community import router as community_router
 from .config import settings
 from .errors import router as errors_router
+from .engine import router as engine_router
 from .games import router as games_router
 from .hooks import router as hooks_router
+from .keys import router as keys_router
 from .longform import router as longform_router
 from .missions import router as missions_router
 from .models import router as models_router
@@ -88,8 +90,10 @@ for router in (
     admin_router,
     ai_router,
     errors_router,
+    engine_router,
     games_router,
     obs_router,
+    keys_router,
     provider_router,
     ssd_router,
     studio_router,

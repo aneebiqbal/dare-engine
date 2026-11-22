@@ -12,6 +12,7 @@ import {
   type Job,
   type PoolEntry,
   type Project,
+  type EngineEvent,
   type SystemLoad,
   type User,
 } from "@/lib/api";
@@ -33,6 +34,7 @@ import {
   useToast,
 } from "@/components/ui";
 import { Sources } from "./games";
+import { AdminKeys } from "./admin-keys";
 
 function useList<T>(fetcher: (params?: string) => Promise<{ items: T[]; total: number }>, params = "") {
   const [items, setItems] = useState<T[]>([]);
@@ -66,6 +68,7 @@ export function AdminOverview() {
   const [usage, setUsage] = useState<AiUsage[]>([]);
   const [errors, setErrors] = useState<ErrorReport[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [engineEvents, setEngineEvents] = useState<EngineEvent[]>([]);
   const [storage, setStorage] = useState<{ driver: string; bytes: number } | null>(null);
   const [setup, setSetup] = useState<{ name: string; ok: boolean; detail: string }[]>([]);
   const [health, setHealth] = useState<SystemLoad | null>(null);
@@ -98,11 +101,12 @@ export function AdminOverview() {
   // The doctor checks and the live system probe are slow (seconds); stream them
   // in after the main dashboard so nothing waits on them.
   useEffect(() => {
-    Promise.all([api.adminSetup(), api.studioSystem().catch(() => null), api.adminErrors()])
-      .then(([st, h, e]) => {
+    Promise.all([api.adminSetup(), api.studioSystem().catch(() => null), api.adminErrors(), api.engineEvents(10)])
+      .then(([st, h, e, ev]) => {
         setSetup(st.checks);
         setHealth(h);
         setErrors(e.items);
+        setEngineEvents(ev.items);
       })
       .catch(() => {});
   }, []);
@@ -256,6 +260,25 @@ export function AdminOverview() {
           </div>
         </Card>
       </div>
+
+      <Card>
+        <div className="flex flex-col gap-3">
+          <h2 className="text-base font-medium">Engine activity</h2>
+          {engineEvents.length === 0 ? (
+            <p className="text-sm text-muted">No engine jobs yet.</p>
+          ) : (
+            engineEvents.slice(0, 6).map((e) => (
+              <div key={e.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="font-mono text-xs">{e.kind}</span>
+                <span className="truncate text-muted" title={e.detail ?? ""}>{e.detail ?? "—"}</span>
+                <span className="text-xs text-muted">
+                  {e.created_at ? new Date(e.created_at).toLocaleTimeString() : ""}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </Card>
 
       <Card>
         <div className="flex flex-col gap-3">
@@ -803,6 +826,7 @@ export function AdminSetup() {
 
   return (
     <div className="grid gap-6">
+      <AdminKeys />
       <PageState
         loading={loading}
         error={error}

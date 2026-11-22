@@ -36,7 +36,7 @@ def test_keys_are_independent():
     assert window.allow("a", now=1) is False
 
 
-def _request(path: str, ip: str = "9.9.9.9", forwarded: str | None = None):
+def _request(path: str, ip: str = "9.9.9.9", forwarded: str | None = None, method: str = "GET"):
     headers = {}
     if forwarded:
         headers["x-forwarded-for"] = forwarded
@@ -44,6 +44,7 @@ def _request(path: str, ip: str = "9.9.9.9", forwarded: str | None = None):
         url=types.SimpleNamespace(path=path),
         client=types.SimpleNamespace(host=ip),
         headers=headers,
+        method=method,
     )
 
 
@@ -51,8 +52,8 @@ async def _ok(request):
     return types.SimpleNamespace(status_code=200)
 
 
-def _denied(middleware, path, ip="9.9.9.9", forwarded=None, now=0.0):
-    return asyncio.run(middleware.dispatch(_request(path, ip, forwarded), _ok))
+def _denied(middleware, path, ip="9.9.9.9", forwarded=None, now=0.0, method="GET"):
+    return asyncio.run(middleware.dispatch(_request(path, ip, forwarded, method), _ok))
 
 
 def _middleware(limit=2, auth_limit=1, clock=lambda: 0.0):
@@ -82,10 +83,17 @@ def test_auth_routes_have_a_stricter_budget():
     assert _denied(middleware, "/auth/sign-in", now=1).status_code == 429
 
 
-def test_admin_routes_have_a_stricter_budget():
+def test_admin_writes_have_a_stricter_budget():
+    middleware = _middleware()
+    assert _denied(middleware, "/admin/models", now=0, method="POST").status_code == 200
+    assert _denied(middleware, "/admin/models", now=1, method="POST").status_code == 429
+
+
+def test_admin_reads_use_the_general_budget():
     middleware = _middleware()
     assert _denied(middleware, "/admin/models", now=0).status_code == 200
-    assert _denied(middleware, "/admin/models", now=1).status_code == 429
+    assert _denied(middleware, "/admin/models", now=1).status_code == 200
+    assert _denied(middleware, "/admin/models", now=2).status_code == 429
 
 
 def test_forwarded_for_is_honoured_behind_a_proxy():

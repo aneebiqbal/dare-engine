@@ -9,7 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from . import db, storage
 from .config import settings
+from .keys import resolve
 from .paging import envelope, order_clause, parse
+from .settings_store import get as stored
 from .users import audit, current_user, require_admin
 
 router = APIRouter(dependencies=[Depends(require_admin)])
@@ -305,12 +307,16 @@ def ai_usage(request: Request):
 def ai_config(request: Request):
     """Which provider and model are configured, and whether a key is present.
     Never the key itself."""
+    provider = stored("llm_provider") or settings.llm_provider
+    base_url = stored("llm_base_url") or settings.llm_base_url
+    model = stored("llm_model") or settings.llm_model
+    key = resolve("llm")
     return {
-        "provider": settings.llm_provider,
-        "base_url": settings.llm_base_url,
-        "model": settings.llm_model,
-        "key_present": bool(settings.llm_api_key),
-        "configured": settings.ai_configured,
+        "provider": provider,
+        "base_url": base_url,
+        "model": model,
+        "key_present": bool(key),
+        "configured": bool(provider == "openai" and base_url and model and key),
     }
 
 

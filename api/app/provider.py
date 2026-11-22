@@ -8,6 +8,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 
 from .config import settings
+from .keys import resolve
 from .settings_store import get, set
 from .users import require_admin
 
@@ -20,6 +21,9 @@ KEYS = ("llm_provider", "llm_model", "llm_base_url", "asr")
 def provider(request: Request):
     stored = {k: get(k) for k in KEYS}
     asr = stored.get("asr") or ("mlx" if settings.mlx_whisper_url else "cpu")
+    provider = stored.get("llm_provider") or settings.llm_provider
+    base_url = stored.get("llm_base_url") or settings.llm_base_url
+    model = stored.get("llm_model") or settings.llm_model
     return {
         "env": {
             "llm_provider": settings.llm_provider,
@@ -29,10 +33,11 @@ def provider(request: Request):
         },
         "stored": stored,
         "effective": {
-            "llm_provider": stored.get("llm_provider") or settings.llm_provider,
-            "llm_model": stored.get("llm_model") or settings.llm_model,
-            "llm_base_url": stored.get("llm_base_url") or settings.llm_base_url,
+            "llm_provider": provider,
+            "llm_model": model,
+            "llm_base_url": base_url,
             "asr": asr,
+            "configured": bool(provider == "openai" and base_url and model and resolve("llm")),
         },
     }
 

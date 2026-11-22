@@ -24,8 +24,15 @@ starts are seconds. This runs the whole stack on one machine — the way to try 
 today. To give other people access, deploy the cloud half and install the
 desktop app (below).
 
-## 1. Add a game
+## 0. The first-run setup wizard
 
+Admin → **Setup wizard** walks a fresh install through four verified steps:
+connect the SSD, connect OBS over the network, install the local models, and
+connect the cloud account / AI provider. Each step tests the real thing before
+the next unlocks, and your progress is saved — a returning visit skips completed
+steps and ends with a “you’re ready” summary.
+
+## 1. Add a game
 Admin → **Games** → **Add game** → search RAWG (or add by slug) → **Add**.
 
 Research runs daily per enabled game, or press **Research now**.
@@ -70,10 +77,18 @@ Admin → **Studio**.
 The clip is cut, re-transcribed, given word-synced animated captions and the
 grammar (cold open, hook, payoff, clean end). Nothing leaves the machine.
 
+Importing or uploading a recording starts a **project**. Admin → **Projects**
+shows every project’s stage — Planned → Recording → Imported → Analyzing →
+Clips Ready → Reviewed → Exported — derived from the real clips and jobs.
+**Run analysis** queues the detector (and the optional vision pass); two projects
+run one at a time, never two models at once.
+
 ## 5. Review, comment, schedule
 
 Open the clip from **Clips**.
 
+- **Captions**: edit the words, their start and end, add or remove lines, and
+  save. The cached transcript is reused — nothing is re-transcribed.
 - Add **commentary / added value** — your own context, required for monetisation.
 - **Approve**, then **Schedule** it on the **Calendar** (drag it onto a day).
 - **Export package** produces the video, thumbnail, title, description and tags.

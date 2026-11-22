@@ -3,6 +3,7 @@ uvicorn[standard]==0.34.0
 psycopg[binary]==3.2.3
 pydantic-settings==2.7.1
 jsonschema==4.23.0
+cryptography==44.0.0
 faster-whisper==1.2.1
 # PyAV 17+ removed the metadata_errors argument faster-whisper uses.
 av==16.1.0

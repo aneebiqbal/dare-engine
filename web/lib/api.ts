@@ -19,6 +19,7 @@ import type {
   Me,
   ObsStatus,
   Project,
+  EngineEvent,
   WizardState,
   WizardStep,
   SsdDrive,
@@ -41,6 +42,9 @@ import type {
   AdminClip,
   LongForm,
   ProviderStatus,
+  IntegrationKey,
+  KeyStatusResponse,
+  KeyTestResponse,
   Today,
   TourProgress,
   User,
@@ -68,6 +72,7 @@ export type {
   Me,
   ObsStatus,
   Project,
+  EngineEvent,
   WizardState,
   WizardStep,
   SsdDrive,
@@ -90,6 +95,9 @@ export type {
   AdminClip,
   LongForm,
   ProviderStatus,
+  IntegrationKey,
+  KeyStatusResponse,
+  KeyTestResponse,
   Today,
   TourProgress,
   User,
@@ -263,6 +271,12 @@ export const api = {
   // --- clips -----------------------------------------------------------
   clips: (params = "") => get<List<Clip>>(`/clips${params}`),
   clip: (id: string) => get<Clip>(`/clips/${id}`),
+  clipCaptions: (id: string) =>
+    get<{
+      captions: { start: number; end: number; text: string }[];
+      source: "override" | "transcript";
+      caption_style: string | null;
+    }>(`/clips/${id}/captions`),
   updateClip: (id: string, fields: Record<string, unknown>) =>
     patch<Clip>(`/clips/${id}`, fields),
   trim: (id: string, start: number, end: number) =>
@@ -388,6 +402,14 @@ export const api = {
   adminSaveProvider: (fields: Record<string, string>) =>
     post<{ ok: boolean }>("/admin/provider", fields),
 
+  // --- admin: integration keys --------------------------------------------
+  adminKeys: () => get<KeyStatusResponse>("/admin/keys"),
+  adminSaveKey: (name: string, value: string) =>
+    post<{ ok: boolean; masked: string }>("/admin/keys", { name, value }),
+  adminRemoveKey: (name: string) => del<{ ok: boolean }>(`/admin/keys/${name}`),
+  adminTestKey: (name: string) =>
+    post<KeyTestResponse>("/admin/keys/test", { name }),
+
   // --- games / research -------------------------------------------------
   games: () => get<Game[]>("/games"),
   adminGames: (params = "") => get<List<Game>>(`/admin/games${params}`),
@@ -468,6 +490,9 @@ export const api = {
   wizard: () => get<WizardState>("/admin/wizard"),
   saveWizardStep: (step: string, status: string, detail?: string) =>
     post<WizardState>(`/admin/wizard/${step}`, { status, detail }),
+
+  // --- engine activity ---------------------------------------------------
+  engineEvents: (limit = 20) => get<{ items: EngineEvent[] }>(`/admin/engine-events?limit=${limit}`),
 
   // --- projects ---------------------------------------------------------
   projects: () => get<{ items: Project[] }>("/projects"),

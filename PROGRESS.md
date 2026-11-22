@@ -40,6 +40,36 @@ stack, and committed.**
 - Acceptance `test_projects.py` + `test_wizard.py` — **11 passed**.
 - Unit `test_projects.py` — **9 passed**; `make check` — **2 passed**.
 
+### In-window clip editor (Part 4)
+
+- Migration `0018_caption_override.sql`: `clips.captions_override`.
+- `GET /clips/{id}/captions` returns the caption events an editor should show —
+  the stored override, or the cached transcript grouped the way the worker burns
+  it (`api/app/caption_events.py`).
+- `PATCH /clips/{id}` with `captions` validates and stores the override, then
+  re-renders. The render reuses the cached transcript; **nothing is
+  re-transcribed**.
+- `worker/clip/engine.py` takes `caption_override` and burns those events
+  instead of the transcript-derived ones.
+- Web: a **Captions** card in clip review edits text, start and end per line,
+  adds/removes lines and saves. Trim, layout, caption style and voice-over were
+  already there.
+- Caption grouping now breaks on a pause > 1 s, so a caption never spans silence
+  (worker and API grouping match).
+- Tests: `tests/unit/test_caption_editor.py` (6),
+  `tests/acceptance/test_caption_editor.py` (3).
+
+### Clean machine, visible process (Part 5)
+
+- Migration `0019_engine_events.sql`: `engine_events`.
+- `worker/worker_app/events.py` logs model loads/unloads, job start/done/failed and
+  render cleanup. It is best-effort — a logging failure never breaks a job.
+- The worker logs: whisper load/unload around detection, vision load/unload around
+  the sampled pass, and render start/cleanup. The API exposes
+  `GET /admin/engine-events`; the admin overview shows the recent activity.
+- The Models page still shows the live memory readout (host RAM, Ollama VRAM, MLX
+  peak), so the user can see the Mac return to idle.
+
 ## Ship sprint — cloud web, desktop app, vision suggestions
 
 Status: **the split is built and documented; the cloud deploy and the desktop

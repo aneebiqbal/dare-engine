@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY worker/worker_app /app/worker_app
 COPY worker/clip /app/clip
 COPY shared/llm.py /app/llm_shared.py
+COPY shared/key_crypto.py /app/key_crypto.py
 # Optional, GPL-licensed voice-over dependency. Not installed by default.
 COPY worker/requirements-voice.txt /app/requirements-voice.txt
 

@@ -55,7 +55,7 @@ export function AdminModels() {
 
   useEffect(() => {
     load();
-    const id = setInterval(load, 5000);
+    const id = setInterval(load, 30_000);
     return () => clearInterval(id);
   }, [load]);
 
@@ -103,7 +103,7 @@ export function AdminModels() {
       } catch {
         /* keep polling; the bridge may be busy */
       }
-    }, 1000);
+    }, 2000);
     return () => clearInterval(id);
   }, [task, load, toast]);
 
@@ -198,7 +198,7 @@ export function AdminModels() {
         <Card>
           <div className="flex items-center justify-between">
             <span className="text-xs uppercase tracking-[0.2em] text-muted">Provider picker</span>
-            <Badge tone={provider?.env.configured ? "success" : "muted"}>
+            <Badge tone={provider?.effective.configured ? "success" : "muted"}>
               {provider?.env.configured ? "configured" : "not configured"}
             </Badge>
           </div>

@@ -27,6 +27,7 @@ import jsonschema
 from . import db
 from .ai import run_ai
 from .config import settings
+from .keys import resolve
 from .users import audit
 
 CONTRACTS = pathlib.Path(__file__).resolve().parents[1] / "contracts"
@@ -76,13 +77,14 @@ def _get_text(url: str, headers: dict | None = None) -> str | None:
 # --- Sources --------------------------------------------------------------
 
 def _youtube_sources(game: dict) -> list[dict]:
-    if not settings.youtube_api_key:
+    api_key = resolve("youtube")
+    if not api_key:
         return []
     query = urllib.parse.quote(f"{game['name']} gameplay")
     url = (
         "https://www.googleapis.com/youtube/v3/search?part=snippet"
         f"&q={query}&order=viewCount&type=video&maxResults=10"
-        f"&key={settings.youtube_api_key}"
+        f"&key={api_key}"
     )
     data = _get_json(url)
     out = []
@@ -103,7 +105,9 @@ def _youtube_sources(game: dict) -> list[dict]:
 
 def _reddit_headers() -> dict:
     """OAuth when a read-only app is configured, else the public JSON UA."""
-    if not (settings.reddit_client_id and settings.reddit_client_secret):
+    client_id = resolve("reddit_client")
+    client_secret = resolve("reddit_secret")
+    if not (client_id and client_secret):
         return {"User-Agent": settings.reddit_user_agent}
     try:
         import base64
@@ -115,7 +119,7 @@ def _reddit_headers() -> dict:
                 "User-Agent": settings.reddit_user_agent,
                 "Authorization": "Basic "
                 + base64.b64encode(
-                    f"{settings.reddit_client_id}:{settings.reddit_client_secret}".encode()
+                    f"{client_id}:{client_secret}".encode()
                 ).decode(),
             },
         )
@@ -204,8 +208,7 @@ def sample_feed() -> list[dict]:
 def gather_sources(game: dict) -> tuple[list[dict], bool]:
     """Return (sources, used_fallback). Never raises."""
     live_keys = bool(
-        settings.youtube_api_key
-        or (settings.reddit_client_id and settings.reddit_client_secret)
+        resolve("youtube") or (resolve("reddit_client") and resolve("reddit_secret"))
     )
     if settings.llm_provider == "recorded" or not live_keys:
         return sample_feed(), True

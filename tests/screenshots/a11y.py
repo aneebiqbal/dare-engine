@@ -42,6 +42,8 @@ ADMIN_PAGES = [
     ("admin-jobs", "/admin/jobs"),
     ("admin-ai", "/admin/ai"),
     ("admin-models", "/admin/models"),
+    ("admin-projects", "/admin/projects"),
+    ("admin-wizard", "/admin/wizard"),
     ("admin-calendar", "/admin/calendar"),
     ("admin-long-form", "/admin/long-form"),
     ("admin-audit", "/admin/audit"),
