@@ -11,7 +11,7 @@ PYTHON := $(VENV)/bin/python
 TEST_ENV := DEV_AUTH_ENABLED=true NEXT_PUBLIC_DEV_AUTH=1 LLM_PROVIDER=recorded \
 	RATE_LIMIT_REQUESTS=100000 RATE_LIMIT_AUTH=100000
 
-.PHONY: up down logs accept test check web-accept screens budgets doctor create-admin voice cleanup contract types research setup-engine research-local ssd-bridge mlx-bridge flow backup desktop
+.PHONY: up down logs accept test check web-accept screens budgets doctor create-admin voice cleanup contract types research setup-engine research-local ssd-bridge mlx-bridge flow backup desktop vision-model vision-run
 
 up:
 	docker compose up -d --wait --build
@@ -83,6 +83,14 @@ cleanup:
 # Build the admin desktop app (Tauri). Artifact in desktop/src-tauri/target/.
 desktop:
 	cd desktop && npm install && npm run tauri build
+
+# Pull the optional vision model (Qwen2.5-VL-7B, Apache-2.0).
+vision-model:
+	ollama pull $(if $(VISION_MODEL),$(VISION_MODEL),qwen2.5vl:7b)
+
+# Run the sampled vision pass on one recording and print the suggestions.
+vision-run:
+	.venv/bin/python local/vision_run.py $(FILE) vision-out
 
 # Dump the database to backups/ (see docs/deploy-web.md for the schedule).
 backup:
