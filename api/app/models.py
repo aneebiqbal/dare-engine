@@ -53,6 +53,7 @@ def models(request: Request):
             "configured": settings.ai_configured,
             "asr": "mlx" if settings.mlx_whisper_url else "cpu",
             "mlx_model": settings.mlx_whisper_model,
+            "vision_model": settings.vision_model,
         },
         "engine": engine,
     }

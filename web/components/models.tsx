@@ -107,8 +107,8 @@ export function AdminModels() {
     return () => clearInterval(id);
   }, [task, load, toast]);
 
-  async function pull() {
-    const model = name.trim();
+  async function pull(target = name.trim()) {
+    const model = target.trim();
     if (!model) return;
     setBusy(true);
     try {
@@ -152,6 +152,38 @@ export function AdminModels() {
   const vram = (ollama?.running ?? []).reduce((sum, r) => sum + r.size_vram_bytes, 0);
   const models = ollama?.models ?? [];
   const available = host ? Math.max(0, host.total_bytes - host.used_bytes) : 0;
+  const installed = new Map((ollama?.models ?? []).map((m) => [m.name, m]));
+  const llmName = status?.provider.llm_model || "";
+  const visionName = status?.provider.vision_model || "";
+  // Approximate sizes; the exact number comes from Ollama once it is installed.
+  const suggested = [
+    {
+      role: "Transcription",
+      name: status?.provider.mlx_model ?? "—",
+      size: 3.0e9,
+      state: mlx?.downloaded ? "downloaded" : "not downloaded",
+      hint: "MLX · downloads on first use",
+      action: null as null | (() => void),
+    },
+    {
+      role: "Writing",
+      name: llmName || "not set",
+      size: (llmName && installed.get(llmName)?.size_bytes) || 6.0e9,
+      state: llmName && installed.has(llmName) ? "on disk" : "not installed",
+      hint: "Ollama · the research and caption writer",
+      action: llmName && !installed.has(llmName) ? () => pull(llmName) : null,
+    },
+    {
+      role: "Vision",
+      name: visionName || "not set",
+      size: (visionName && installed.get(visionName)?.size_bytes) || 6.0e9,
+      state: visionName && installed.has(visionName) ? "on disk" : "not installed",
+      hint: "Ollama · optional clip suggestions",
+      action: visionName && !installed.has(visionName) ? () => pull(visionName) : null,
+    },
+  ];
+  const missingGb =
+    suggested.filter((s) => s.state === "not installed").reduce((n, s) => n + s.size, 0) / 1e9;
 
   return (
     <div className="grid gap-6">
@@ -270,6 +302,42 @@ export function AdminModels() {
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
+            <span className="text-xs uppercase tracking-[0.2em] text-muted">Suggested engine</span>
+            <p className="mt-1 text-sm text-muted">
+              The three models the engine needs.{" "}
+              {missingGb > 0
+                ? `≈ ${missingGb.toFixed(1)} GB left to install (approximate).`
+                : "All present."}
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-col gap-2">
+          {suggested.map((s) => (
+            <div key={s.role} className="flex flex-wrap items-center justify-between gap-3 text-sm">
+              <div>
+                <span className="font-medium">{s.role}</span>
+                <span className="ml-2 text-xs text-muted">{s.name}</span>
+                <div className="text-xs text-muted">{s.hint}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge tone={s.state === "on disk" || s.state === "downloaded" ? "success" : "muted"}>
+                  {s.state}
+                </Badge>
+                <span className="text-xs text-muted">{(s.size / 1e9).toFixed(1)} GB</span>
+                {s.action && (
+                  <Button size="sm" variant="outline" onClick={() => s.action?.()} disabled={busy}>
+                    Install
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
             <span className="text-xs uppercase tracking-[0.2em] text-muted">Local models</span>
             <p className="mt-1 text-sm text-muted">
               Ollama models on this Mac. Pulled and unloaded here; nothing leaves the machine.
@@ -287,7 +355,7 @@ export function AdminModels() {
             placeholder="model name, e.g. qwen3:8b"
             aria-label="Model name"
           />
-          <Button onClick={pull} disabled={busy || !name.trim()}>
+          <Button onClick={() => pull()} disabled={busy || !name.trim()}>
             Pull model
           </Button>
         </div>

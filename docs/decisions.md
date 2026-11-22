@@ -203,3 +203,44 @@ the two differ in either direction.
 | Karaoke caption style | One ASS event per phrase with `{\k}` word timings; the style's primary colour highlights word by word. | — |
 | Rendering stays in the container (libx264) | The container has no VideoToolbox; `detect_encoder()` already prefers it when present. A host render bridge is future work. | — |
 
+## Ship sprint — cloud + desktop split
+
+| Choice | Reason | Licence |
+| --- | --- | --- |
+| Cloud runs only `web` + `api` + managed Postgres | A gamer needs the plan and the results, not a render. The cloud stays on the smallest plan. | — |
+| The desktop runs the worker, models, capture and SSD | 20 GB recordings and 18 GB models cannot live on a web host; uploading them defeats the point. | — |
+| One API contract, two clients | The browser and the desktop app call the same HTTP API and database; there is no sync step. | — |
+| Tauri for the desktop shell | ~3–10 MB vs Electron's ~150 MB, Rust backend suited to FFmpeg and sidecars, no bundled Chromium. | MIT/Apache-2.0 |
+| Integrate OBS over obs-websocket 5.x, bundle an FFmpeg recorder for the no-OBS case | OBS is the reliable default; a user who has not set it up can still record. We do not reinvent OBS. | OBS GPL-2.0 (external), obs-websocket MIT |
+| Qwen2.5-VL-7B (Apache-2.0) for the vision pass | Small, Apple-Silicon-friendly at 4-bit (~6–8 GB), stable JSON output; the MLX 4-bit build runs on Metal. | Apache-2.0 |
+| The vision pass is sampled, not per-frame | One frame every 5 s (default), capped at 40 frames; the VLM loads only for the pass and is unloaded + verified. | — |
+| Rate limit per IP, stricter on `/auth` and `/admin` | Login already locks out; this caps a script that scrapes or hammers the API. | — |
+| Error reports in Postgres, read on the admin overview | No external service needed; survives a restart. | — |
+| `make backup` → `pg_dump` gzip | A managed database has PITR; a self-hosted one needs a dump. | — |
+
+### Capture and clip projects studied
+
+Public docs and repositories, read before building the capture path. What we
+took from each:
+
+| Project | What it is | What we took |
+| --- | --- | --- |
+| OBS Studio | The open-source capture/stream standard (GPL-2.0). | The scene/source model and the replay buffer as the reliable default; we integrate it rather than replace it. |
+| obs-websocket | WebSocket control for OBS (MIT). | The existing 5.x client: connection, stream/record state, scene, mic, snapshot. |
+| Segra | Record and clip games, built on OBS/libobs. | The "record through OBS, clip after" flow; per-game profiles. Confirms OBS is the capture layer. |
+| OpenShorts | Open-source short-video tooling. | The 9:16 vertical output and caption-first framing. |
+| AutoClip | Automatic clipping from a stream/recording. | The idea that clipping should be automatic but human-approved. |
+| Cap | Open-source screen recorder with automatic zoom. | The no-OBS built-in recorder: simple, one-click, MP4 out. |
+| ShareX | Open-source screen capture and sharing. | The "record a region, save a file" simplicity for the bundled recorder. |
+| Insights Capture | OBS alternative for automatic game recording and clipping. | The replay-buffer + auto-highlight UX; validates the out-of-the-box feature. |
+| Medal / Outplayed | Consumer clip tools with replay buffers. | The "instant clip" expectation; the admin still decides what to publish. |
+| NVIDIA Highlights / ShadowPlay | Driver-level automatic highlights. | The vision-detector idea: the software watches and proposes; the human picks. |
+| Loom / Screen Studio | Polished no-setup recorders. | The no-OBS path must be one click and produce a file, not a project. |
+| LM Studio / Jan | Local model managers. | The Models & Setup UX: install state, size, fit, download progress, unload, live memory. We copy the pattern, not the code. |
+
+**Honest scope.** This is a reading of public material, not a code audit of each
+project. The OBS integration is the proven path; the bundled FFmpeg recorder and
+the Tauri shell are built here but need a real user on real hardware to call
+finished.
+
+

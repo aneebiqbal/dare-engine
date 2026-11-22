@@ -80,6 +80,7 @@ class Settings(BaseSettings):
     model_bridge_url: str = "http://host.docker.internal:8798"
     mlx_whisper_url: str = ""
     mlx_whisper_model: str = "mlx-community/whisper-large-v3-mlx"
+    vision_model: str = "qwen2.5vl:7b"
 
     # --- Research brain ---------------------------------------------------
     # All optional: with no keys the brain runs on the recorded sample feed and

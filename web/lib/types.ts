@@ -453,6 +453,7 @@ export type ModelProvider = {
   configured: boolean;
   asr: string;
   mlx_model: string;
+  vision_model: string;
 };
 
 export type ModelStatus = {
