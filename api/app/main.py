@@ -21,12 +21,14 @@ from .longform import router as longform_router
 from .missions import router as missions_router
 from .models import router as models_router
 from .obs import router as obs_router
+from .projects import router as projects_router
 from .provider import router as provider_router
 from .ratelimit import RateLimitMiddleware
 from .ssd import router as ssd_router
 from .studio import router as studio_router
 from .tours import router as tours_router
 from .users import csrf_protect
+from .wizard import router as wizard_router
 
 
 @asynccontextmanager
@@ -80,6 +82,7 @@ for router in (
     missions_router,
     models_router,
     clips_router,
+    projects_router,
     community_router,
     account_router,
     admin_router,
@@ -91,6 +94,7 @@ for router in (
     ssd_router,
     studio_router,
     tours_router,
+    wizard_router,
 ):
     app.include_router(router, dependencies=[Depends(csrf_protect)])
 app.include_router(hooks_router)

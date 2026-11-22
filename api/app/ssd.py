@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from . import db, storage
 from .config import settings
+from .projects import create_for_recording
 from .studio import _probe
 from .users import current_user, require_admin
 
@@ -82,6 +83,9 @@ def ssd_import(request: Request, payload: dict):
                     recording_id, user["id"], imported.get("name") or filename, key,
                     specs["duration_seconds"], specs["width"], specs["height"],
                 ),
+            )
+            create_for_recording(
+                cur, user["id"], recording_id, imported.get("name") or filename
             )
             # Importing starts the local processing job, not just a file copy.
             cur.execute(

@@ -308,6 +308,71 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
     return { cpu_percent: 12.5, memory_percent: 41.2, gpu: null } as T;
   }
   if (method === "GET" && pathname === "/studio/recordings") return { items: [] } as T;
+  if (method === "GET" && pathname === "/projects") {
+    return {
+      items: [
+        {
+          id: "p_1",
+          name: "gameplay_4min.mp4",
+          game_id: null,
+          recording_id: "r_1",
+          stream_id: null,
+          vision: true,
+          stage: "analyzing",
+          stage_index: 3,
+          progress: 50,
+          stage_note: "Analysis complete: 5 candidates.",
+          candidates: 5,
+          clips: { ready: 0, total: 0, reviewed: 0 },
+          queued: false,
+          queue_position: null,
+          created_at: "2026-11-23T00:00:00Z",
+          updated_at: "2026-11-23T00:00:00Z",
+        },
+      ],
+    } as T;
+  }
+  if (method === "POST" && pathname === "/projects") {
+    return {
+      id: "p_2",
+      name: bodyObj.name ?? "Untitled project",
+      game_id: bodyObj.game_id ?? null,
+      recording_id: null,
+      stream_id: null,
+      vision: false,
+      stage: "planned",
+      stage_index: 0,
+      progress: 0,
+      stage_note: null,
+      candidates: 0,
+      clips: { ready: 0, total: 0, reviewed: 0 },
+      queued: false,
+      queue_position: null,
+      created_at: "2026-11-23T00:00:00Z",
+      updated_at: "2026-11-23T00:00:00Z",
+    } as T;
+  }
+  if (method === "POST" && pathname.endsWith("/queue")) {
+    return { queued: true, project_id: pathname.split("/")[2], state: null } as T;
+  }
+  if (method === "POST" && pathname.endsWith("/vision")) return { ok: true, ...bodyObj } as T;
+  if (method === "POST" && pathname.endsWith("/attach")) return { ok: true } as T;
+  if (method === "DELETE" && pathname.startsWith("/projects/")) return { deleted: true } as T;
+  if (method === "GET" && pathname === "/admin/wizard") {
+    return {
+      steps: [
+        { id: "ssd", title: "Connect the SSD", body: "", help: "", status: "done", detail: "1 drive(s) connected", updated_at: "2026-11-23T00:00:00Z" },
+        { id: "obs", title: "Connect OBS over the network", body: "", help: "", status: "done", detail: "Connected to OBS 33.0.1", updated_at: "2026-11-23T00:00:00Z" },
+        { id: "models", title: "Install the local models", body: "", help: "", status: "pending", detail: null, updated_at: null },
+        { id: "cloud", title: "Connect the cloud account and AI provider", body: "", help: "", status: "pending", detail: null, updated_at: null },
+      ],
+      ready: false,
+      next: "models",
+    } as T;
+  }
+  if (method === "POST" && pathname.startsWith("/admin/wizard/")) {
+    return { steps: [], ready: false, next: null } as T;
+  }
   if (method === "GET" && pathname === "/admin/setup") {
     return { checks: [
       { name: "DATABASE_URL set", ok: true, detail: "" },

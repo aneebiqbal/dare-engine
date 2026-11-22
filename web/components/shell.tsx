@@ -50,6 +50,7 @@ const ADMIN: NavGroup[] = [
     label: "Create",
     items: [
       { href: "/admin/studio", label: "Studio", icon: "film" },
+      { href: "/admin/projects", label: "Projects", icon: "layers" },
       { href: "/admin/calendar", label: "Calendar", icon: "calendar" },
       { href: "/admin/long-form", label: "Long-form", icon: "film" },
     ],
@@ -58,6 +59,7 @@ const ADMIN: NavGroup[] = [
     label: "Manage",
     items: [
       { href: "/admin/models", label: "Models", icon: "chip" },
+      { href: "/admin/wizard", label: "Setup wizard", icon: "check" },
       { href: "/admin/setup", label: "Setup status", icon: "check" },
       { href: "/admin/users", label: "Users", icon: "users" },
       { href: "/admin/invites", label: "Invites", icon: "mail" },

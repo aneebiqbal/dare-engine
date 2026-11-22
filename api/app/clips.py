@@ -14,6 +14,7 @@ from starlette.background import BackgroundTask
 from . import db, storage
 from .config import settings
 from .paging import envelope, order_clause, parse
+from .projects import attach_stream
 from .users import current_user
 
 router = APIRouter()
@@ -202,6 +203,8 @@ def _create_clips(cur, user, key, items):
         (user["id"], "local-upload", key),
     )
     stream_id = cur.fetchone()[0]
+    # The stream belongs to the project that owns this recording.
+    attach_stream(cur, key, stream_id)
     for item in items:
         mission_id = item["mission_id"]
         cur.execute(

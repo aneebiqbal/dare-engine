@@ -11,6 +11,7 @@ import {
   type Invite,
   type Job,
   type PoolEntry,
+  type Project,
   type SystemLoad,
   type User,
 } from "@/lib/api";
@@ -64,6 +65,7 @@ export function AdminOverview() {
   const [pool, setPool] = useState<PoolEntry[]>([]);
   const [usage, setUsage] = useState<AiUsage[]>([]);
   const [errors, setErrors] = useState<ErrorReport[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [storage, setStorage] = useState<{ driver: string; bytes: number } | null>(null);
   const [setup, setSetup] = useState<{ name: string; ok: boolean; detail: string }[]>([]);
   const [health, setHealth] = useState<SystemLoad | null>(null);
@@ -78,14 +80,16 @@ export function AdminOverview() {
       api.pool(),
       api.adminAiUsage(),
       api.adminStorage(),
+      api.projects(),
     ])
-      .then(([u, i, j, p, a, s]) => {
+      .then(([u, i, j, p, a, s, pr]) => {
         setUsers(u.items);
         setInvites(i.items);
         setJobs(j.items);
         setPool(p.items);
         setUsage(a.items);
         setStorage(s);
+        setProjects(pr.items);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
@@ -125,6 +129,19 @@ export function AdminOverview() {
             </Card>
           </Link>
           <Link href="/admin/jobs"><Card><Stat label="Jobs" value={running} hint={`${failed} failed`} /></Card></Link>
+          <Link href="/admin/projects">
+            <Card>
+              <Stat
+                label="Projects"
+                value={projects.length}
+                hint={
+                  projects.length
+                    ? `${projects.filter((p) => p.stage === "exported").length} exported`
+                    : "none yet"
+                }
+              />
+            </Card>
+          </Link>
           <Link href="/admin/pool"><Card><Stat label="Dares awaiting review" value={pool.length} /></Card></Link>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -239,6 +256,34 @@ export function AdminOverview() {
           </div>
         </Card>
       </div>
+
+      <Card>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-medium">Projects</h2>
+            <Link href="/admin/projects" className="text-xs text-accent hover:underline">
+              View all
+            </Link>
+          </div>
+          {projects.length === 0 ? (
+            <p className="text-sm text-muted">
+              No projects yet. Import a recording to start one.
+            </p>
+          ) : (
+            projects.slice(0, 5).map((p) => (
+              <Link
+                key={p.id}
+                href="/admin/projects"
+                className="flex items-center justify-between gap-3 text-sm"
+              >
+                <span className="truncate">{p.name}</span>
+                <span className="text-muted">{p.stage.replace(/_/g, " ")}</span>
+                <span className="w-16 text-right text-muted">{p.progress}%</span>
+              </Link>
+            ))
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

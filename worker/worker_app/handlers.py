@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 import pathlib
 import tempfile
+import time
+import uuid
 
 from clip.engine import Result, render_short
 from clip.llm import get_llm
@@ -371,3 +373,157 @@ def preview_voice(payload: dict) -> None:
                 "WHERE id = %s",
                 (audio_key, voice_over_id),
             )
+
+
+# The single-project lane. A session-level advisory lock, not a flag, so two
+# workers cannot analyse two projects at once even if their claims interleave.
+PROJECT_LOCK_KEY = 0x434C4B44  # "CLKD"
+
+
+def _analysis_active(recording_id: str) -> bool:
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT count(*) FROM jobs WHERE kind IN ('detect_moments', 'suggest_clips') "
+                "AND payload->>'recording_id' = %s AND state IN ('queued', 'running')",
+                (recording_id,),
+            )
+            return cur.fetchone()[0] > 0
+
+
+def _enqueue_analysis(recording_id: str, storage_key: str, vision: bool) -> None:
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO jobs (kind, payload, idempotency_key) "
+                "VALUES ('detect_moments', %s, %s)",
+                (
+                    json.dumps({
+                        "recording_id": recording_id,
+                        "storage_key": storage_key,
+                        "top_n": 5,
+                    }),
+                    f"detect:{recording_id}:{uuid.uuid4().hex}",
+                ),
+            )
+            if vision:
+                cur.execute(
+                    "INSERT INTO jobs (kind, payload, idempotency_key) "
+                    "VALUES ('suggest_clips', %s, %s)",
+                    (
+                        json.dumps({
+                            "recording_id": recording_id,
+                            "storage_key": storage_key,
+                            "top_n": 5,
+                        }),
+                        f"vision:{recording_id}:{uuid.uuid4().hex}",
+                    ),
+                )
+
+
+def _unlock_project_lane(conn) -> None:
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT pg_advisory_unlock(%s)", (PROJECT_LOCK_KEY,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+
+
+def _run_project_analysis(project_id: str) -> None:
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT recording_id, vision FROM projects WHERE id = %s", (project_id,)
+            )
+            row = cur.fetchone()
+            if row is None:
+                return
+            recording_id, vision = row
+            if recording_id is None:
+                cur.execute(
+                    "UPDATE projects SET stage_note = "
+                    "'Waiting for a recording: attach one to analyse.' WHERE id = %s",
+                    (project_id,),
+                )
+                return
+            cur.execute(
+                "SELECT storage_key FROM studio_recordings WHERE id = %s",
+                (str(recording_id),),
+            )
+            rec = cur.fetchone()
+            if rec is None:
+                cur.execute(
+                    "UPDATE projects SET stage_note = "
+                    "'The recording is gone; attach it again.' WHERE id = %s",
+                    (project_id,),
+                )
+                return
+            storage_key = rec[0]
+            cur.execute(
+                "UPDATE projects SET stage_note = 'Analysis queued.' WHERE id = %s",
+                (project_id,),
+            )
+    recording_id = str(recording_id)
+    if not _analysis_active(recording_id):
+        _enqueue_analysis(recording_id, storage_key, bool(vision))
+    # Hold the lane until this project's analysis drains, so the next queued
+    # project starts after, never beside it.
+    deadline = time.time() + 3600
+    while time.time() < deadline and _analysis_active(recording_id):
+        time.sleep(3)
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT count(*) FROM studio_candidates WHERE recording_id = %s",
+                (recording_id,),
+            )
+            candidates = cur.fetchone()[0]
+            cur.execute(
+                "SELECT kind, error FROM jobs WHERE kind IN ('detect_moments', 'suggest_clips') "
+                "AND payload->>'recording_id' = %s AND state = 'failed' "
+                "ORDER BY updated_at DESC LIMIT 1",
+                (recording_id,),
+            )
+            failed = cur.fetchone()
+            if failed:
+                note = f"Analysis failed ({failed[0]}): {(failed[1] or '')[:120]}"
+            elif candidates:
+                note = f"Analysis complete: {candidates} candidates."
+            else:
+                note = "Analysis found no clippable candidates."
+            cur.execute(
+                "UPDATE projects SET stage_note = %s WHERE id = %s", (note, project_id)
+            )
+
+
+@jobs.register("run_project")
+def run_project(payload: dict) -> None:
+    """Analyse the oldest queued project. One at a time, across all workers."""
+    conn = db.connect(direct=True)
+    try:
+        with conn.cursor() as cur:
+            while True:
+                cur.execute("SELECT pg_try_advisory_lock(%s)", (PROJECT_LOCK_KEY,))
+                if cur.fetchone()[0]:
+                    break
+                conn.rollback()
+                time.sleep(2)
+            # Claim the oldest queued project, not necessarily the one this job
+            # was enqueued for, so the queue is FIFO even under concurrency.
+            cur.execute(
+                "UPDATE projects SET queued_at = NULL, updated_at = now() "
+                "WHERE id = (SELECT id FROM projects WHERE queued_at IS NOT NULL "
+                "ORDER BY queued_at, created_at LIMIT 1) RETURNING id"
+            )
+            row = cur.fetchone()
+            conn.commit()
+        if row is None:
+            _unlock_project_lane(conn)
+            return
+        try:
+            _run_project_analysis(str(row[0]))
+        finally:
+            _unlock_project_lane(conn)
+    finally:
+        conn.close()

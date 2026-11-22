@@ -21,6 +21,7 @@ from starlette.background import BackgroundTask
 from . import db, storage
 from .config import settings
 from .clips import _create_clips
+from .projects import create_for_recording
 from .users import current_user, require_admin
 
 router = APIRouter(dependencies=[Depends(require_admin)])
@@ -87,6 +88,7 @@ async def upload(request: Request, file: UploadFile = File(...)):
                 (recording_id, user["id"], file.filename, key,
                  specs["duration_seconds"], specs["width"], specs["height"]),
             )
+            create_for_recording(cur, user["id"], recording_id, file.filename or "Recording")
     return {"recording_id": recording_id, "filename": file.filename, **specs}
 
 

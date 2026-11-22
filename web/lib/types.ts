@@ -400,6 +400,41 @@ export type StudioRecording = {
   candidates: StudioCandidate[];
 };
 
+export type WizardStep = {
+  id: string;
+  title: string;
+  body: string;
+  help: string;
+  status: "pending" | "done" | "failed";
+  detail: string | null;
+  updated_at: string | null;
+};
+
+export type WizardState = {
+  steps: WizardStep[];
+  ready: boolean;
+  next: string | null;
+};
+
+export type Project = {
+  id: string;
+  name: string;
+  game_id: string | null;
+  recording_id: string | null;
+  stream_id: string | null;
+  vision: boolean;
+  stage: "planned" | "recording" | "imported" | "analyzing" | "clips_ready" | "reviewed" | "exported";
+  stage_index: number;
+  progress: number;
+  stage_note: string | null;
+  candidates: number;
+  clips: { ready: number; total: number; reviewed: number };
+  queued: boolean;
+  queue_position: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
 export type ErrorReport = {
   id: string;
   message: string;

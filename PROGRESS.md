@@ -1,5 +1,45 @@
 # Progress
 
+## Autonomous sprint — projects, setup wizard, edge cases
+
+Status: **projects and the first-run wizard are built, tested on the real
+stack, and committed.**
+
+### Projects (one stream = one project)
+
+- Migration `0016_projects.sql`: `projects` — one per studio recording, or
+  created by hand.
+- The stage is **derived from real artifacts** on read, never stored:
+  `planned → recording → imported → analyzing → clips_ready → reviewed → exported`.
+- `api/app/projects.py`: list/create/get/attach/vision/queue/delete. Upload and
+  SSD import start a project; a render links its stream back.
+- Sequential analysis: `POST /projects/{id}/queue` enqueues a `run_project` job;
+  the worker claims the **oldest queued** project under a Postgres advisory lock
+  and holds the lane until its analysis drains, so two projects never load models
+  at once.
+- Web: `/admin/projects` (stage stepper, progress, candidates, clips, queue,
+  vision toggle) plus a Projects panel on the admin overview and a nav entry.
+- Tests: `tests/unit/test_projects.py` (the stage machine) and
+  `tests/acceptance/test_projects.py`, which proves the stage follows real
+  clips → review → export and that two projects run one after the other.
+
+### Setup wizard (Part 1)
+
+- Migration `0017_setup_steps.sql`: per-user step progress, so a returning user
+  skips completed steps.
+- `api/app/wizard.py`: four steps (SSD, OBS, models, cloud). `GET /admin/wizard`
+  and `POST /admin/wizard/{step}`; a step is pending/done/failed and the next
+  unlocks only when the previous is done.
+- Web `/admin/wizard`: each **Verify** calls the real endpoint (SSD bridge, OBS
+  WebSocket, model bridge, provider config) and only then records done. The
+  models step embeds the real Models page. "You're ready" when all four are done.
+- Tests: `tests/acceptance/test_wizard.py`.
+
+### Verification
+
+- Acceptance `test_projects.py` + `test_wizard.py` — **11 passed**.
+- Unit `test_projects.py` — **9 passed**; `make check` — **2 passed**.
+
 ## Ship sprint — cloud web, desktop app, vision suggestions
 
 Status: **the split is built and documented; the cloud deploy and the desktop

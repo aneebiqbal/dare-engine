@@ -18,6 +18,9 @@ import type {
   Mark,
   Me,
   ObsStatus,
+  Project,
+  WizardState,
+  WizardStep,
   SsdDrive,
   SsdResponse,
   SsdVideo,
@@ -64,6 +67,9 @@ export type {
   Mark,
   Me,
   ObsStatus,
+  Project,
+  WizardState,
+  WizardStep,
   SsdDrive,
   SsdResponse,
   SsdVideo,
@@ -457,6 +463,27 @@ export const api = {
       height: number;
       released?: boolean;
     }>("/studio/ssd/import", { path, release }),
+
+  // --- first-run wizard --------------------------------------------------
+  wizard: () => get<WizardState>("/admin/wizard"),
+  saveWizardStep: (step: string, status: string, detail?: string) =>
+    post<WizardState>(`/admin/wizard/${step}`, { status, detail }),
+
+  // --- projects ---------------------------------------------------------
+  projects: () => get<{ items: Project[] }>("/projects"),
+  project: (id: string) => get<Project>(`/projects/${id}`),
+  createProject: (name: string, game_id?: string) =>
+    post<Project>("/projects", { name, game_id }),
+  attachProject: (id: string, recording_id: string) =>
+    post<Project>(`/projects/${id}/attach`, { recording_id }),
+  queueProject: (id: string, vision?: boolean) =>
+    post<{ queued: boolean; project_id: string; state: Project }>(
+      `/projects/${id}/queue`,
+      { vision },
+    ),
+  setProjectVision: (id: string, vision: boolean) =>
+    post<Project>(`/projects/${id}/vision`, { vision }),
+  deleteProject: (id: string) => del(`/projects/${id}`),
 
   // --- community -------------------------------------------------------
   reportError: (message: string, stack?: string | null, path?: string) =>

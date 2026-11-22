@@ -55,6 +55,8 @@ Last updated after the research-brain sprint.
 | Desktop capture (bundled FFmpeg recorder) | yes | yes (command) | no | a real recording |
 | Vision clip suggestions (sampled VLM) | yes | yes | yes (real run, 4-min trailer) | owner's gameplay footage |
 | Models & Setup suggested engine + one-click install | yes | yes | yes (real bridge) | — |
+| Projects: derived stages, dashboard, sequential analysis queue | yes | yes | yes (acceptance, real stack) | — |
+| First-run setup wizard (persisted, verified steps) | yes | yes | yes (acceptance, real endpoints) | — |
 
 ## Blocked on the user (cannot be closed by code)
 
