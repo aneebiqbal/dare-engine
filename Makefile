@@ -49,7 +49,7 @@ web-accept: $(VENV)/bin/python
 	$(VENV)/bin/python tests/screenshots/a11y.py
 
 screens: $(VENV)/bin/python
-	NEXT_PUBLIC_API_MOCK=1 docker compose up -d --wait --build
+	NEXT_PUBLIC_API_MOCK=1 RATE_LIMIT_REQUESTS=100000 RATE_LIMIT_AUTH=100000 docker compose up -d --wait --build
 	$(VENV)/bin/python tests/screenshots/capture.py
 	$(VENV)/bin/python tests/screenshots/a11y.py
 	NEXT_PUBLIC_API_MOCK=0 docker compose up -d --wait --build
