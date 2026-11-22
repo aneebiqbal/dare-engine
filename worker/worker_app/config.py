@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     # Host MLX Whisper bridge. Empty = use faster-whisper in the container.
     mlx_whisper_url: str = ""
     mlx_whisper_model: str = "mlx-community/whisper-large-v3-mlx"
+    # The same host bridge also serves the vision model (Ollama).
+    model_bridge_url: str = "http://host.docker.internal:8798"
+    vision_model: str = "qwen2.5vl:7b"
 
     @property
     def direct_url(self) -> str:

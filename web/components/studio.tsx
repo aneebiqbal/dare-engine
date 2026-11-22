@@ -28,6 +28,8 @@ export function Studio() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [detecting, setDetecting] = useState(false);
+  const [visionOn, setVisionOn] = useState(false);
+  const [visionBusy, setVisionBusy] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -168,10 +170,38 @@ export function Studio() {
         if (detail.candidates.length && detail.compute.whisper_device) break;
       }
       setNotice("Moments found. Accept the ones you want, then generate.");
+      if (visionOn) await suggestClips();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Detection failed");
     } finally {
       setDetecting(false);
+    }
+  }
+
+  // Optional: the sampled VLM widens the net. Off unless the admin turns it on.
+  async function suggestClips() {
+    if (!recording) return;
+    setVisionBusy(true);
+    setError(null);
+    try {
+      await api.studioVision(recording.recording.id, 5);
+      let last = recording;
+      for (let i = 0; i < 180; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        last = await api.studioRecording(recording.recording.id);
+        setRecording(last);
+        if (last.vision.seconds_added != null) break;
+      }
+      const vision = last.candidates.filter((c) => c.source === "vision").length;
+      setNotice(
+        vision
+          ? `The vision model suggested ${vision} more clip${vision === 1 ? "" : "s"}.`
+          : "The vision model found nothing extra.",
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Vision pass failed");
+    } finally {
+      setVisionBusy(false);
     }
   }
 
@@ -311,6 +341,35 @@ export function Studio() {
               {detecting ? "Finding moments…" : "Find moments"}
             </Button>
           </div>
+          <label className="flex items-center gap-2 text-xs text-muted">
+            <input
+              type="checkbox"
+              checked={visionOn}
+              onChange={(e) => setVisionOn(e.target.checked)}
+              className="h-4 w-4 accent-[var(--accent)]"
+              data-testid="studio-vision-toggle"
+            />
+            <span>
+              AI also suggest clips — a small vision model samples the recording and
+              proposes extra moments. Slower, and it loads a model.
+            </span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={suggestClips}
+              disabled={!recording || visionBusy || detecting}
+              data-testid="studio-vision"
+            >
+              {visionBusy ? "Watching…" : "Ask the vision model"}
+            </Button>
+            {recording?.vision.seconds_added != null && (
+              <span className="self-center text-xs text-muted">
+                vision pass {recording.vision.seconds_added.toFixed(0)}s
+                {recording.vision.model ? ` · ${recording.vision.model}` : ""}
+              </span>
+            )}
+          </div>
         </div>
       </Card>
 
@@ -434,11 +493,21 @@ export function Studio() {
                     className="flex flex-col gap-3 rounded-lg p-3 ring-surface"
                   >
                     <div className="flex flex-wrap items-center gap-3">
+                      {c.thumb_url && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={api.candidateThumbUrl(c.id)}
+                          alt=""
+                          className="h-14 w-14 rounded-lg object-cover ring-surface"
+                          data-testid={`studio-candidate-thumb-${i}`}
+                        />
+                      )}
                       <Badge tone={c.state === "accepted" ? "success" : c.state === "rejected" ? "danger" : "muted"}>
                         {c.state}
                       </Badge>
                       <span className="text-sm font-medium">#{i + 1} · score {c.score.toFixed(2)}</span>
                       <span className="text-xs text-muted">{c.reasons.join(", ")}</span>
+                      {c.source === "vision" && <Badge tone="accent">vision suggestion</Badge>}
                     </div>
                     <div className="grid gap-3 sm:grid-cols-[80px_80px_1fr_auto_auto_auto]">
                       <Input

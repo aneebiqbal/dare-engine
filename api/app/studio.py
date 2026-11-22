@@ -15,9 +15,11 @@ import time
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
 from . import db, storage
+from .config import settings
 from .clips import _create_clips
 from .users import current_user, require_admin
 
@@ -53,7 +55,7 @@ def _owned_recording(cur, request, recording_id: str):
     user = current_user(request)
     cur.execute(
         "SELECT id, user_id, filename, storage_key, duration_seconds, width, height, "
-        "whisper_device, whisper_compute_type, encoder "
+        "whisper_device, whisper_compute_type, encoder, vision_model, vision_seconds "
         "FROM studio_recordings WHERE id = %s",
         (recording_id,),
     )
@@ -115,6 +117,64 @@ def detect(request: Request, payload: dict):
     return {"state": "queued"}
 
 
+@router.post("/studio/vision")
+def vision_suggest(request: Request, payload: dict):
+    """Optional: enqueue the sampled VLM pass. Off unless the admin asks."""
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            row = _owned_recording(cur, request, payload["recording_id"])
+            recording_id, key = str(row[0]), row[3]
+            cur.execute(
+                "DELETE FROM jobs WHERE kind = 'suggest_clips' "
+                "AND payload->>'recording_id' = %s AND state IN ('queued', 'running')",
+                (recording_id,),
+            )
+            cur.execute(
+                "INSERT INTO jobs (kind, payload, idempotency_key) "
+                "VALUES ('suggest_clips', %s, %s)",
+                (
+                    json.dumps({
+                        "recording_id": recording_id,
+                        "storage_key": key,
+                        "top_n": int(payload.get("top_n", 5)),
+                    }),
+                    f"vision:{recording_id}:{uuid.uuid4().hex}",
+                ),
+            )
+    return {"state": "queued"}
+
+
+@router.get("/studio/candidates/{candidate_id}/thumb")
+def candidate_thumb(request: Request, candidate_id: str):
+    user = current_user(request)
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT c.thumb_key, r.user_id FROM studio_candidates c "
+                "JOIN studio_recordings r ON r.id = c.recording_id "
+                "WHERE c.id = %s",
+                (candidate_id,),
+            )
+            row = cur.fetchone()
+    if row is None or not row[0] or str(row[1]) != str(user["id"]):
+        raise HTTPException(404, "no thumbnail")
+    key = row[0]
+    if settings.storage_driver == "local":
+        path = (pathlib.Path(settings.storage_local_dir) / key).resolve()
+        if not path.is_file():
+            raise HTTPException(404, "no thumbnail")
+        return FileResponse(
+            path, media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+    tmp = pathlib.Path(tempfile.mkdtemp(prefix="cand-")) / "thumb.jpg"
+    storage.get_file(key, str(tmp))
+    return FileResponse(
+        tmp, media_type="image/jpeg",
+        background=BackgroundTask(shutil.rmtree, tmp.parent),
+    )
+
+
 @router.get("/studio/recordings")
 def recordings(request: Request):
     """The admin's recent studio sessions, newest first."""
@@ -164,7 +224,7 @@ def recording_detail(request: Request, recording_id: str):
             row = _owned_recording(cur, request, recording_id)
             cur.execute(
                 "SELECT id, start_seconds, end_seconds, score, reasons, state, "
-                "template_id, clip_id FROM studio_candidates "
+                "template_id, clip_id, source, thumb_key FROM studio_candidates "
                 "WHERE recording_id = %s ORDER BY score DESC",
                 (recording_id,),
             )
@@ -178,6 +238,8 @@ def recording_detail(request: Request, recording_id: str):
                     "state": r[5],
                     "template_id": r[6],
                     "clip_id": str(r[7]) if r[7] else None,
+                    "source": r[8] or "audio",
+                    "thumb_url": f"/studio/candidates/{r[0]}/thumb" if r[9] else None,
                 }
                 for r in cur.fetchall()
             ]
@@ -194,6 +256,10 @@ def recording_detail(request: Request, recording_id: str):
             "whisper_compute_type": row[8],
             "encoder": row[9],
             "gpu": row[7] in ("cuda", "mlx"),
+        },
+        "vision": {
+            "model": row[10],
+            "seconds_added": row[11],
         },
         "candidates": candidates,
     }

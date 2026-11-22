@@ -213,6 +213,52 @@ def detect_moments(payload: dict) -> None:
                 )
 
 
+@jobs.register("suggest_clips")
+def suggest_clips(payload: dict) -> None:
+    """Part B: a sampled VLM pass that proposes clips the detector never marked.
+
+    Optional and off by default. The VLM loads only for this pass and is
+    unloaded (verified) inside `clip.vision.suggest`.
+    """
+    from clip.vision import suggest
+
+    recording_id = payload["recording_id"]
+    key = payload["storage_key"]
+    with tempfile.TemporaryDirectory(prefix="vision-") as tmp:
+        path = str(pathlib.Path(tmp) / "recording.mp4")
+        storage.get_file(key, path)
+        suggestions, meta = suggest(
+            path, top_n=int(payload.get("top_n", 5)), model=settings.vision_model
+        )
+        with db.session() as conn:
+            with conn.cursor() as cur:
+                for s in suggestions:
+                    cur.execute(
+                        "INSERT INTO studio_candidates "
+                        "(recording_id, start_seconds, end_seconds, score, reasons, source) "
+                        "VALUES (%s, %s, %s, %s, %s, 'vision') RETURNING id",
+                        (recording_id, s.start, s.end, s.score, json.dumps([s.reason])),
+                    )
+                    candidate_id = cur.fetchone()[0]
+                    thumb_key = f"studio-candidates/{candidate_id}/thumb.jpg"
+                    try:
+                        storage.put_file(thumb_key, s.thumb_path)
+                    except Exception:
+                        thumb_key = None
+                    if thumb_key:
+                        cur.execute(
+                            "UPDATE studio_candidates SET thumb_key = %s WHERE id = %s",
+                            (thumb_key, candidate_id),
+                        )
+                cur.execute(
+                    "UPDATE studio_recordings SET vision_model = %s, vision_seconds = %s "
+                    "WHERE id = %s",
+                    (meta.get("model"), meta.get("seconds_added"), recording_id),
+                )
+    if payload.get("_job_id"):
+        jobs.set_stage(payload["_job_id"], "vision")
+
+
 def _title_card(text: str, out_path: str, ref_path: str) -> None:
     """A 2 s title card matched to the clip's size, frame rate and audio."""
     import json as _json

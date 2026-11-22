@@ -393,6 +393,10 @@ export type StudioRecording = {
     encoder: string | null;
     gpu: boolean;
   };
+  vision: {
+    model: string | null;
+    seconds_added: number | null;
+  };
   candidates: StudioCandidate[];
 };
 

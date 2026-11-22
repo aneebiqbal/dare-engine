@@ -421,6 +421,9 @@ export const api = {
   },
   studioDetect: (recording_id: string, top_n = 5) =>
     post("/studio/detect", { recording_id, top_n }),
+  studioVision: (recording_id: string, top_n = 5) =>
+    post("/studio/vision", { recording_id, top_n }),
+  candidateThumbUrl: (id: string) => `${browserBase()}/studio/candidates/${id}/thumb`,
   studioRecording: (id: string) => get<StudioRecording>(`/studio/recordings/${id}`),
   studioRecordings: () =>
     get<{

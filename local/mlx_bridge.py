@@ -22,6 +22,7 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 MODEL = os.environ.get("MLX_WHISPER_MODEL", "mlx-community/whisper-large-v3-mlx")
+VISION_MODEL = os.environ.get("VISION_MODEL", "qwen2.5vl:7b")
 PORT = int(os.environ.get("MLX_WHISPER_PORT", "8798"))
 COMPUTE = "mlx-metal"
 OLLAMA = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
@@ -238,6 +239,29 @@ def pull_status(task_id: str) -> dict | None:
         return dict(task) if task else None
 
 
+def vlm_describe(image_b64: str, prompt: str, model: str) -> dict:
+    """Ask an Ollama vision model about one frame. Returns parsed JSON or an error."""
+    body = json.dumps(
+        {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt, "images": [image_b64]}],
+            "stream": False,
+            "format": "json",
+        }
+    ).encode()
+    req = urllib.request.Request(
+        OLLAMA + "/api/chat", data=body,
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=600) as resp:
+        data = json.loads(resp.read())
+    text = (data.get("message") or {}).get("content") or ""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return {"error": "the model did not return JSON", "raw": text[:300]}
+
+
 def _unload_ollama(name: str | None) -> None:
     if name:
         _http("POST", OLLAMA + "/api/generate", {"model": name, "keep_alive": 0}, timeout=60)
@@ -316,6 +340,18 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(502, {"error": f"{type(exc).__name__}: {exc}"})
         elif self.path == "/models/free":
             self._send(200, free_all())
+        elif self.path == "/vlm":
+            body = self._body()
+            image = body.get("image") or ""
+            prompt = body.get("prompt") or ""
+            model = body.get("model") or VISION_MODEL
+            if not image or not prompt:
+                self._send(422, {"error": "image and prompt required"})
+                return
+            try:
+                self._send(200, vlm_describe(image, prompt, model))
+            except Exception as exc:
+                self._send(502, {"error": f"{type(exc).__name__}: {exc}"})
         else:
             self._send(404, {"error": "not found"})
 
