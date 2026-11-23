@@ -146,7 +146,7 @@ def test_w4_clips_and_history(browser, size):
         sign_in(page, "Alice")
         page.goto(f"{WEB}/clips", wait_until="networkidle")
         page.wait_for_selector("text=Your Shorts", timeout=15000)
-        page.wait_for_selector("text=Review", timeout=15000)
+        page.wait_for_selector("#main-content >> text=Review", timeout=15000)
         page.goto(f"{WEB}/history", wait_until="networkidle")
         page.wait_for_selector("text=Mission history", timeout=15000)
     finally:
@@ -191,6 +191,6 @@ def test_w8_real_journey(browser):
         # A finished Short to review on the Clips page.
         _seed_clip()
         page.goto(f"{WEB}/clips", wait_until="networkidle")
-        page.wait_for_selector("text=Review", timeout=15000)
+        page.wait_for_selector("#main-content >> text=Review", timeout=15000)
     finally:
         context.close()

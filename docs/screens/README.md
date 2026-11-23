@@ -26,6 +26,11 @@ Every shot is phone (390×844) and desktop (1280×900), dark and light.
 
 - **Real work:** jobs, projects, clips, research runs, calendar, users, invites,
   models and keys all read the live API/database.
+- **Clip / export in `after/real`:** those two routes are user-scoped
+  (`GET /clips/{id}` joins the clip's assignment to the session user). The
+  signed-in admin owns no clip, and the shared database was being truncated by a
+  concurrent test run, so those four shots are the real 404 page. The mock set
+  (`after/mock`) shows the same routes filled.
 - **Stand-in:** the AI provider is the recorded provider unless a live key is
   stored; research uses the saved sample feed unless YouTube/Reddit keys are
   stored; publishing is a manual marker.
