@@ -69,7 +69,10 @@ def _mlx_bridge_words(path: str) -> list[Word]:
 
     parsed = urllib.parse.urlparse(settings.mlx_whisper_url)
     target = pathlib.Path(path)
-    conn = http.client.HTTPConnection(parsed.hostname, parsed.port or 80, timeout=1800)
+    # A cut is seconds long; 180 s bounds a pathological input (a music-only or
+    # synthetic tone can make Whisper decode forever) so the caller falls back
+    # to CPU instead of hanging the stage.
+    conn = http.client.HTTPConnection(parsed.hostname, parsed.port or 80, timeout=180)
     conn.putrequest("POST", parsed.path.rstrip("/") + "/transcribe")
     conn.putheader("Content-Type", "application/octet-stream")
     conn.putheader("X-Filename", target.name)

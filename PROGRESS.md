@@ -26,7 +26,9 @@ acceptance suite is running. Clip quality still needs the owner's gameplay.**
   2 s pre-roll/post-roll; downscales sources above 1080p.
 - **Transcribe**: MLX Whisper on Metal once per stage, only the cut clips,
   word timestamps cached to the SSD and the DB; unloads and verifies. Falls
-  back to faster-whisper CPU and says so.
+  back to faster-whisper CPU and says so. A bridge call is bounded at 180 s so
+  a music-only or synthetic-tone cut (which can make Whisper decode for minutes)
+  falls back instead of hanging the stage.
 - **Render** (`engine.render_cut`): renders from the cached cut with the cached
   transcript — no re-transcribe, no re-cut of the source. Grammar beats, ASS
   word-synced captions clear of the platform UI zone, 1080×1920 H.264, thumbnail.
@@ -106,6 +108,36 @@ top_n=2, real VLM + MLX:
   now reserves a real payoff after the cold open; the re-run produced **7.9 s
   and 16.0 s** clips from the same candidates. Regression test added.
 
+### 2 h synthetic stress test (2026-11-24)
+
+A generated 2 h / 318 MB file (`testsrc2` + a constant 440 Hz tone), top_n=10,
+real VLM + MLX bridge:
+
+| Stage | Seconds |
+| --- | --- |
+| ingest | 22.56 |
+| cheap scan | 87.14 |
+| rank | 26.69 |
+| vision (15 windows × 2 frames) | 253.46 |
+| cut (10 clips) | 147.88 |
+| transcribe | 399.28 |
+| render (10 Shorts) | 244.94 |
+| **total** | **1181.9** (~19.7 min) |
+
+- All 10 Shorts finished in **19.7 min**, far below the 2 h source duration.
+- Cheap scan **87 s** for 2 h on this low-resolution synthetic content
+  (0.012 s/s); the busier trailer measured 0.107 s/s in the same 4-core VM.
+- The ETA converged exactly: final estimate **1181 s** vs **1181.9 s** actual.
+- 10 clips, 6.9–16.0 s; compute `asr=mlx/metal encoder=libx264`;
+  `ollama_running: []` at the end.
+- **First clip ≈ 16 min.** The stages are sequential, so nothing renders until
+  every candidate is vision-scored and every cut is transcribed. The synthetic
+  audio is a pure tone — a worst case for Whisper: one 16 s tone clip took over
+  100 s on the MLX bridge, while real speech measured earlier ran at ~0.10×
+  realtime. On gameplay audio the transcribe stage would drop to seconds, giving
+  a first clip around **6–7 min**; it stays vision-bound (~4.2 min).
+  `VISION_FRAMES_PER_WINDOW=1` halves that if the owner needs it lower.
+
 ### The long-video lever (honest)
 
 The cheap scan is CPU-bound FFmpeg. In this 4-core Colima VM it measured
@@ -129,12 +161,13 @@ make pipeline-demo FILE=/tmp/long2h.mp4 TOP_N=10
 
 The stages are sequential by design, so on a 2 h upload the cheap scan plus the
 vision pass dominate before the first cut. Measured: the 45 s stand-in put the
-first finished Short at ~3.9 min, the 4.9 min trailer at ~5.7 min. A 2 h run is
-estimated at 10–15 min to the first Short **in this 4-core VM**, mostly the scan;
-on the host CPU it is ~7–9 min. A one-frame-per-window mode
-(`VISION_FRAMES_PER_WINDOW=1`) and a larger Colima CPU allocation are the two
-levers if the owner needs the first Short under three minutes. This is unproven
-on real 2 h footage.
+first finished Short at ~3.9 min, the 4.9 min trailer at ~5.7 min, and the 2 h
+synthetic stress test at ~16 min (dominated by a pathological pure-tone
+transcription). On normal gameplay audio the transcribe stage drops to seconds,
+giving a first clip around **6–7 min**; it stays vision-bound (~4.2 min).
+A one-frame-per-window mode (`VISION_FRAMES_PER_WINDOW=1`) and a larger Colima
+CPU allocation are the two levers if the owner needs the first Short under
+three minutes. This is unproven on real 2 h footage.
 
 ### Verification
 
