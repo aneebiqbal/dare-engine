@@ -20,6 +20,7 @@ import dataclasses
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 import tempfile
 import time
@@ -28,6 +29,7 @@ import urllib.request
 SAMPLE_FPS = float(os.environ.get("VISION_SAMPLE_FPS", "0.2"))   # one frame / 5 s
 MAX_FRAMES = int(os.environ.get("VISION_MAX_FRAMES", "40"))
 WINDOW = 12.0
+FRAMES_PER_WINDOW = int(os.environ.get("VISION_FRAMES_PER_WINDOW", "2"))
 MODEL = os.environ.get("VISION_MODEL", "qwen2.5vl:7b")
 BRIDGE = os.environ.get("MODEL_BRIDGE_URL", "http://host.docker.internal:8798").rstrip("/")
 
@@ -119,6 +121,91 @@ def unload(model: str = MODEL, timeout: float = 10.0) -> bool:
             return True
         time.sleep(0.5)
     return False
+
+
+def sample_window_frames(path: str, out_dir: str, start: float, end: float) -> list[str]:
+    """A few frames from one candidate window. Never the whole video."""
+    out = pathlib.Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    length = max(1.0, end - start)
+    rate = FRAMES_PER_WINDOW / length
+    subprocess.run(
+        ["ffmpeg", "-hide_banner", "-nostats", "-y",
+         "-ss", f"{start:.3f}", "-i", path, "-t", f"{length:.3f}",
+         "-vf", f"fps={rate:g}", "-q:v", "3", str(out / "frame_%05d.jpg")],
+        capture_output=True, check=True,
+    )
+    return [str(f) for f in sorted(out.glob("frame_*.jpg"))][:FRAMES_PER_WINDOW]
+
+
+def score_windows(
+    path: str,
+    windows: list[tuple[float, float]],
+    *,
+    model: str = MODEL,
+    sampler=None,
+    describe_fn=None,
+    unload_fn=None,
+    thumb_dir: str | None = None,
+    tmp_root: str | None = None,
+) -> tuple[list[dict], dict]:
+    """Score only the given windows, a few frames each, with the VLM.
+
+    Returns one score per window (0.0 when the model finds nothing striking),
+    plus meta. When `thumb_dir` is given the judged frame is copied there so it
+    survives the temp directory. The model is unloaded and verified.
+    """
+    sampler = sampler or sample_window_frames
+    describe_fn = describe_fn or describe
+    unload_fn = unload_fn or unload
+    started = time.time()
+    scored: list[dict] = []
+    frames_seen = 0
+    errors = 0
+    with tempfile.TemporaryDirectory(prefix="vision-win-", dir=tmp_root) as tmp:
+        for start, end in windows:
+            try:
+                frames = sampler(path, tmp, start, end)
+            except Exception:
+                scored.append({"start": start, "end": end, "score": 0.0,
+                               "reason": None, "thumb_path": None})
+                continue
+            frames_seen += len(frames)
+            best: dict | None = None
+            for frame in frames:
+                reply = describe_fn(frame, start, end, model)
+                if reply.get("error"):
+                    errors += 1
+                    continue
+                value = float(reply.get("score") or 0.0)
+                if best is None or value > best["score"]:
+                    best = {
+                        "start": start,
+                        "end": end,
+                        "score": value if reply.get("clippable") else 0.0,
+                        "reason": str(reply.get("reason") or "").strip() or None,
+                        "thumb_path": frame,
+                    }
+            if best and best.get("thumb_path") and thumb_dir:
+                dest = pathlib.Path(thumb_dir) / f"{start:.0f}_{end:.0f}.jpg"
+                try:
+                    pathlib.Path(thumb_dir).mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(best["thumb_path"], dest)
+                    best["thumb_path"] = str(dest)
+                except OSError:
+                    best["thumb_path"] = None
+            scored.append(best or {"start": start, "end": end, "score": 0.0,
+                                   "reason": None, "thumb_path": None})
+        unloaded = unload_fn(model)
+    return scored, {
+        "sampled": True,
+        "model": model,
+        "windows": len(windows),
+        "frames": frames_seen,
+        "errors": errors,
+        "unloaded": unloaded,
+        "seconds": round(time.time() - started, 2),
+    }
 
 
 def _overlaps(a: Suggestion, b: Suggestion) -> bool:

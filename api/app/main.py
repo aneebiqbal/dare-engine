@@ -24,6 +24,7 @@ from .missions import router as missions_router
 from .models import router as models_router
 from .obs import router as obs_router
 from .overview import router as overview_router
+from .pipeline import router as pipeline_router
 from .projects import router as projects_router
 from .provider import router as provider_router
 from .ratelimit import RateLimitMiddleware
@@ -96,6 +97,7 @@ for router in (
     obs_router,
     keys_router,
     overview_router,
+    pipeline_router,
     provider_router,
     ssd_router,
     studio_router,

@@ -61,6 +61,13 @@ _SELECT = (
 
 def _owned_clip(cur, request, clip_id):
     user = current_user(request)
+    if user["role"] == "admin":
+        # Admins review every clip (the pipeline publishes assignment-less
+        # clips); creators can only reach their own.
+        cur.execute("SELECT c.id FROM clips c WHERE c.id = %s", (clip_id,))
+        if cur.fetchone() is not None:
+            return
+        raise HTTPException(404, "clip not found")
     cur.execute(
         "SELECT c.id FROM clips c JOIN assignments a ON a.id = c.assignment_id "
         "WHERE c.id = %s AND a.user_id = %s",
@@ -591,11 +598,14 @@ def download(request: Request, clip_id: str):
     user = current_user(request)
     with db.session() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT c.file_key FROM clips c JOIN assignments a ON a.id = c.assignment_id "
-                "WHERE c.id = %s AND a.user_id = %s",
-                (clip_id, user["id"]),
-            )
+            if user["role"] == "admin":
+                cur.execute("SELECT c.file_key FROM clips c WHERE c.id = %s", (clip_id,))
+            else:
+                cur.execute(
+                    "SELECT c.file_key FROM clips c JOIN assignments a ON a.id = c.assignment_id "
+                    "WHERE c.id = %s AND a.user_id = %s",
+                    (clip_id, user["id"]),
+                )
             row = cur.fetchone()
     if not row or not row[0]:
         raise HTTPException(404, "no file")

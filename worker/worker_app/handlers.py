@@ -555,3 +555,48 @@ def run_project(payload: dict) -> None:
             _unlock_project_lane(conn)
     finally:
         conn.close()
+
+
+@jobs.register("run_pipeline")
+def run_pipeline(payload: dict) -> None:
+    """Run one automatic pipeline at a time, under the same lane as a project.
+
+    The advisory lock is the hard guarantee that two models are never resident
+    at once, whichever path started them.
+    """
+    from clip import pipeline as clip_pipeline
+
+    requested = payload.get("run_id")
+    conn = db.connect(direct=True)
+    try:
+        with conn.cursor() as cur:
+            while True:
+                cur.execute("SELECT pg_try_advisory_lock(%s)", (PROJECT_LOCK_KEY,))
+                if cur.fetchone()[0]:
+                    break
+                conn.rollback()
+                time.sleep(2)
+            row = None
+            if requested:
+                cur.execute(
+                    "SELECT id FROM pipeline_runs WHERE id = %s "
+                    "AND state IN ('queued', 'paused', 'failed')",
+                    (requested,),
+                )
+                row = cur.fetchone()
+            if row is None:
+                cur.execute(
+                    "SELECT id FROM pipeline_runs WHERE state = 'queued' "
+                    "ORDER BY created_at LIMIT 1"
+                )
+                row = cur.fetchone()
+            conn.commit()
+        if row is None:
+            _unlock_project_lane(conn)
+            return
+        try:
+            clip_pipeline.run_pipeline(str(row[0]), payload.get("_job_id"))
+        finally:
+            _unlock_project_lane(conn)
+    finally:
+        conn.close()

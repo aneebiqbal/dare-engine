@@ -164,58 +164,43 @@ def _resolve_template(
     return chosen
 
 
-def render_short(
-    input_path: str,
+def _render_window(
+    src: str,
     card: dict,
-    start: float,
-    end: float,
+    win_start: float,
+    win_end: float,
+    payoff_end: float,
+    words: list["Word"],
     out_dir: str,
-    result_value: str = "",
-    template: str | None = None,
-    llm=None,
-    words_abs: list["Word"] | None = None,
-    caption_style: str = "word",
-    template_id: str | None = None,
-    caption_override: list[dict] | None = None,
+    result_value: str,
+    template: str | None,
+    llm,
+    caption_style: str,
+    template_id: str | None,
+    caption_override: list[dict] | None,
+    file_duration: float,
+    allow_silent: bool = False,
 ) -> Result:
-    src = str(input_path)
+    """Build the Short from an already-selected source window.
+
+    `words` are window-relative. `src` is cut at beat boundaries, so a cached
+    transcript stays exact and the whole file is never re-read.
+    """
     out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    file_duration = _duration(src)
-    win_start = max(0.0, start - WINDOW_BEFORE)
-    win_end = min(file_duration, end + WINDOW_AFTER)
-    if win_end - win_start < 5:
-        raise ValueError(f"window {win_start:.1f}-{win_end:.1f}s is too short")
-
-    payoff_end = min(win_end, end)
     payoff_start = max(win_start, payoff_end - PAYOFF_SECONDS)
 
     with tempfile.TemporaryDirectory(prefix="clipdesk-") as tmp:
         tmp = Path(tmp)
 
-        window = tmp / "window.mp4"
-        _cut(src, str(window), win_start, win_end - win_start)
-        if words_abs is None:
-            words = transcribe(str(window))
-            words_abs = [Word(w.start + win_start, w.end + win_start, w.text) for w in words]
-            unload()
-        else:
-            # Cached transcript is in source-recording time; re-window it.
-            words = [
-                Word(w.start - win_start, w.end - win_start, w.text)
-                for w in words_abs
-                if win_start <= (w.start + w.end) / 2 < win_end
-            ]
-
-        guard_window(words, payoff_start - win_start, payoff_end - win_start)
-        letterbox = detect_letterbox(str(window), *_dimensions(str(window)))
+        if not allow_silent:
+            guard_window(words, payoff_start - win_start, payoff_end - win_start)
+        letterbox = detect_letterbox(str(src), *_dimensions(str(src)))
 
         rel_payoff_lo = payoff_start - win_start
         rel_payoff_hi = payoff_end - win_start
         peak = win_start + _strongest_second(words, rel_payoff_lo, rel_payoff_hi)
 
-        seed = f"{card.get('id', '')}:{start:.0f}:{end:.0f}"
+        seed = f"{card.get('id', '')}:{win_start:.0f}:{win_end:.0f}"
         tpl = _resolve_template(template, template_id, seed)
         layout = tpl.layout
         captions = caption_style or tpl.captions
@@ -284,9 +269,11 @@ def render_short(
             )
 
         mission_num = str(card.get("id", "")).replace("m_", "")
-        end_lines = [f"MISSION {mission_num}" if mission_num else "MISSION"]
+        end_lines = card.get("end_lines")
+        if end_lines is None:
+            end_lines = [f"MISSION {mission_num}" if mission_num else "MISSION"]
         if result_value:
-            end_lines.append(str(result_value))
+            end_lines = [*end_lines, str(result_value)]
         end_start = max(0.0, total - tpl.button_seconds)
 
         ass_path = tmp / "burn.ass"
@@ -352,5 +339,85 @@ def render_short(
             flags=letterbox,
             template=tpl.id,
             beats=beats,
-            words_abs=words_abs,
+            words_abs=words,
         )
+
+
+def render_short(
+    input_path: str,
+    card: dict,
+    start: float,
+    end: float,
+    out_dir: str,
+    result_value: str = "",
+    template: str | None = None,
+    llm=None,
+    words_abs: list["Word"] | None = None,
+    caption_style: str = "word",
+    template_id: str | None = None,
+    caption_override: list[dict] | None = None,
+) -> Result:
+    """Render a window of a recording into a finished 9:16 Short."""
+    src = str(input_path)
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    file_duration = _duration(src)
+    win_start = max(0.0, start - WINDOW_BEFORE)
+    win_end = min(file_duration, end + WINDOW_AFTER)
+    if win_end - win_start < 5:
+        raise ValueError(f"window {win_start:.1f}-{win_end:.1f}s is too short")
+
+    payoff_end = min(win_end, end)
+    with tempfile.TemporaryDirectory(prefix="clipdesk-") as tmp:
+        tmp = Path(tmp)
+        window = tmp / "window.mp4"
+        _cut(src, str(window), win_start, win_end - win_start)
+        if words_abs is None:
+            words = transcribe(str(window))
+            words_source = [Word(w.start + win_start, w.end + win_start, w.text) for w in words]
+            unload()
+        else:
+            words_source = list(words_abs)
+        words = [
+            Word(w.start - win_start, w.end - win_start, w.text)
+            for w in words_source
+            if win_start <= (w.start + w.end) / 2 < win_end
+        ]
+        return _render_window(
+            src, card, win_start, win_end, payoff_end, words, str(out_dir),
+            result_value, template, llm, caption_style, template_id,
+            caption_override, file_duration,
+        )
+
+
+def render_cut(
+    cut_path: str,
+    words_rel: list["Word"],
+    card: dict,
+    out_dir: str,
+    result_value: str = "",
+    template: str | None = None,
+    llm=None,
+    caption_style: str = "word",
+    template_id: str | None = None,
+    caption_override: list[dict] | None = None,
+) -> Result:
+    """Render an already-cut clip with its cached transcript.
+
+    The pipeline cuts once, transcribes once, then renders from the cut: a
+    re-render recomputes nothing. Silent clips are allowed (a music-only or
+    cutscene window still gets a hook and an end card).
+    """
+    src = str(cut_path)
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    file_duration = _duration(src)
+    if file_duration < 1.0:
+        raise ValueError(f"cut is too short ({file_duration:.1f}s)")
+    return _render_window(
+        src, card, 0.0, file_duration, file_duration,
+        [Word(float(w.start), float(w.end), w.text) for w in words_rel],
+        str(out_dir), result_value, template, llm, caption_style, template_id,
+        caption_override, file_duration, allow_silent=True,
+    )

@@ -2331,6 +2331,150 @@ paths:
           content:
             application/json:
               schema: {}
+  /pipeline/upload:
+    post:
+      summary: Upload
+      description: Accept one video and start the automatic pipeline. Zero manual
+        steps.
+      operationId: upload_pipeline_upload_post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_pipeline_upload_post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /pipeline:
+    get:
+      summary: List Runs
+      operationId: list_runs_pipeline_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /pipeline/{run_id}:
+    get:
+      summary: Get Run
+      operationId: get_run_pipeline__run_id__get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /pipeline/{run_id}/candidates/{candidate_id}/thumb:
+    get:
+      summary: Candidate Thumb
+      operationId: candidate_thumb_pipeline__run_id__candidates__candidate_id__thumb_get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      - name: candidate_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Candidate Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /pipeline/{run_id}/timestamps:
+    post:
+      summary: Add Timestamps
+      description: Add exact windows to the cut list. The AI suggestions are never
+        replaced.
+      operationId: add_timestamps_pipeline__run_id__timestamps_post
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /pipeline/{run_id}/resume:
+    post:
+      summary: Resume
+      description: Re-queue a paused or failed run. It continues from the last completed
+        stage.
+      operationId: resume_pipeline__run_id__resume_post
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /admin/provider:
     get:
       summary: Provider
@@ -2801,6 +2945,16 @@ components:
       required:
       - user_id
       title: AssignIn
+    Body_upload_pipeline_upload_post:
+      properties:
+        file:
+          type: string
+          format: binary
+          title: File
+      type: object
+      required:
+      - file
+      title: Body_upload_pipeline_upload_post
     Body_upload_studio_upload_post:
       properties:
         file:

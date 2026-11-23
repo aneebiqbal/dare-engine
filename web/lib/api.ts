@@ -1,5 +1,8 @@
 import type {
   AiConfig,
+  PipelineRun,
+  PipelineCandidate,
+  PipelineClip,
   AiUsage,
   Attempt,
   AuditEntry,
@@ -54,6 +57,9 @@ import type {
 
 export type {
   AiConfig,
+  PipelineRun,
+  PipelineCandidate,
+  PipelineClip,
   AiUsage,
   Attempt,
   AuditEntry,
@@ -512,6 +518,38 @@ export const api = {
   setProjectVision: (id: string, vision: boolean) =>
     post<Project>(`/projects/${id}/vision`, { vision }),
   deleteProject: (id: string) => del(`/projects/${id}`),
+
+  // --- automatic upload-to-Shorts pipeline -----------------------------
+  pipelineUpload: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const headers: Record<string, string> = {};
+    const csrf = csrfToken();
+    if (csrf) headers["X-CSRF-Token"] = csrf;
+    return fetch(`${base()}/pipeline/upload`, {
+      method: "POST",
+      headers,
+      body: form,
+    }).then(async (r) => {
+      if (!r.ok) throw new ApiError(r.status, await r.text());
+      return r.json();
+    });
+  },
+  pipelines: () => get<{ items: PipelineRun[] }>("/pipeline"),
+  pipeline: (run_id: string) =>
+    get<{
+      run: PipelineRun;
+      candidates: PipelineCandidate[];
+      clips: PipelineClip[];
+    }>(`/pipeline/${run_id}`),
+  pipelineTimestamps: (run_id: string, timestamps: { start: number; end: number }[]) =>
+    post<{ added: number; ignored: string[] }>(`/pipeline/${run_id}/timestamps`, {
+      timestamps,
+    }),
+  pipelineResume: (run_id: string) =>
+    post<{ run_id: string; state: string }>(`/pipeline/${run_id}/resume`, {}),
+  pipelineThumbUrl: (run_id: string, candidate_id: string) =>
+    `${browserBase()}/pipeline/${run_id}/candidates/${candidate_id}/thumb`,
 
   // --- community -------------------------------------------------------
   reportError: (message: string, stack?: string | null, path?: string) =>

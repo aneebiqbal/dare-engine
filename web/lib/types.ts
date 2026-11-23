@@ -475,10 +475,58 @@ export type Project = {
   stage_note: string | null;
   candidates: number;
   clips: { ready: number; total: number; reviewed: number };
+  pipeline?: PipelineRun | null;
   queued: boolean;
   queue_position: number | null;
   created_at: string | null;
   updated_at: string | null;
+};
+
+export type PipelineRun = {
+  id: string;
+  project_id?: string;
+  state: "queued" | "running" | "paused" | "done" | "failed";
+  stage: string;
+  progress: number;
+  action: string;
+  eta_seconds: number | null;
+  remaining_seconds: number | null;
+  model_loaded: string;
+  stage_timings: Record<string, number>;
+  compute_path: string;
+  error: string | null;
+  no_speech: boolean;
+  name?: string;
+  created_at?: string | null;
+  finished_at?: string | null;
+};
+
+export type PipelineCandidate = {
+  id: string;
+  start: number;
+  end: number;
+  cheap_score: number;
+  vision_score: number | null;
+  final_score: number;
+  reasons: string[];
+  vision_reason: string | null;
+  origin: "ai" | "user";
+  selected: boolean;
+  status: string;
+  thumb_url: string | null;
+  clip_id: string | null;
+  error: string | null;
+};
+
+export type PipelineClip = {
+  id: string;
+  state: string;
+  duration_seconds: number | null;
+  title: string | null;
+  layout: string | null;
+  caption_style: string | null;
+  thumb_url: string;
+  download_url: string;
 };
 
 export type ErrorReport = {

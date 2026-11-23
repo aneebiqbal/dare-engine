@@ -126,6 +126,40 @@ def project_state(cur, project_id: str) -> dict | None:
         )
         exported = cur.fetchone()[0] > 0
 
+    pipeline = None
+    cur.execute(
+        "SELECT count(*) FROM jobs WHERE kind = 'run_pipeline' "
+        "AND payload->>'project_id' = %s AND state IN ('queued', 'running')",
+        (str(pid),),
+    )
+    if cur.fetchone()[0] > 0:
+        analyzing = True
+    cur.execute(
+        "SELECT id, state, stage, progress, action, eta_seconds, remaining_seconds, "
+        "model_loaded, stage_timings, compute_path, error, no_speech, created_at, "
+        "finished_at FROM pipeline_runs WHERE project_id = %s "
+        "ORDER BY created_at DESC LIMIT 1",
+        (project_id,),
+    )
+    prow = cur.fetchone()
+    if prow:
+        pipeline = {
+            "run_id": str(prow[0]),
+            "state": prow[1],
+            "stage": prow[2],
+            "progress": prow[3],
+            "action": prow[4],
+            "eta_seconds": prow[5],
+            "remaining_seconds": prow[6],
+            "model_loaded": prow[7],
+            "stage_timings": prow[8],
+            "compute_path": prow[9],
+            "error": prow[10],
+            "no_speech": prow[11],
+            "created_at": prow[12].isoformat() if prow[12] else None,
+            "finished_at": prow[13].isoformat() if prow[13] else None,
+        }
+
     stage = derive_stage(
         live=live,
         recording=bool(recording_id),
@@ -156,6 +190,7 @@ def project_state(cur, project_id: str) -> dict | None:
         "stage_note": stage_note,
         "candidates": candidates,
         "clips": {"ready": ready_clips, "total": total_clips, "reviewed": reviewed_clips},
+        "pipeline": pipeline,
         "queued": queued_at is not None,
         "queue_position": position,
         "created_at": created_at.isoformat() if created_at else None,

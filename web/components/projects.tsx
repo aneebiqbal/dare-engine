@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { api, type Project } from "@/lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api, type PipelineRun, type Project } from "@/lib/api";
 import {
   Badge,
   Button,
@@ -14,6 +14,7 @@ import {
   useToast,
 } from "@/components/ui";
 import { Pipeline, StatusBadge, WorkHeader, type WorkStatus } from "./work";
+import { PipelinePanel } from "./pipeline";
 
 const STAGES = [
   "planned",
@@ -48,19 +49,27 @@ type RecordingOption = { id: string; filename: string };
 export function Projects() {
   const [items, setItems] = useState<Project[]>([]);
   const [recordings, setRecordings] = useState<RecordingOption[]>([]);
+  const [runs, setRuns] = useState<PipelineRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [attachFor, setAttachFor] = useState<Record<string, string>>({});
+  const fileRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
 
   const load = useCallback(async (initial = false) => {
     if (initial) setLoading(true);
     try {
-      const [p, r] = await Promise.all([api.projects(), api.studioRecordings()]);
+      const [p, r, pipe] = await Promise.all([
+        api.projects(),
+        api.studioRecordings(),
+        api.pipelines(),
+      ]);
       setItems(p.items);
       setRecordings(r.items);
+      setRuns(pipe.items);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
@@ -87,6 +96,22 @@ export function Projects() {
       toast(e instanceof Error ? e.message : "Failed", "danger");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function uploadVideo(file: File) {
+    setUploading(true);
+    try {
+      const res = await api.pipelineUpload(file);
+      toast("Uploaded — the pipeline started", "success");
+      await load();
+      if (fileRef.current) fileRef.current.value = "";
+      const el = document.querySelector(`[data-testid="pipeline-${res.run_id}"]`);
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Upload failed", "danger");
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -168,6 +193,34 @@ export function Projects() {
           <p className="text-xs text-muted">
             One stream or recording is one project. Import a recording and it starts a project
             automatically.
+          </p>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex flex-col gap-3">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
+            Automatic upload to Shorts
+          </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="video/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void uploadVideo(file);
+              }}
+              className="text-sm text-muted file:mr-3 file:rounded-full file:border-0 file:bg-accent file:px-4 file:py-2 file:text-xs file:font-medium file:text-white"
+              aria-label="Upload a video to clip automatically"
+              data-testid="pipeline-upload"
+            />
+            {uploading && <span className="font-mono text-xs text-muted">uploading…</span>}
+          </div>
+          <p className="text-xs text-muted">
+            Upload one video and walk away: it scans, ranks, vision-scores, cuts, transcribes,
+            captions and renders finished 9:16 Shorts with no further steps. Nothing leaves this
+            Mac.
           </p>
         </div>
       </Card>
@@ -302,6 +355,19 @@ export function Projects() {
           ))}
         </div>
       </PageState>
+
+      {runs.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
+            Automatic pipelines · {runs.length}
+          </span>
+          {runs.map((run) => (
+            <Card key={run.id}>
+              <PipelinePanel runId={run.id} name={run.name} />
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
