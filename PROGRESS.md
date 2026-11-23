@@ -1,5 +1,102 @@
 # Progress
 
+## Automatic upload-to-Shorts pipeline
+
+Status: **built and committed on branch `auto-pipeline`; proven end to end
+through the real API on the real stack with the real MLX/VLM bridge. The
+acceptance suite is running. Clip quality still needs the owner's gameplay.**
+
+### What was built
+
+- **Schema** (`0022_pipeline.sql`, `0023_pipeline_media.sql`): `pipeline_runs`
+  (state, last completed stage, progress, plain-language action, ETA/remaining,
+  model loaded, per-stage timings, measured rates, notes, memory readout) and
+  `pipeline_candidates` (cheap score, vision score, final score, origin
+  `ai|user`, selected, status, cut key, transcript, clip id). The run resumes
+  from the last COMPLETED stage; each candidate resumes at its own status.
+- **Cheap whole-video scan** (`worker/clip/scan.py`): FFmpeg only — per-second
+  audio RMS, scene cuts, 1 fps frame stats, and silencedetect speech activity.
+  No model ever sees the whole file. Produces a shortlist, merges user
+  timestamps as high-priority candidates and never replaces the AI suggestions.
+- **Vision pass** (`vision.score_windows`): loads the VLM once, samples two
+  downscaled frames per shortlisted window (never the whole video), scores
+  clippability + reason + striking frame, then unloads and verifies against the
+  model inventory.
+- **Cut**: seeks (`-ss` before `-i`), re-encodes only the short window, with a
+  2 s pre-roll/post-roll; downscales sources above 1080p.
+- **Transcribe**: MLX Whisper on Metal once per stage, only the cut clips,
+  word timestamps cached to the SSD and the DB; unloads and verifies. Falls
+  back to faster-whisper CPU and says so.
+- **Render** (`engine.render_cut`): renders from the cached cut with the cached
+  transcript — no re-transcribe, no re-cut of the source. Grammar beats, ASS
+  word-synced captions clear of the platform UI zone, 1080×1920 H.264, thumbnail.
+  Each Short is published as soon as it finishes.
+- **Orchestration** (`worker/clip/pipeline.py`): sequential stages, converging
+  ETA (measured rates replace the starting estimates after every stage), live
+  action/progress/model, pause on a full disk or a missing source volume,
+  resume from the last completed stage, cleanup of cuts and a live memory
+  readout at the end.
+- **One model at a time**: the `run_pipeline` job takes the same Postgres
+  advisory lock as `run_project`, so a pipeline and a manual analysis can never
+  load models together.
+- **API** (`api/app/pipeline.py`): `POST /pipeline/upload` (one upload starts
+  the run), `GET /pipeline`, `GET /pipeline/{id}` (run + candidates + clips),
+  `POST /pipeline/{id}/timestamps`, `POST /pipeline/{id}/resume`. Admin-only;
+  metadata only, media stays on the SSD.
+- **UI** (`web/components/pipeline.tsx`, projects page): one upload control,
+  per-stage bars with seconds, plain-language action, model loaded/idle, ETA and
+  remaining, ranked candidates with reasons and thumbnails, finished Shorts as
+  cards that appear one by one, optional timestamp entry, resume on a paused or
+  failed run.
+- Contract regenerated (**133 paths**). Unit tests **16 passed**; `make check`
+  **2 passed**; web `tsc --noEmit` clean.
+
+### Measured on this machine (2026-11-23)
+
+A 45 s stand-in through the real API (`POST /pipeline/upload`), top_n=3, real
+MLX Whisper bridge up, real Qwen2.5-VL-7B vision bridge up:
+
+| Stage | Seconds |
+| --- | --- |
+| ingest | 11.61 |
+| cheap scan | 16.36 |
+| rank | 14.81 |
+| vision (real VLM, 6 frames) | 91.02 |
+| cut (3 clips) | 36.91 |
+| transcribe (MLX Metal, 3 cuts) | 43.20 |
+| render (3 Shorts) | 54.98 |
+| **total** | **268.9** (~4.5 min) |
+
+- Compute path recorded: `asr=mlx/metal encoder=libx264` (the worker container
+  has no VideoToolbox; the host path would use it).
+- MLX peak memory **3.95 GB**; host RAM 21.3 / 38.6 GB (55.1%) at the end;
+  `ollama_running: []` — the vision model was unloaded and verified.
+- Cheap scan alone on the 291.8 s trailer: **5.84 s** total (audio 0.2,
+  speech 1.2, scene 3.2, frame stats 1.2), 18 candidates, **no model**.
+- Vision cost is ~15 s per frame on this 6 GB VLM; the first finished Short
+  lands after the vision pass, the cut, all transcripts and the first render.
+
+### Real vs stand-in
+
+- **Real:** ingest, cheap scan, ranking, real VLM scoring with reasons, cutting,
+  MLX transcription, caption/render, publishing, resume, timestamps, the live
+  UI, per-stage timings, memory unload verification.
+- **Stand-in / sample:** the acceptance footage is the synthetic
+  `standin_speech_45s.mp4` test pattern, so the VLM correctly reports "nothing
+  striking"; the publisher trailer is the only real video. **No human has
+  watched the output**, so clip quality is unproven.
+- **Not measured on 2 h footage:** the owner's own recording. The 45 s and
+  4.9 min runs prove the plumbing and the rates; a 2 h run needs the owner's
+  file and is the only thing that proves the long-video budget.
+
+### Blocked on the owner
+
+1. The owner's own gameplay recording — the only thing that proves clip quality
+   and the real 2 h timing budget.
+2. Credit on the AI/research keys for live runs (not needed for the local
+   MLX/Ollama path).
+3. The SSD mount and the host/remote decisions.
+
 ## Redesign sprint — a workplace tool, not a stat dashboard
 
 Status: **built, tested on the real stack, and screenshot-verified. The human

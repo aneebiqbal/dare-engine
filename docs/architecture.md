@@ -84,6 +84,10 @@ a 20 GB file, it belongs on the desktop side.
 
 - The Tauri shell (`desktop/`).
 - The local engine: FFmpeg, MLX Whisper, the Ollama models, the vision model.
+  The automatic upload-to-Shorts pipeline runs here in sequential stages
+  (cheap scan → rank → vision → cut → transcribe → render), one model resident
+  at a time, under the same single-project advisory lock as a manual analysis.
+  See `worker/clip/pipeline.py` and `PROGRESS.md`.
 - The host bridges (`local/mlx_bridge.py`, `local/ssd_bridge.py`).
 - OBS Studio (integrated over obs-websocket) **or** the bundled FFmpeg recorder.
 - The SSD reader.

@@ -181,7 +181,7 @@ export function PipelinePanel({ runId, name }: { runId: string; name?: string })
   const live = run.state === "running";
 
   return (
-    <div className="flex flex-col gap-4" data-testid={`pipeline-${runId}`}>
+    <div className="flex flex-col gap-4" data-testid="pipeline-panel" data-runid={runId}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           <span className="text-[10px] uppercase tracking-[0.18em] text-muted">

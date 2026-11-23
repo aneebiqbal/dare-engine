@@ -106,7 +106,7 @@ export function Projects() {
       toast("Uploaded — the pipeline started", "success");
       await load();
       if (fileRef.current) fileRef.current.value = "";
-      const el = document.querySelector(`[data-testid="pipeline-${res.run_id}"]`);
+      const el = document.querySelector('[data-testid="pipeline-panel"]');
       el?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (e) {
       toast(e instanceof Error ? e.message : "Upload failed", "danger");

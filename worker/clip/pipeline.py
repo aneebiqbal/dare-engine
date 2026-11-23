@@ -311,6 +311,15 @@ def _probe(path: str) -> tuple[float, int, int]:
 def _ensure_source(ctx: Ctx) -> str:
     if ctx.source_path and os.path.exists(ctx.source_path):
         return ctx.source_path
+    # Local storage is mounted into the worker: read the source in place rather
+    # than copying a multi-gigabyte file for every run.
+    from worker_app.config import settings
+
+    if settings.storage_driver == "local":
+        local = pathlib.Path(settings.storage_local_dir) / ctx.run["source_key"]
+        if local.is_file():
+            ctx.source_path = str(local)
+            return ctx.source_path
     suffix = pathlib.Path(ctx.run["source_key"]).suffix or ".mp4"
     dest = os.path.join(ctx.work, f"source{suffix}")
     try:

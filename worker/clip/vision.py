@@ -30,6 +30,7 @@ SAMPLE_FPS = float(os.environ.get("VISION_SAMPLE_FPS", "0.2"))   # one frame / 5
 MAX_FRAMES = int(os.environ.get("VISION_MAX_FRAMES", "40"))
 WINDOW = 12.0
 FRAMES_PER_WINDOW = int(os.environ.get("VISION_FRAMES_PER_WINDOW", "2"))
+FRAME_WIDTH = int(os.environ.get("VISION_FRAME_WIDTH", "512"))
 MODEL = os.environ.get("VISION_MODEL", "qwen2.5vl:7b")
 BRIDGE = os.environ.get("MODEL_BRIDGE_URL", "http://host.docker.internal:8798").rstrip("/")
 
@@ -129,10 +130,11 @@ def sample_window_frames(path: str, out_dir: str, start: float, end: float) -> l
     out.mkdir(parents=True, exist_ok=True)
     length = max(1.0, end - start)
     rate = FRAMES_PER_WINDOW / length
+    vf = f"fps={rate:g},scale={FRAME_WIDTH}:-2"
     subprocess.run(
         ["ffmpeg", "-hide_banner", "-nostats", "-y",
          "-ss", f"{start:.3f}", "-i", path, "-t", f"{length:.3f}",
-         "-vf", f"fps={rate:g}", "-q:v", "3", str(out / "frame_%05d.jpg")],
+         "-vf", vf, "-q:v", "3", str(out / "frame_%05d.jpg")],
         capture_output=True, check=True,
     )
     return [str(f) for f in sorted(out.glob("frame_*.jpg"))][:FRAMES_PER_WINDOW]

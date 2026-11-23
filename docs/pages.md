@@ -33,7 +33,7 @@ app code may not import (`make check`).
 | `/admin/games/[id]` | Game profile. | Reviews today's sourced ideas, approves/rejects/assigns, sees runs. |
 | `/admin/pool` | Idea pool. | Types questions, approves/rejects/assigns. |
 | `/admin/studio` | Clip studio. | Imports a recording, finds moments, generates clips. |
-| `/admin/projects` | Projects: each stream's stage and the analysis queue. | Creates a project, attaches a recording, queues analysis, tracks stages. |
+| `/admin/projects` | Projects + the automatic upload-to-Shorts pipeline. | Uploads a video, watches live stages, adds timestamps, resumes, opens a finished Short. |
 | `/admin/calendar` | Posting calendar queue. | Schedules approved Shorts and marks them published. |
 | `/admin/long-form` | Long-form builder. | Assembles a session's Shorts into one video. |
 | `/admin/models` | Local models and provider. | Pulls/unloads Ollama models, reads MLX and memory. |
