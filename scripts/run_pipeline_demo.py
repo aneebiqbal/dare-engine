@@ -1,5 +1,9 @@
-"""One real pipeline run on the repo trailer, printing measured stage timings."""
+"""One real pipeline run on a video, printing measured stage timings.
+
+    make pipeline-demo FILE=fixtures/gameplay_4min.mp4 TOP_N=2
+"""
 import json
+import os
 import pathlib
 import sys
 import time
@@ -8,7 +12,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests" / "acceptance"))
 from helpers import make_admin, sql  # noqa: E402
 
-FIXTURE = ROOT / "fixtures" / "gameplay_4min.mp4"
+FIXTURE = pathlib.Path(os.environ.get("FILE") or (ROOT / "fixtures" / "gameplay_4min.mp4"))
+TOP_N = int(os.environ.get("TOP_N", "2"))
 
 
 def main():
@@ -16,16 +21,16 @@ def main():
     boundary = "----trailer-run"
     body = (
         f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; "
-        f"filename=\"gameplay_4min.mp4\"\r\nContent-Type: video/mp4\r\n\r\n"
+        f"filename=\"{FIXTURE.name}\"\r\nContent-Type: video/mp4\r\n\r\n"
     ).encode() + FIXTURE.read_bytes() + (f"\r\n--{boundary}--\r\n").encode()
     res = admin.call(
         "POST", "/pipeline/upload", raw=body,
         ctype=f"multipart/form-data; boundary={boundary}",
     )
     run_id = res["run_id"]
-    sql(f"UPDATE pipeline_runs SET top_n = 2 WHERE id = '{run_id}'")
-    print("run", run_id, flush=True)
-    deadline = time.time() + 1800
+    sql(f"UPDATE pipeline_runs SET top_n = {TOP_N} WHERE id = '{run_id}'")
+    print("run", run_id, "file", FIXTURE, "top_n", TOP_N, flush=True)
+    deadline = time.time() + int(os.environ.get("TIMEOUT", "3600"))
     while time.time() < deadline:
         state = admin.get(f"/pipeline/{run_id}")
         run = state["run"]

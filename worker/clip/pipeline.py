@@ -41,11 +41,13 @@ from .vision import FRAMES_PER_WINDOW, score_windows
 # Relative cost of each stage, measured on this machine and updated with real
 # timings as the run progresses. Only the starting estimate uses these.
 RATES = {
-    "scan": 0.6,        # seconds of FFmpeg scan per second of video
+    # Measured on this machine (Apple M3 Max, 4-core Colima VM). The first run
+    # starts here; every completed stage replaces these with its real rate.
+    "scan": 0.11,       # seconds of FFmpeg scan per second of video
     "vision": 8.0,      # seconds per sampled frame
-    "cut": 1.5,         # per clip
+    "cut": 12.0,        # per clip
     "transcribe": 0.12, # per second of cut audio
-    "render": 12.0,     # per clip
+    "render": 25.0,     # per clip
 }
 CLIP_SECONDS = 16.0
 MAX_CUT_PIXELS = 1920 * 1080

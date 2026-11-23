@@ -92,9 +92,9 @@ vision-model:
 vision-run:
 	.venv/bin/python local/vision_run.py $(FILE) vision-out
 
-# One real automatic-pipeline run on the repo trailer; prints measured stage timings.
+# One real automatic-pipeline run; prints measured stage timings.
 pipeline-demo:
-	.venv/bin/python scripts/run_pipeline_demo.py
+	FILE=$(FILE) TOP_N=$(TOP_N) .venv/bin/python scripts/run_pipeline_demo.py
 
 # Dump the database to backups/ (see docs/deploy-web.md for the schedule).
 backup:
