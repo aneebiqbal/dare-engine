@@ -628,9 +628,10 @@ def _claim_pipeline(requested: str | None):
                 )
                 row = cur.fetchone()
                 if row is not None:
-                    return row
+                    return row[0]
             cur.execute(
                 "SELECT id FROM pipeline_runs WHERE state = 'queued' "
                 "ORDER BY created_at LIMIT 1"
             )
-            return cur.fetchone()
+            row = cur.fetchone()
+            return row[0] if row is not None else None

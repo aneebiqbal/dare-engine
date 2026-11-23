@@ -29,9 +29,33 @@ def test_bridge_failure_falls_back_to_cpu(monkeypatch):
     monkeypatch.setattr(
         transcribe_mod,
         "_load",
-        lambda: types.SimpleNamespace(transcribe=lambda *a, **k: (iter([]), None)),
+        lambda *a, **k: types.SimpleNamespace(transcribe=lambda *a, **k: (iter([]), None)),
     )
     assert transcribe("unused.mp4") == []
+    assert actual_compute() == ("cpu", "int8")
+
+
+def test_mlx_configured_but_unreachable_still_uses_cpu(monkeypatch):
+    """MLX_WHISPER_URL being set must not make the faster-whisper fallback try
+    to open device='mlx'."""
+    from worker_app.config import settings
+
+    monkeypatch.setattr(settings, "mlx_whisper_url", "http://127.0.0.1:1")
+    monkeypatch.setattr(settings, "whisper_device", "cpu")
+    monkeypatch.setattr(settings, "whisper_compute_type", "int8")
+    seen = {}
+
+    class FakeModel:
+        def __init__(self, model, device=None, compute_type=None):
+            seen["device"] = device
+            seen["compute_type"] = compute_type
+
+        def transcribe(self, *a, **k):
+            return iter([]), None
+
+    monkeypatch.setattr("faster_whisper.WhisperModel", FakeModel)
+    assert transcribe("unused.mp4") == []
+    assert seen == {"device": "cpu", "compute_type": "int8"}
     assert actual_compute() == ("cpu", "int8")
 
 

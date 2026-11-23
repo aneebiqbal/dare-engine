@@ -90,19 +90,18 @@ def _mlx_bridge_words(path: str) -> list[Word]:
     return [Word(float(w["start"]), float(w["end"]), w["text"]) for w in data["words"]]
 
 
-def _load():
+def _load(device: str | None = None, compute: str | None = None):
+    """Load faster-whisper once. Explicit device/compute are used for the CPU
+    fallback, so a configured-but-unreachable MLX bridge can never make
+    faster-whisper try to open `device='mlx'`."""
     global _model
     if _model is None:
         from faster_whisper import WhisperModel
 
         from worker_app.config import settings
 
-        device, compute = whisper_compute()
-        _model = WhisperModel(
-            settings.whisper_model,
-            device=device,
-            compute_type=compute,
-        )
+        dev, comp = (device, compute) if device else whisper_compute()
+        _model = WhisperModel(settings.whisper_model, device=dev, compute_type=comp)
     return _model
 
 
@@ -136,7 +135,7 @@ def transcribe(path: str) -> list[Word]:
             pass  # bridge configured but unreachable: fall back cleanly to CPU
     _last_compute = _cpu_compute(settings)
     with _lock:
-        segments, _info = _load().transcribe(
+        segments, _info = _load(*_last_compute).transcribe(
             path, word_timestamps=True, vad_filter=False, beam_size=1
         )
     words: list[Word] = []

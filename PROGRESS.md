@@ -195,6 +195,19 @@ three minutes. This is unproven on real 2 h footage.
 - Live UI proof: `docs/screens/pipeline-live.png` (stage bars, ETA, model state,
   a user-marked candidate next to AI ones).
 
+### Bugs the real runs caught (and fixed)
+
+1. **`_claim_pipeline` returned the whole row.** `str((UUID(...),))` was passed
+   as the run id; every attempt failed and the run stayed queued. Now returns
+   `row[0]`.
+2. **The CPU fallback was unreachable while MLX was configured.**
+   `transcribe()` fell back to faster-whisper but `_load()` still asked for
+   `device="mlx"`, raising `ValueError: unsupported device mlx`. The bridge being
+   down now falls back to real CPU transcription and records it.
+3. **Edge-peak grammar produced a 2.8 s Short** (fixed above).
+4. **A killed worker held the lane forever** (orphaned advisory-lock session);
+   replaced by the heartbeat lease.
+
 ### Real vs stand-in
 
 - **Real:** ingest, cheap scan, ranking, real VLM scoring with reasons, cutting,
