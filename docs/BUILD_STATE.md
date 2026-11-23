@@ -59,8 +59,8 @@ Last updated after the research-brain sprint.
 | First-run setup wizard (persisted, verified steps) | yes | yes | yes (acceptance, real endpoints) | — |
 | In-window caption editor (text/timing, no re-transcribe) | yes | yes | yes (acceptance, real render) | — |
 | Engine activity log (model load/unload, cleanup) on the dashboard | yes | yes | yes (acceptance, real worker) | — |
-| Automatic upload-to-Shorts pipeline (scan→rank→vision→cut→transcribe→render) | yes | yes | partial (45 s stand-in + trailer rates; no owner gameplay) | owner's footage for the 2 h budget |
-| Converging ETA + live per-stage progress + clips appearing one by one | yes | yes | yes (acceptance, real API) | — |
+| Automatic upload-to-Shorts pipeline (scan→rank→vision→cut→transcribe→render) | yes | yes | partial (45 s stand-in, 4.9 min trailer, 2 h synthetic stress test; no owner gameplay) | owner's footage for quality + real 2 h audio |
+| Converging ETA + live per-stage progress + clips appearing one by one | yes | yes | yes (acceptance, real API; 2 h run estimate 1181 s vs 1181.9 s actual) | — |
 | One model resident at a time (shared advisory lock, unload verified) | yes | yes | yes (unit + real bridge memory readout) | — |
 | Resume from the last completed stage after a kill/pause | yes | yes | yes (acceptance) | — |
 | User timestamps added without replacing AI suggestions | yes | yes | yes (acceptance) | — |
