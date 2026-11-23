@@ -78,15 +78,46 @@ MLX Whisper bridge up, real Qwen2.5-VL-7B vision bridge up:
 - Sampling frames at **512 px** instead of full resolution measured **8.5 s vs
   12.7 s per frame** with the same clippability judgment.
 
+A second real run on the 291.8 s publisher trailer (`fixtures/gameplay_4min.mp4`),
+top_n=2, real VLM + MLX:
+
+| Stage | Seconds |
+| --- | --- |
+| ingest | 14.41 |
+| cheap scan | 31.10 |
+| rank | 19.15 |
+| vision (real VLM, 15 windows × 2 frames) | 226.51 |
+| cut (2 clips) | 31.14 |
+| transcribe (MLX Metal, 2 cuts) | 48.94 |
+| render (2 Shorts) | 56.92 |
+| **total** | **428.2** (~7.1 min) |
+
+- The vision pass found striking moments (no fallback note); compute path
+  `asr=mlx/metal encoder=libx264`; MLX peak **3.96 GB**; `ollama_running: []`
+  at the end.
+- First finished Short ≈ 6.7 min into the run (after scan, vision, cut, all
+  transcripts and the first render).
+
+### The long-video lever (honest)
+
+The cheap scan is CPU-bound FFmpeg. In this 4-core Colima VM it measured
+**0.107 s of scan per second of video** (a 2 h upload ≈ 12.8 min); on the
+14-core host the same scan measured **0.020 s/s** (2 h ≈ 2.4 min). The scan does
+not get faster by adding a model — it needs CPU threads or a smaller working
+resolution. `colima start --cpu 8` is the one-line fix on this machine. The
+vision pass is capped at 15 windows × 2 frames regardless of length, so it stays
+~4 min; the scan is the part that scales with duration.
+
 ### Honest latency note
 
-The stages are sequential by design, so on a 2 h upload the vision pass
-(~15 windows × 2 frames × 8.5 s ≈ 4.3 min) plus the cheap scan dominate before
-the first cut. The measured 45 s run put the first finished Short at ~3.9 min;
-a 2 h run is estimated at 6–8 min to the first Short. A one-frame-per-window
-mode (`VISION_FRAMES_PER_WINDOW=1`) is the lever if the owner needs the first
-Short under three minutes; it is not the default because two frames judge a
-window more reliably. This is unproven on real 2 h footage.
+The stages are sequential by design, so on a 2 h upload the cheap scan plus the
+vision pass dominate before the first cut. Measured: the 45 s stand-in put the
+first finished Short at ~3.9 min, the 4.9 min trailer at ~6.7 min. A 2 h run is
+estimated at 10–15 min to the first Short **in this 4-core VM**, mostly the scan;
+on the host CPU it is ~7–9 min. A one-frame-per-window mode
+(`VISION_FRAMES_PER_WINDOW=1`) and a larger Colima CPU allocation are the two
+levers if the owner needs the first Short under three minutes. This is unproven
+on real 2 h footage.
 
 ### Verification
 

@@ -65,8 +65,14 @@ def build_beats(
     first; an optional tight context beat is a flash-back after it; the payoff
     itself is the longest beat and ends the clip."""
     cold = max(0.0, min(template.cold_open, template.hook_seconds))
-    payoff_src = max(payoff_start, min(peak - cold / 2.0, payoff_end - 1.0))
-    cold_len = max(0.0, min(cold, payoff_end - payoff_src))
+    # Reserve a real payoff after the cold open. A peak at the very edge of the
+    # window must not squeeze the payoff to nothing (a 2.8 s Short is a bug).
+    span = max(0.0, payoff_end - payoff_start)
+    reserve = min(max(3.0, span * 0.4), max(0.0, span - 1.0))
+    payoff_src = max(
+        payoff_start, min(peak - cold / 2.0, payoff_end - cold - reserve)
+    )
+    cold_len = max(0.0, min(cold, payoff_end - payoff_src - reserve))
     beats: list[Beat] = []
     if cold_len > 0.2:
         beats.append(Beat(payoff_src, cold_len, "cold_open"))
