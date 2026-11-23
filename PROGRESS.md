@@ -158,6 +158,10 @@ ffmpeg -f lavfi -i testsrc2=duration=7200:size=640x360:rate=15 \
 make pipeline-demo FILE=/tmp/long2h.mp4 TOP_N=10
 ```
 
+The lever is real and measurable: the same 2 h cheap scan took **87.1 s on 4
+cores** and **55.4 s after `colima start --cpu 8`** (0.0121 → 0.0077 s/s), with
+no code change.
+
 ### Honest latency note
 
 The stages are sequential by design, so on a 2 h upload the cheap scan plus the

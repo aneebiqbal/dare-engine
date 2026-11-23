@@ -31,7 +31,7 @@ def _upload(admin, filename="standin.mp4"):
     )
 
 
-def _wait_for(admin, run_id, predicate, tries=120, delay=3):
+def _wait_for(admin, run_id, predicate, tries=200, delay=3):
     for _ in range(tries):
         state = admin.get(f"/pipeline/{run_id}")
         if predicate(state):
