@@ -213,7 +213,14 @@ def _reestimate(ctx: Ctx, stage: str, seconds: float) -> None:
 
     duration = float(run.get("duration_seconds") or 0.0)
     regions = run.get("regions") or []
-    region_audio = sum(float(r.get("end", 0)) - float(r.get("start", 0)) for r in regions)
+    planned = [c for c in _get_candidates(run["id"]) if c["selected"]]
+    all_candidates = _get_candidates(run["id"])
+    region_audio = (
+        sum(float(r.get("end", 0)) - float(r.get("start", 0)) for r in regions)
+        or duration * 0.75
+    )
+    n_candidates = len(all_candidates) or 60
+    n_clips = len(planned) or min(10, int(run.get("max_clips") or 40))
     remaining = 0.0
     if "scan" not in timings:
         remaining += duration * rates["scan"]
@@ -222,13 +229,13 @@ def _reestimate(ctx: Ctx, stage: str, seconds: float) -> None:
     if "detect" not in timings:
         remaining += rates["detect"]
     if "signals" not in timings:
-        remaining += min(VISION_SHORTLIST, len(_get_candidates(run["id"]))) * FRAMES_PER_WINDOW * rates["signals"]
+        remaining += min(VISION_SHORTLIST, n_candidates) * FRAMES_PER_WINDOW * rates["signals"]
     if "score" not in timings:
-        remaining += len(_get_candidates(run["id"])) * rates["score"]
+        remaining += n_candidates * rates["score"]
     if "cut" not in timings:
-        remaining += len([c for c in _get_candidates(run["id"]) if c["selected"]]) * rates["cut"]
+        remaining += n_clips * rates["cut"]
     if "render" not in timings:
-        remaining += len([c for c in _get_candidates(run["id"]) if c["selected"]]) * rates["render"]
+        remaining += n_clips * rates["render"]
     elapsed = sum(float(v) for v in timings.values())
     _update_run(
         run["id"],
