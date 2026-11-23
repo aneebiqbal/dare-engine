@@ -83,20 +83,24 @@ top_n=2, real VLM + MLX:
 
 | Stage | Seconds |
 | --- | --- |
-| ingest | 14.41 |
-| cheap scan | 31.10 |
-| rank | 19.15 |
-| vision (real VLM, 15 windows × 2 frames) | 226.51 |
-| cut (2 clips) | 31.14 |
-| transcribe (MLX Metal, 2 cuts) | 48.94 |
-| render (2 Shorts) | 56.92 |
-| **total** | **428.2** (~7.1 min) |
+| ingest | 13.59 |
+| cheap scan | 30.65 |
+| rank | 21.03 |
+| vision (real VLM, 15 windows × 2 frames) | 193.51 |
+| cut (2 clips) | 29.91 |
+| transcribe (MLX Metal, 2 cuts) | 39.69 |
+| render (2 Shorts) | 50.05 |
+| **total** | **358.4** (~6.0 min) |
 
 - The vision pass found striking moments (no fallback note); compute path
   `asr=mlx/metal encoder=libx264`; MLX peak **3.96 GB**; `ollama_running: []`
   at the end.
-- First finished Short ≈ 6.7 min into the run (after scan, vision, cut, all
+- First finished Short ≈ 5.7 min into the run (after scan, vision, cut, all
   transcripts and the first render).
+- A first trailer run exposed a real quality bug: when the cold-open peak sat at
+  the window edge, the grammar produced a **2.8 s** Short. `grammar.build_beats`
+  now reserves a real payoff after the cold open; the re-run produced **7.9 s
+  and 16.0 s** clips from the same candidates. Regression test added.
 
 ### The long-video lever (honest)
 
@@ -112,7 +116,7 @@ vision pass is capped at 15 windows × 2 frames regardless of length, so it stay
 
 The stages are sequential by design, so on a 2 h upload the cheap scan plus the
 vision pass dominate before the first cut. Measured: the 45 s stand-in put the
-first finished Short at ~3.9 min, the 4.9 min trailer at ~6.7 min. A 2 h run is
+first finished Short at ~3.9 min, the 4.9 min trailer at ~5.7 min. A 2 h run is
 estimated at 10–15 min to the first Short **in this 4-core VM**, mostly the scan;
 on the host CPU it is ~7–9 min. A one-frame-per-window mode
 (`VISION_FRAMES_PER_WINDOW=1`) and a larger Colima CPU allocation are the two
@@ -121,7 +125,7 @@ on real 2 h footage.
 
 ### Verification
 
-- Unit tests: **123 passed, 1 skipped**; the pipeline suite alone is 18,
+- Unit tests: **124 passed, 1 skipped**; the pipeline suite alone is 18,
   including stage sequencing, resume from the last completed stage, the
   no-model cheap scan, window-scoped vision with unload, user-timestamp
   merging, silent video, disk-full pause, high-res downscale and a real
