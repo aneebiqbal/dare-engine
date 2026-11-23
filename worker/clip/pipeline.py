@@ -624,6 +624,22 @@ def _stage_score(ctx: Ctx) -> None:
         return
     language = run.get("language") or "en"
     transcript = run.get("transcript") or []
+    # Score only the strongest shortlist (plus any exact user timestamps); the
+    # rest are marked out without a call so a rich video stays fast.
+    from worker_app.config import settings as wsettings
+
+    limit = int(getattr(wsettings, "score_max_candidates", 40))
+    ranked = sorted(candidates, key=lambda c: float(c["cheap_score"]), reverse=True)
+    users = [c for c in ranked if c["origin"] == "user"]
+    ai = [c for c in ranked if c["origin"] != "user"]
+    shortlist = users + ai[: max(0, limit - len(users))]
+    shortlisted = {str(c["id"]) for c in shortlist}
+    for c in candidates:
+        if str(c["id"]) not in shortlisted:
+            _update_candidate(
+                c["id"], {"keep": False, "reason": "below the scoring shortlist"}
+            )
+    candidates = shortlist
     rep.action(f"Scoring {len(candidates)} moments against the rubric", model=settings_model())
     from worker_app import events
 

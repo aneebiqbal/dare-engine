@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     rerank_temperature: float = 0.3
     skills_dir: str = "/app/skills/clip-scoring"
     score_batch: int = 1
+    score_max_candidates: int = 40
 
     @property
     def direct_url(self) -> str:
