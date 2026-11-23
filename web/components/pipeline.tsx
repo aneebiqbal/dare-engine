@@ -24,20 +24,22 @@ import { LiveDot, StatusBadge, type WorkStatus } from "./work";
 const STAGES = [
   "ingest",
   "scan",
-  "rank",
-  "vision",
+  "regions",
+  "detect",
+  "signals",
+  "score",
   "cut",
-  "transcribe",
   "render",
 ] as const;
 
 const LABELS: Record<string, string> = {
   ingest: "Ingest",
   scan: "Cheap scan",
-  rank: "Rank",
-  vision: "Vision pass",
+  regions: "Transcribe speech",
+  detect: "Grow moments",
+  signals: "Fuse signals",
+  score: "Score + rerank",
   cut: "Cut",
-  transcribe: "Transcribe",
   render: "Caption + render",
   done: "Done",
 };
@@ -78,11 +80,22 @@ function CandidateRow({ runId, c }: { runId: string; c: PipelineCandidate }) {
           <Badge tone={c.origin === "user" ? "needs" : "muted"}>
             {c.origin === "user" ? "you marked" : "ai"}
           </Badge>
+          {c.label && <Badge tone="accent">{c.label}</Badge>}
+          {typeof c.composite === "number" && (
+            <span className="font-mono text-[11px] text-muted">
+              {c.composite.toFixed(0)}
+            </span>
+          )}
           {c.status === "rendered" && <Badge tone="success">rendered</Badge>}
           {c.status === "failed" && <Badge tone="danger">failed</Badge>}
         </div>
-        <p className="truncate text-xs text-muted">
-          {c.vision_reason || c.reasons.join(" · ") || "—"}
+        {c.hook && (
+          <p className="truncate text-xs font-medium" title={c.hook}>
+            “{c.hook}”
+          </p>
+        )}
+        <p className="truncate text-xs text-muted" title={c.reason || undefined}>
+          {c.reason || c.vision_reason || c.reasons.join(" · ") || "—"}
         </p>
         <p className="font-mono text-[11px] text-muted">
           cheap {c.cheap_score.toFixed(2)} · vision{" "}

@@ -29,7 +29,7 @@ def _video(path: pathlib.Path, seconds: int = 8) -> pathlib.Path:
 
 def test_stage_order_is_the_published_pipeline():
     assert pipeline.WORK_STAGES == [
-        "ingest", "scan", "rank", "vision", "cut", "transcribe", "render",
+        "ingest", "scan", "regions", "detect", "signals", "score", "cut", "render",
     ]
 
 
@@ -41,9 +41,9 @@ def test_progress_is_monotonic_across_a_stage():
 
 
 def test_estimate_grows_with_duration_and_clip_count():
-    small = pipeline.estimate_total(60, 5)
-    long = pipeline.estimate_total(7200, 5)
-    many = pipeline.estimate_total(60, 20)
+    small = pipeline.estimate_total(60, 40, 20, 5)
+    long = pipeline.estimate_total(7200, 3000, 60, 10)
+    many = pipeline.estimate_total(60, 40, 20, 20)
     assert small < long
     assert small < many
     assert all(v > 0 for v in (small, long, many))
@@ -59,7 +59,6 @@ def test_resume_runs_only_incomplete_stages(monkeypatch):
         "stage_timings": {"ingest": 1.0, "scan": 2.0},
         "action": "Resuming", "timestamps": [],
     }
-
     class FakeReporter:
         def __init__(self, *a, **k):
             pass
@@ -82,7 +81,9 @@ def test_resume_runs_only_incomplete_stages(monkeypatch):
         {s: (lambda ctx, s=s: calls.append(s)) for s in pipeline.WORK_STAGES},
     )
     pipeline.run_pipeline("r1")
-    assert calls == ["rank", "vision", "cut", "transcribe", "render", "done"]
+    assert calls == [
+        "regions", "detect", "signals", "score", "cut", "render", "done",
+    ]
 
 
 def test_done_run_is_a_no_op(monkeypatch):
@@ -182,15 +183,15 @@ def test_overlapping_candidates_are_deduplicated():
     assert len(ranked) == 2
 
 
-def test_hook_text_picks_the_densest_phrase():
+def test_fallback_hook_picks_the_densest_phrase():
     words = [
-        {"start": 0.0, "end": 0.4, "text": "okay"},
-        {"start": 1.0, "end": 1.2, "text": "that"},
-        {"start": 1.2, "end": 1.4, "text": "was"},
-        {"start": 1.4, "end": 1.6, "text": "insane"},
+        pipeline.Word(0.0, 0.4, "okay"),
+        pipeline.Word(1.0, 1.2, "that"),
+        pipeline.Word(1.2, 1.4, "was"),
+        pipeline.Word(1.4, 1.6, "insane"),
     ]
-    assert "insane" in pipeline._hook_text(words)
-    assert pipeline._hook_text([]) == "Watch this"
+    assert "insane" in pipeline._fallback_hook(words)
+    assert pipeline._fallback_hook([]) == "Watch this"
 
 
 def test_render_cut_builds_a_vertical_short_from_a_cached_cut(tmp_path):

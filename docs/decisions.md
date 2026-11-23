@@ -252,4 +252,24 @@ project. The OBS integration is the proven path; the bundled FFmpeg recorder and
 the Tauri shell are built here but need a real user on real hardware to call
 finished.
 
+### Moment-selection tools studied (2026-11-24)
+
+Read before rebuilding the picker away from vision-first. What we took from each:
+
+| Project | What it does | What we adopted |
+| --- | --- | --- |
+| OpenShorts (`mutonby/openshorts`, MIT) | faster-whisper word timestamps + PySceneDetect boundaries, then an LLM scores the transcript and returns 3–15 moments of 15–60 s with a 0–100 virality score, hook line and reason. Runs fully local against any OpenAI-compatible endpoint. | Transcript-first scoring; clips **start on a sentence** (windows scored, not free-floating); scene boundaries as a structural prior; a virality score + hook line + reason per clip; the scorer is a pluggable local model, never a cloud dependency. |
+| Clips Kitty / clips-studio (`ColinGPT9/clips-studio`, AGPL-3.0; SDK MIT) | Five signals in 1-second bins — transcript, audio excitement/bursts/silence→explosion, visual cuts/motion/reactions — normalized within the video. The LLM reads the transcript **plus the event timeline**. Every clip clearing `min_score` is kept (**no arbitrary cap**). Windows scored ~8 at a time; only a transcript pick below the bar hides an overlapping signal peak; scoring budget goes to the strongest peaks, not the earliest; later local versions rerank finalists relatively. | Multimodal fusion with **per-video normalization**; the compact **event timeline** handed to the scoring LLM; quality-bar selection with no hard count; **relative head-to-head rerank** for the final order; label + reason recorded per clip. We do not copy its code or GPL assets. |
+| ClipForge (`Orlando0309/clipforge`; also the `lowdevco/Clip-Forge` skill) | Shot-boundary prior + an LLM virality rubric fused with audio "buzz"; keep everything above a sensitivity threshold (~70 strict … ~40 generous), snap to sentence boundaries, suppress overlaps, and an "editor" pass stitches setup→payoff and drops dead air. Rubric: hook / emotional peak / opinion bomb / revelation / conflict / quotable / story-peak / practical value + a self-contained check. | A **sensitivity-driven quality bar**, not a fixed N; snapping cuts to speech edges; the hook/payoff self-contained check; explicit, explainable dimensions. We fuse transcript+audio+vision rather than transcript+audio only. |
+| cutawan (`JeremySNR/cutawan`) | An LLM picks **self-contained hook→build→payoff micro-stories**, then a second AI pass reviews every ending and extends it to the beat that completes the thought. Editorial ranking moves repeated ideas down and treats scores as provisional. | The **micro-story unit** and the ending-completion pass (we approximate it by growing windows to whole sentences and requiring a payoff dimension ≥ band); de-duplicating by idea, not just overlap; labels + provisional reasons shown. |
+| viral-clipper / shortsmith-style rubric prompts | Score hook strength, emotional peak, payoff clarity, standalone value; **kill criteria** reject weak hooks, mid-thought starts and context-free fragments; prefer loops (end feeds the hook) and 15–40 s; isolate the strongest 5–10 s as the hook. | Explicit **kill criteria** and scoring bands; the hook line returned verbatim; length preference; hook isolation (our cold open is the window's peak). |
+| AI-Youtube-Shorts-Generator (`Anil-matcha/…`, MIT) | Classify content type/density first, chunk long videos with overlap, rank candidates on a virality framework (hook, emotional peak, opinion bomb, revelation, conflict, quotable, story peak, practical value) scored 0–100, dedupe >50 % overlap keeping the higher score, then render. | Content-type/density awareness in the prompt; **overlap suppression keeping the higher score**; a named virality framework; score+hook+reason emitted together. |
+
+**Net design.** Transcribe candidate regions first (language auto-detected),
+segment to sentences, grow self-contained hook-build-payoff windows of 14–60 s
+snapped to speech edges, fuse audio/scene signals with a shortlist vision read,
+score against a calibrated rubric in editable skill files, head-to-head rerank,
+then keep everything above the quality bar with no arbitrary cap. The vision
+model is one signal, never the primary picker.
+
 

@@ -271,7 +271,8 @@ def _render_window(
         mission_num = str(card.get("id", "")).replace("m_", "")
         end_lines = card.get("end_lines")
         if end_lines is None:
-            end_lines = [f"MISSION {mission_num}" if mission_num else "MISSION"]
+            # No internal branding is burned into the output.
+            end_lines = []
         if result_value:
             end_lines = [*end_lines, str(result_value)]
         end_start = max(0.0, total - tpl.button_seconds)
@@ -313,7 +314,7 @@ def _render_window(
             "mission_id": card.get("id"),
             "question": card.get("question"),
             "title": card.get("title_options", [""])[0],
-            "description": f"{card.get('question', '')}\n\nMission {mission_num}.",
+            "description": card.get("question") or card.get("hook_text") or "",
             "tags": ["clipdesk", "missions", card.get("mode", "")],
             "layout": layout,
             "template": tpl.id,

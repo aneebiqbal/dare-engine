@@ -513,6 +513,11 @@ export type PipelineCandidate = {
   origin: "ai" | "user";
   selected: boolean;
   status: string;
+  label?: string | null;
+  hook?: string | null;
+  reason?: string | null;
+  scores?: Record<string, number> | null;
+  composite?: number | null;
   thumb_url: string | null;
   clip_id: string | null;
   error: string | null;

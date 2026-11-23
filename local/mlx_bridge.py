@@ -78,6 +78,7 @@ def transcribe(path: str) -> dict:
         "words": words,
         "compute": COMPUTE,
         "model": MODEL,
+        "language": result.get("language") or "en",
         "elapsed_s": _state["last_elapsed_s"],
     }
 

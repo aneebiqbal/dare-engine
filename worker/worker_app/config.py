@@ -36,6 +36,13 @@ class Settings(BaseSettings):
     # The same host bridge also serves the vision model (Ollama).
     model_bridge_url: str = "http://host.docker.internal:8798"
     vision_model: str = "qwen2.5vl:7b"
+    # Local chat model used by the moment scorer (Ollama on the Mac).
+    ollama_url: str = "http://host.docker.internal:11434"
+    scoring_model: str = "qwen2.5-coder:14b"
+    score_temperature: float = 0.75
+    rerank_temperature: float = 0.3
+    skills_dir: str = "/app/skills/clip-scoring"
+    score_batch: int = 1
 
     @property
     def direct_url(self) -> str:

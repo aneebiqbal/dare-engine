@@ -11,6 +11,12 @@ _model = None
 # GPU path. `whisper_compute()` is the configured path; `actual_compute()` is
 # what ran.
 _last_compute: tuple[str, str] | None = None
+# Detected spoken language of the most recent transcription (Whisper's code).
+_last_language: str | None = None
+
+
+def last_language() -> str | None:
+    return _last_language
 
 
 @dataclasses.dataclass(frozen=True)
@@ -57,9 +63,10 @@ def actual_compute() -> tuple[str, str] | None:
     return _last_compute
 
 
-def _mlx_bridge_words(path: str) -> list[Word]:
+def _mlx_bridge_words(path: str) -> tuple[list[Word], str | None]:
     """Stream the file to the host MLX bridge (the container's storage is not
-    visible on the host, so a path would not resolve there)."""
+    visible on the host, so a path would not resolve there). Returns words and
+    the detected language."""
     import http.client
     import json
     import pathlib
@@ -87,7 +94,8 @@ def _mlx_bridge_words(path: str) -> list[Word]:
     if resp.status != 200:
         raise RuntimeError(f"MLX bridge returned {resp.status}: {body[:200]!r}")
     data = json.loads(body)
-    return [Word(float(w["start"]), float(w["end"]), w["text"]) for w in data["words"]]
+    words = [Word(float(w["start"]), float(w["end"]), w["text"]) for w in data["words"]]
+    return words, data.get("language")
 
 
 def _load(device: str | None = None, compute: str | None = None):
@@ -125,11 +133,12 @@ def transcribe(path: str) -> list[Word]:
     """
     from worker_app.config import settings
 
-    global _last_compute
+    global _last_compute, _last_language
     if settings.mlx_whisper_url:
         try:
-            words = _mlx_bridge_words(path)
+            words, language = _mlx_bridge_words(path)
             _last_compute = ("mlx", "metal")
+            _last_language = language or _last_language
             return words
         except Exception:
             pass  # bridge configured but unreachable: fall back cleanly to CPU
@@ -138,6 +147,7 @@ def transcribe(path: str) -> list[Word]:
         segments, _info = _load(*_last_compute).transcribe(
             path, word_timestamps=True, vad_filter=False, beam_size=1
         )
+    _last_language = getattr(_info, "language", None) or _last_language
     words: list[Word] = []
     for seg in segments:
         for w in seg.words or []:

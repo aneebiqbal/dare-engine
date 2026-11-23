@@ -153,6 +153,11 @@ def _candidate_dict(cur, run_id: str, row: tuple) -> dict:
         "origin": c["origin"],
         "selected": c["selected"],
         "status": c["status"],
+        "label": c["label"],
+        "hook": c["hook"],
+        "reason": c["reason"],
+        "scores": c["scores"],
+        "composite": c["composite"],
         "thumb_url": f"/pipeline/{run_id}/candidates/{c['id']}/thumb" if c["thumb_key"] else None,
         "clip_id": str(c["clip_id"]) if c["clip_id"] else None,
         "error": c["error"],
@@ -265,8 +270,8 @@ def add_timestamps(request: Request, run_id: str, payload: dict):
             )
             has_candidates = cur.fetchone()[0] > 0
             stage = run["stage"]
-            will_rank = stage in ("ingest", "scan") or (
-                stage == "rank" and not has_candidates
+            will_rank = stage in ("ingest", "scan", "regions") or (
+                stage == "detect" and not has_candidates
             )
             if will_rank:
                 merged = list(run.get("timestamps") or []) + valid
@@ -282,15 +287,15 @@ def add_timestamps(request: Request, run_id: str, payload: dict):
                         "INSERT INTO pipeline_candidates "
                         "(run_id, start_seconds, end_seconds, cheap_score, final_score, "
                         " reasons, origin, selected) "
-                        "VALUES (%s, %s, %s, 0.9, 0.9, '[\"you marked this\"]', 'user', true)",
+                        "VALUES (%s, %s, %s, 1.5, 1.5, '[\"you marked this\"]', 'user', false)",
                         (run_id, item["start"], item["end"]),
                     )
                 timings = dict(run.get("stage_timings") or {})
-                for done in ("cut", "transcribe", "render"):
+                for done in ("signals", "score", "cut", "render"):
                     timings.pop(done, None)
                 cur.execute(
-                    "UPDATE pipeline_runs SET state = 'queued', stage = 'rank', "
-                    "progress = 20, stage_timings = %s, timestamps = '[]', "
+                    "UPDATE pipeline_runs SET state = 'queued', stage = 'detect', "
+                    "progress = 22, stage_timings = %s, timestamps = '[]', "
                     "error = NULL, updated_at = now() WHERE id = %s",
                     (json.dumps(timings), run_id),
                 )

@@ -8,7 +8,7 @@ from __future__ import annotations
 from .transcribe import Word
 
 HEADER = """[Script Info]
-Title: Clipdesk Missions
+Title: Short
 ScriptType: v4.00+
 PlayResX: 1080
 PlayResY: 1920

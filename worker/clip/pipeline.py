@@ -1,22 +1,20 @@
-"""The automatic upload-to-Shorts pipeline.
+"""The automatic upload-to-Shorts pipeline — transcript-first moment selection.
 
-One uploaded video becomes a run that moves through sequential stages:
+Stages:
 
-    ingest → scan → rank → vision → cut → transcribe → render → done
+    ingest → scan → regions → detect → signals → score → cut → render → done
 
-Hard rules honoured here:
+The picker is transcript-first and LLM-scored against the rubric in
+`skills/clip-scoring/`; the vision model is one fused signal, never the primary
+picker. Hard rules honoured here:
 
-- No model ever sees the whole video. The cheap scan is FFmpeg only; the vision
-  model scores a few frames per shortlisted window; Whisper transcribes only
-  the cut clips.
-- One model resident at a time. The vision model is unloaded and verified
-  before the cut; Whisper is unloaded and verified before the render. The whole
-  run holds the single-project advisory lock (see the worker handler).
+- No model sees the whole video: Whisper transcribes only the chosen speech
+  regions, the VLM looks at a few frames of a shortlist, and the scoring LLM only
+  reads text. One model resident at a time, unloaded and verified between
+  stages.
 - Every stage records its own completion. A killed run resumes at the next
-  incomplete stage and each candidate resumes at its own status, so completed
-  work is never repeated.
-- Each finished Short is published as soon as it renders, so the user sees
-  output before the whole job finishes.
+  incomplete stage; each candidate resumes at its own status.
+- Each finished Short is published as soon as it renders.
 """
 from __future__ import annotations
 
@@ -32,38 +30,42 @@ import urllib.request
 import uuid
 from datetime import datetime, timezone
 
+from . import regions as regions_mod
+from . import select as select_mod
 from . import vision as vision_mod
+from .detect import _audio_energy, _duration, _scene_changes
 from .engine import Result, codec_args, detect_encoder, render_cut
-from .scan import CheapCandidate, SHORTLIST, cheap_scan, rank_candidates
-from .transcribe import Word, actual_compute, transcribe, unload, whisper_compute
+from .local_scoring import ScoringError, available as scorer_available, score_window, unload as unload_scorer
+from .scan import speech_activity
+from .select import Window, event_timeline, grow_windows, non_max_suppress, segment_sentences
+from .transcribe import Word, actual_compute, last_language, transcribe, unload, whisper_compute
 from .vision import FRAMES_PER_WINDOW, score_windows
 
-# Relative cost of each stage, measured on this machine and updated with real
-# timings as the run progresses. Only the starting estimate uses these.
+# Relative cost of each stage, measured on this machine and replaced with real
+# timings as the run progresses.
 RATES = {
-    # Measured on this machine (Apple M3 Max, 4-core Colima VM). The first run
-    # starts here; every completed stage replaces these with its real rate.
-    "scan": 0.11,       # seconds of FFmpeg scan per second of video
-    "vision": 8.0,      # seconds per sampled frame
-    "cut": 12.0,        # per clip
-    "transcribe": 0.12, # per second of cut audio
-    "render": 25.0,     # per clip
+    "scan": 0.12,       # seconds of FFmpeg scan per second of video
+    "regions": 0.15,    # seconds of transcription per second of region audio
+    "detect": 2.0,      # fixed
+    "signals": 8.0,     # seconds per vision frame
+    "score": 4.0,       # seconds per scored candidate
+    "cut": 10.0,        # per clip
+    "render": 22.0,     # per clip
 }
-CLIP_SECONDS = 16.0
-MAX_CUT_PIXELS = 1920 * 1080
-CUT_PRE = 2.0
-CUT_POST = 2.0
+MAX_CANDIDATES = select_mod.MAX_CANDIDATES
+VISION_SHORTLIST = 20
+RERANK_FINALISTS = 24
 
-WORK_STAGES = ["ingest", "scan", "rank", "vision", "cut", "transcribe", "render"]
-# Where each stage starts and ends on the 0-100 bar. A stage's completed
-# progress is the next stage's start.
+WORK_STAGES = [
+    "ingest", "scan", "regions", "detect", "signals", "score", "cut", "render",
+]
 STAGE_BASE = {
-    "ingest": 0, "scan": 5, "rank": 15, "vision": 20,
-    "cut": 45, "transcribe": 55, "render": 70, "done": 100,
+    "ingest": 0, "scan": 5, "regions": 15, "detect": 22,
+    "signals": 32, "score": 45, "cut": 55, "render": 70, "done": 100,
 }
 STAGE_PROGRESS = {
-    "ingest": 5, "scan": 15, "rank": 20, "vision": 45,
-    "cut": 55, "transcribe": 70, "render": 100,
+    "ingest": 5, "scan": 15, "regions": 22, "detect": 32,
+    "signals": 45, "score": 55, "cut": 70, "render": 100,
 }
 
 
@@ -178,28 +180,30 @@ def progress_for(stage: str, frac: float) -> int:
     return int(start + max(0.0, min(1.0, frac)) * (end - start))
 
 
-def estimate_total(duration: float, top_n: int) -> int:
+def estimate_total(duration: float, region_audio: float, n_candidates: int, n_clips: int) -> int:
     return int(
-        duration * RATES["scan"]
-        + top_n * FRAMES_PER_WINDOW * RATES["vision"]
-        + top_n * RATES["cut"]
-        + top_n * CLIP_SECONDS * RATES["transcribe"]
-        + top_n * RATES["render"]
+        10 + duration * RATES["scan"] + region_audio * RATES["regions"]
+        + RATES["detect"] + VISION_SHORTLIST * FRAMES_PER_WINDOW * RATES["signals"]
+        + n_candidates * RATES["score"] + n_clips * RATES["cut"] + n_clips * RATES["render"]
     )
 
 
-def _stage_units(stage: str, run: dict, selected: list[dict]) -> float:
+def _stage_units(stage: str, run: dict, candidates: list[dict]) -> float:
     if stage == "scan":
         return max(1.0, float(run.get("duration_seconds") or 0.0))
-    if stage == "vision":
-        return max(1.0, len(selected) * FRAMES_PER_WINDOW)
-    if stage == "transcribe":
-        return max(1.0, len(selected) * CLIP_SECONDS)
-    return float(max(1, len(selected)))
+    if stage == "regions":
+        regions = run.get("regions") or []
+        return max(1.0, sum(float(r.get("end", 0)) - float(r.get("start", 0)) for r in regions))
+    if stage == "detect":
+        return 1.0
+    if stage == "signals":
+        return max(1.0, min(VISION_SHORTLIST, len(candidates)) * FRAMES_PER_WINDOW)
+    if stage == "score":
+        return max(1.0, len(candidates))
+    return float(max(1, len(candidates)))
 
 
 def _reestimate(ctx: Ctx, stage: str, seconds: float) -> None:
-    """Fold the real stage time into the rates, then recompute the remaining ETA."""
     run = _get_run(ctx.run["id"])
     timings = dict(run.get("stage_timings") or {})
     rates = dict(RATES)
@@ -207,19 +211,24 @@ def _reestimate(ctx: Ctx, stage: str, seconds: float) -> None:
     units = _stage_units(stage, run, [c for c in _get_candidates(run["id"]) if c["selected"]])
     rates[stage] = round(seconds / max(1e-6, units), 4)
 
-    selected = [c for c in _get_candidates(run["id"]) if c["selected"]]
     duration = float(run.get("duration_seconds") or 0.0)
+    regions = run.get("regions") or []
+    region_audio = sum(float(r.get("end", 0)) - float(r.get("start", 0)) for r in regions)
     remaining = 0.0
     if "scan" not in timings:
         remaining += duration * rates["scan"]
-    if "vision" not in timings:
-        remaining += max(1, len(selected)) * FRAMES_PER_WINDOW * rates["vision"]
+    if "regions" not in timings:
+        remaining += region_audio * rates["regions"]
+    if "detect" not in timings:
+        remaining += rates["detect"]
+    if "signals" not in timings:
+        remaining += min(VISION_SHORTLIST, len(_get_candidates(run["id"]))) * FRAMES_PER_WINDOW * rates["signals"]
+    if "score" not in timings:
+        remaining += len(_get_candidates(run["id"])) * rates["score"]
     if "cut" not in timings:
-        remaining += len(selected) * rates["cut"]
-    if "transcribe" not in timings:
-        remaining += len(selected) * CLIP_SECONDS * rates["transcribe"]
+        remaining += len([c for c in _get_candidates(run["id"]) if c["selected"]]) * rates["cut"]
     if "render" not in timings:
-        remaining += len(selected) * rates["render"]
+        remaining += len([c for c in _get_candidates(run["id"]) if c["selected"]]) * rates["render"]
     elapsed = sum(float(v) for v in timings.values())
     _update_run(
         run["id"],
@@ -280,6 +289,7 @@ def _compute_path() -> str:
         encoder = detect_encoder()
     except Exception:
         encoder = "libx264"
+    lang = last_language() or ""
     return f"asr={device}/{compute} encoder={encoder}"
 
 
@@ -313,8 +323,6 @@ def _probe(path: str) -> tuple[float, int, int]:
 def _ensure_source(ctx: Ctx) -> str:
     if ctx.source_path and os.path.exists(ctx.source_path):
         return ctx.source_path
-    # Local storage is mounted into the worker: read the source in place rather
-    # than copying a multi-gigabyte file for every run.
     from worker_app.config import settings
 
     if settings.storage_driver == "local":
@@ -338,23 +346,31 @@ def _ensure_source(ctx: Ctx) -> str:
     return dest
 
 
+def _save_signals(ctx: Ctx, signals: dict) -> None:
+    pathlib.Path(ctx.work, "signals.json").write_text(json.dumps(signals))
+
+
+def _load_signals(ctx: Ctx) -> dict:
+    return json.loads(pathlib.Path(ctx.work, "signals.json").read_text())
+
+
 def _stage_ingest(ctx: Ctx) -> None:
     rep = ctx.reporter
     rep.action("Reading the uploaded video")
     path = _ensure_source(ctx)
     duration, width, height = _probe(path)
-    eta = estimate_total(duration, int(ctx.run.get("top_n") or 10))
     _update_run(
         ctx.run["id"],
         {
             "duration_seconds": duration,
             "width": width,
             "height": height,
-            "eta_seconds": eta,
-            "remaining_seconds": eta,
             "compute_path": _compute_path(),
+            "action": "Scanning audio and scene changes",
         },
     )
+    eta = estimate_total(duration, min(duration * 0.75, regions_mod.DEFAULT_AUDIO_BUDGET), 60, 10)
+    _update_run(ctx.run["id"], {"eta_seconds": eta, "remaining_seconds": eta})
     rep.progress(
         "ingest", 1.0,
         f"{duration / 60:.1f} min · {width}×{height} · about {max(1, eta // 60)} min total",
@@ -365,131 +381,361 @@ def _stage_scan(ctx: Ctx) -> None:
     rep = ctx.reporter
     rep.action("Scanning audio and scene changes")
     path = _ensure_source(ctx)
-    result = cheap_scan(path, shortlist=SHORTLIST)
-    rows = [
-        {
-            "start": c.start, "end": c.end, "cheap_score": c.score,
-            "final_score": c.score, "reasons": c.reasons, "origin": "ai",
-            "selected": True,
-        }
-        for c in result.candidates
-    ]
-    _replace_candidates(ctx.run["id"], rows)
+    duration = float(ctx.run.get("duration_seconds") or _duration(path))
+    energy = _audio_energy(path)
+    scenes = _scene_changes(path)
+    speech = speech_activity(path)
+    speech_fraction = sum(speech) / len(speech) if speech else 0.0
+    no_speech = speech_fraction < 0.15
+    _save_signals(ctx, {"energy": energy, "scenes": scenes, "speech": speech})
     notes = []
-    if result.no_speech:
-        notes.append("no speech detected; captions use the hook and end card only")
-    _update_run(ctx.run["id"], {"no_speech": result.no_speech, "notes": json.dumps(notes)})
-    rep.progress("scan", 1.0, f"Found {len(result.candidates)} candidate moments")
-
-
-def _stage_rank(ctx: Ctx) -> None:
-    rep = ctx.reporter
-    rep.action("Ranking candidates")
-    run = _get_run(ctx.run["id"])
-    cands = _get_candidates(run["id"])
-    cheap = [
-        CheapCandidate(c["start_seconds"], c["end_seconds"], c["cheap_score"], c["reasons"])
-        for c in cands
-    ]
-    duration = float(run.get("duration_seconds") or 0.0)
-    ranked, notes = rank_candidates(cheap, run.get("timestamps") or [], duration)
-    _replace_candidates(
-        run["id"],
-        [
-            {
-                "start": r.start, "end": r.end, "cheap_score": r.cheap_score,
-                "final_score": r.final_score, "reasons": r.reasons,
-                "origin": r.origin, "selected": True,
-            }
-            for r in ranked
-        ],
+    if no_speech:
+        notes.append("no speech detected; nothing to caption")
+    _update_run(
+        ctx.run["id"],
+        {"no_speech": no_speech, "notes": json.dumps(notes)},
     )
-    if notes:
-        for note in notes:
-            _append_note(run["id"], note)
-    rep.progress("rank", 1.0, f"Ranked {len(ranked)} windows")
+    rep.progress(
+        "scan", 1.0,
+        f"Scanned {duration / 60:.1f} min · {len(scenes)} cuts · "
+        f"speech {speech_fraction * 100:.0f}%",
+    )
 
 
-def _stage_vision(ctx: Ctx) -> None:
+def _cut_region_audio(src: str, out: str, start: float, end: float) -> None:
+    proc = subprocess.run(
+        ["ffmpeg", "-y", "-hide_banner", "-nostats",
+         "-ss", f"{max(0.0, start):.3f}", "-i", src,
+         "-t", f"{max(0.5, end - start):.3f}",
+         "-vn", "-ac", "1", "-ar", "16000", out],
+        capture_output=True, text=True,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"ffmpeg region cut failed: {proc.stderr[-500:]}")
+
+
+def _stage_regions(ctx: Ctx) -> None:
+    """Transcribe only the speech regions. Never the whole video."""
     rep = ctx.reporter
+    rep.action("Finding speech regions")
     run = _get_run(ctx.run["id"])
-    selected = [c for c in _get_candidates(run["id"]) if c["selected"]]
-    if not selected:
-        rep.progress("vision", 1.0, "No candidates to vision-score")
+    signals = _load_signals(ctx)
+    regions = regions_mod.plan_regions(
+        signals["speech"], signals["energy"], signals["scenes"],
+        float(run.get("duration_seconds") or 0.0),
+    )
+    if not regions:
+        _update_run(run["id"], {"regions": json.dumps([]), "transcript": json.dumps([])})
+        _append_note(run["id"], "no speech regions found; no clips can be made")
+        rep.progress("regions", 1.0, "No speech regions found")
         return
-    from worker_app.config import settings
-
-    model = settings.vision_model
-    rep.action(f"Vision-scoring {len(selected)} candidates", model=f"vision:{model}")
+    rep.action(f"Transcribing {sum(r.end - r.start for r in regions) / 60:.0f} min of speech")
+    path = _ensure_source(ctx)
+    device, compute = whisper_compute()
+    words_abs: list[Word] = []
+    languages: dict[str, int] = {}
     from worker_app import events
 
-    events.log("model_load", f"vision {model}")
+    events.log("model_load", f"whisper {device}/{compute}")
+    for i, region in enumerate(regions):
+        wav = os.path.join(ctx.work, f"region_{i:04d}.wav")
+        _cut_region_audio(path, wav, region.start, region.end)
+        words = transcribe(wav)
+        language = last_language()
+        if language:
+            languages[language] = languages.get(language, 0) + len(words)
+        for w in words:
+            words_abs.append(Word(w.start + region.start, w.end + region.start, w.text))
+        rep.progress(
+            "regions", (i + 1) / len(regions),
+            f"Transcribing speech {i + 1} of {len(regions)}", model=f"whisper:{device}/{compute}",
+        )
+    unload()
+    events.log("model_unload", "whisper")
+    words_abs.sort(key=lambda w: w.start)
+    transcript = [{"start": w.start, "end": w.end, "text": w.text} for w in words_abs]
+    language = max(languages, key=languages.get) if languages else "en"
+    notes = []
+    if len(languages) > 1:
+        notes.append(f"mixed languages detected: {', '.join(sorted(languages))}; scoring in {language}")
+    if not transcript:
+        notes.append("no words transcribed; no clips can be made")
+    _update_run(
+        run["id"],
+        {
+            "regions": json.dumps([{"start": r.start, "end": r.end} for r in regions]),
+            "transcript": json.dumps(transcript),
+            "language": language,
+            "notes": json.dumps(notes),
+        },
+    )
+    rep.progress("regions", 1.0, f"Transcribed {len(transcript)} words in {language}")
+
+
+def _window_text(transcript: list[dict], start: float, end: float) -> str:
+    return " ".join(
+        w["text"] for w in transcript
+        if start <= (w["start"] + w["end"]) / 2 < end
+    ).strip()
+
+
+def _stage_detect(ctx: Ctx) -> None:
+    rep = ctx.reporter
+    rep.action("Growing sentence-aligned moments")
+    run = _get_run(ctx.run["id"])
+    transcript = run.get("transcript") or []
+    if not transcript:
+        rep.progress("detect", 1.0, "No transcript to detect from")
+        return
+    words = [Word(float(w["start"]), float(w["end"]), str(w["text"])) for w in transcript]
+    sentences = segment_sentences(words)
+    min_seconds = float(run.get("min_seconds") or 14)
+    windows = grow_windows(sentences, min_seconds=min_seconds)
+    # Exact user timestamps are added as high-priority candidates, never as a
+    # replacement for the AI suggestions.
+    user_starts: set[int] = set()
+    for ts in run.get("timestamps") or []:
+        try:
+            start = float(ts.get("start"))
+            end = max(float(ts.get("end")), start + min_seconds)
+        except (TypeError, ValueError):
+            continue
+        text = _window_text(transcript, start, min(end, float(run["duration_seconds"])))
+        if not text:
+            continue
+        user_starts.add(round(start, 2))
+        windows.append(Window(start, min(end, float(run["duration_seconds"])), text,
+                              len(text.split()), 0.0, 999.0))
+    windows = non_max_suppress(windows)
+    rows = [
+        {
+            "start": w.start, "end": w.end,
+            "cheap_score": round(w.prior, 4), "final_score": round(w.prior, 4),
+            "reasons": ["you marked this"] if round(w.start, 2) in user_starts else [],
+            "origin": "user" if round(w.start, 2) in user_starts else "ai",
+            "selected": False,
+        }
+        for w in windows
+    ]
+    _replace_candidates(run["id"], rows)
+    _update_run(run["id"], {"timestamps": json.dumps([])})
+    rep.progress("detect", 1.0, f"Grew {len(rows)} candidate moments")
+
+
+def _stage_signals(ctx: Ctx) -> None:
+    """Fuse the cheap timeline with a shortlist vision read (never the picker)."""
+    rep = ctx.reporter
+    run = _get_run(ctx.run["id"])
+    candidates = _get_candidates(run["id"])
+    if not candidates:
+        rep.progress("signals", 1.0, "No candidates to inspect")
+        return
+    signals = _load_signals(ctx)
+    rep.action(f"Reading visuals for {min(VISION_SHORTLIST, len(candidates))} candidates")
+    from worker_app import events, storage
+    from worker_app.config import settings
+
+    shortlist = sorted(candidates, key=lambda c: c["cheap_score"], reverse=True)[:VISION_SHORTLIST]
+    notes: list[str] = []
+    vision_reason: dict[str, str] = {}
+    vision_score: dict[str, float] = {}
     path = _ensure_source(ctx)
-    windows = [(c["start_seconds"], c["end_seconds"]) for c in selected]
-    thumb_dir = os.path.join(ctx.work, "thumbs")
-    scored: list[dict] = []
-    meta: dict = {}
     try:
         scored, meta = score_windows(
-            path, windows, model=model, thumb_dir=thumb_dir, tmp_root=ctx.work
+            path,
+            [(c["start_seconds"], c["end_seconds"]) for c in shortlist],
+            model=settings.vision_model,
+            thumb_dir=os.path.join(ctx.work, "thumbs"),
+            tmp_root=ctx.work,
         )
+        by_window = {(round(s["start"], 3), round(s["end"], 3)): s for s in scored}
+        for c in shortlist:
+            s = by_window.get((round(c["start_seconds"], 3), round(c["end_seconds"], 3)), {})
+            vision_score[str(c["id"])] = float(s.get("score") or 0.0)
+            reason = (s.get("reason") or "").strip()
+            vision_reason[str(c["id"])] = reason[:200]
+            if reason:
+                thumb = None
+                if s.get("thumb_path"):
+                    thumb = f"projects/{run['id']}/thumbs/{c['id']}.jpg"
+                    try:
+                        storage.put_file(thumb, s["thumb_path"])
+                    except Exception:
+                        thumb = None
+                _update_candidate(c["id"], {"vision_reason": reason[:200], "thumb_key": thumb})
+        if meta.get("errors", 0) and meta.get("errors") == meta.get("frames"):
+            notes.append("vision unavailable (bridge unreachable); ranking uses audio/scene signals only")
     except Exception as exc:
-        meta = {"error": f"{type(exc).__name__}: {exc}", "unloaded": True}
-        _append_note(run["id"], f"vision unavailable ({type(exc).__name__}); using cheap scores")
+        notes.append(f"vision unavailable ({type(exc).__name__}); ranking uses audio/scene signals only")
         try:
-            vision_mod.unload(model)
+            vision_mod.unload(settings.vision_model)
         except Exception:
             pass
-    events.log("model_unload", f"vision {model}")
-    by_window = {
-        (round(float(s["start"]), 3), round(float(s["end"]), 3)): s for s in scored
-    }
-    updates = []
-    for c in selected:
-        s = by_window.get(
-            (round(float(c["start_seconds"]), 3), round(float(c["end_seconds"]), 3)), {}
-        )
-        vision_score = float(s.get("score") or 0.0)
-        final = 0.5 * float(c["cheap_score"]) + 0.5 * vision_score
-        updates.append((c, vision_score, final, s))
-    updates.sort(key=lambda u: u[2], reverse=True)
-    top_n = int(run.get("top_n") or 10)
-    keep = {id(u[0]) for u in updates[:top_n]}
-    for c, vision_score, final, s in updates:
-        thumb_key = None
-        if s.get("thumb_path"):
-            thumb_key = f"projects/{run['id']}/thumbs/{c['id']}.jpg"
-            try:
-                from worker_app import storage
 
-                storage.put_file(thumb_key, s["thumb_path"])
-            except Exception:
-                thumb_key = None
+    for c in candidates:
+        window = Window(
+            float(c["start_seconds"]), float(c["end_seconds"]), "", 0, 0.0, 0.0
+        )
+        timeline = event_timeline(
+            window,
+            energy=signals["energy"],
+            scenes=signals["scenes"],
+            speech=signals["speech"],
+            vision_note=vision_reason.get(str(c["id"]), ""),
+        )
+        _update_candidate(c["id"], {"timeline": timeline})
+
+    for note in notes:
+        _append_note(run["id"], note)
+    rep.progress("signals", 1.0, f"Fused audio/scene{'' if vision_score else ' (vision off)'} signals")
+
+
+def _fallback_composite(candidates: list[dict]) -> None:
+    peak = max((c["cheap_score"] for c in candidates), default=0.0) or 1.0
+    for c in candidates:
+        value = round(40.0 + 60.0 * (float(c["cheap_score"]) / peak), 1)
         _update_candidate(
             c["id"],
             {
-                "vision_score": vision_score,
-                "vision_reason": s.get("reason"),
-                "final_score": final,
-                "thumb_key": thumb_key,
-                "selected": id(c) in keep,
+                "scores": json.dumps({"cheap_fallback": value}),
+                "composite": value,
+                "reason": "scoring LLM unavailable; ranked by the cheap audio/scene score",
+                "label": "story",
+                "hook": "",
+                "keep": True,
             },
         )
-    if updates and all(u[1] == 0.0 for u in updates):
-        if meta.get("errors", 0) and meta.get("errors") == meta.get("frames"):
-            _append_note(
-                run["id"],
-                "vision unavailable (the model bridge could not be reached); "
-                "using the best cheap-scored moments",
+
+
+def _stage_score(ctx: Ctx) -> None:
+    """Rubric scoring against the skill files, kill criteria, then rerank."""
+    rep = ctx.reporter
+    run = _get_run(ctx.run["id"])
+    candidates = _get_candidates(run["id"])
+    if not candidates:
+        rep.progress("score", 1.0, "No candidates to score")
+        return
+    language = run.get("language") or "en"
+    transcript = run.get("transcript") or []
+    rep.action(f"Scoring {len(candidates)} moments against the rubric", model=settings_model())
+    from worker_app import events
+
+    events.log("model_load", f"scorer {settings_model()}")
+    scorer_ok = scorer_available()
+    if not scorer_ok:
+        _append_note(run["id"], "scoring LLM unavailable; kept candidates by the cheap score")
+        _fallback_composite(candidates)
+    else:
+        scored_ids: set[str] = set()
+        for i, c in enumerate(candidates):
+            text = _window_text(transcript, float(c["start_seconds"]), float(c["end_seconds"]))
+            try:
+                data = score_window(text, c.get("timeline") or "", language)
+            except Exception as exc:  # noqa: BLE001 - degrade to cheap ranking, never hang
+                _append_note(
+                    run["id"], f"scoring LLM failed on one candidate ({type(exc).__name__}); "
+                    "remaining candidates use the cheap score"
+                )
+                break
+            _update_candidate(
+                c["id"],
+                {
+                    "label": str(data.get("label") or "story"),
+                    "hook": str(data.get("hook") or "")[:160],
+                    "reason": str(data.get("reason") or "")[:300],
+                    "scores": json.dumps(data.get("scores") or {}),
+                    "composite": float(data.get("composite") or 0.0),
+                    "keep": bool(data.get("keep")),
+                },
             )
+            scored_ids.add(str(c["id"]))
+            rep.progress(
+                "score", (i + 1) / len(candidates),
+                f"Scoring moment {i + 1} of {len(candidates)}",
+                model=settings_model(),
+            )
+        remaining = [c for c in candidates if str(c["id"]) not in scored_ids]
+        if remaining:
+            _fallback_composite(remaining)
+
+    unloaded = unload_scorer()
+    events.log("model_unload", f"scorer {settings_model()} unloaded={unloaded}")
+    if not unloaded:
+        _append_note(run["id"], "scoring model may still be resident; verify on the Models page")
+
+    # Quality bar, minimum length, no arbitrary cap beyond max_clips.
+    bar = float(run.get("quality_bar") or 60)
+    min_seconds = float(run.get("min_seconds") or 14)
+    max_clips = int(run.get("max_clips") or 40)
+    finalists = [
+        c for c in _get_candidates(run["id"])
+        if c.get("keep") and float(c.get("composite") or 0) >= bar
+        and float(c["end_seconds"]) - float(c["start_seconds"]) >= min_seconds
+    ]
+    finalists.sort(key=lambda c: float(c.get("composite") or 0), reverse=True)
+    finalists = finalists[:max_clips]
+
+    if scorer_ok and len(finalists) >= 2:
+        from .local_scoring import rerank
+
+        items = [
+            {
+                "start": float(c["start_seconds"]),
+                "end": float(c["end_seconds"]),
+                "label": c.get("label") or "story",
+                "hook": c.get("hook") or "",
+                "transcript": _window_text(
+                    transcript, float(c["start_seconds"]), float(c["end_seconds"])
+                ),
+                "composite": float(c.get("composite") or 0),
+            }
+            for c in finalists[:RERANK_FINALISTS]
+        ]
+        try:
+            result = rerank(items)
+            order = [int(round(s)) for s in result.get("order", [])]
+            drops = {int(round(s)) for s in result.get("drop", [])}
+            rank = {s: i for i, s in enumerate(order)}
+            finalists.sort(
+                key=lambda c: (
+                    rank.get(int(round(float(c["start_seconds"]))), 999),
+                    -float(c.get("composite") or 0),
+                )
+            )
+            for c in finalists:
+                if int(round(float(c["start_seconds"]))) in drops:
+                    c["selected"] = False
+        except Exception as exc:  # noqa: BLE001
+            _append_note(run["id"], f"rerank unavailable ({type(exc).__name__}); kept composite order")
+
+    # Variety: no single label dominates the set.
+    cap = max(2, (len(finalists) + 2) // 3 + 1)
+    counts: dict[str, int] = {}
+    kept = []
+    for c in finalists:
+        label = c.get("label") or "story"
+        if counts.get(label, 0) >= cap:
+            c["selected"] = False
         else:
-            _append_note(
-                run["id"],
-                "the vision pass found nothing striking; using the best cheap-scored moments",
-            )
-    if meta.get("error"):
-        _append_note(run["id"], f"vision reported: {meta['error']}")
-    rep.progress("vision", 1.0, f"Vision scored {len(selected)} windows")
+            counts[label] = counts.get(label, 0) + 1
+            kept.append(c)
+
+    kept_ids = {str(c["id"]) for c in kept}
+    for c in _get_candidates(run["id"]):
+        _update_candidate(c["id"], {"selected": str(c["id"]) in kept_ids})
+
+    if not kept:
+        _append_note(
+            run["id"],
+            "no moment cleared the quality bar; lower quality_bar to get results",
+        )
+    rep.progress("score", 1.0, f"Selected {len(kept)} self-contained moments")
+
+
+def settings_model() -> str:
+    from worker_app.config import settings
+
+    return settings.scoring_model
 
 
 def _dimensions(path: str) -> tuple[int, int]:
@@ -505,30 +751,17 @@ def _dimensions(path: str) -> tuple[int, int]:
         return 0, 0
 
 
-def _media_duration(path: str) -> float:
-    out = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=nw=1:nk=1", path],
-        capture_output=True, text=True,
-    ).stdout.strip()
-    try:
-        return float(out)
-    except ValueError:
-        return 0.0
-
-
 def _cut_window(src: str, out: str, start: float, end: float) -> None:
-    """Seek, never copy the whole file. Re-encode only the short window."""
-    seek = max(0.0, start - CUT_PRE)
-    length = (end + CUT_POST) - seek
+    """Seek to the exact speech edge; re-encode only this short window."""
     width, height = _dimensions(src)
     vf: list[str] = []
-    if width and height and width * height > MAX_CUT_PIXELS:
+    if width and height and width * height > 1920 * 1080:
         vf = [
             "scale=1920:1080:force_original_aspect_ratio=decrease",
             "pad=1920:1080:(ow-iw)/2:(oh-ih)/2",
         ]
-    cmd = ["ffmpeg", "-y", "-ss", f"{seek:.3f}", "-i", src, "-t", f"{length:.3f}"]
+    cmd = ["ffmpeg", "-y", "-ss", f"{max(0.0, start):.3f}", "-i", src,
+           "-t", f"{max(0.5, end - start):.3f}"]
     if vf:
         cmd += ["-vf", ",".join(vf)]
     cmd += [
@@ -549,108 +782,82 @@ def _require_disk(path: str, needed_mb: int = 1000) -> None:
         )
 
 
+def _slice_words(transcript: list[dict], start: float, end: float) -> list[Word]:
+    return [
+        Word(float(w["start"]) - start, float(w["end"]) - start, str(w["text"]))
+        for w in transcript
+        if start <= (w["start"] + w["end"]) / 2 < end
+    ]
+
+
 def _stage_cut(ctx: Ctx) -> None:
     rep = ctx.reporter
     run = _get_run(ctx.run["id"])
     selected = [c for c in _get_candidates(run["id"]) if c["selected"]]
-    todo = [c for c in selected if c["status"] not in ("cut", "transcribed", "rendered")]
+    todo = [c for c in selected if c["status"] not in ("cut", "rendered")]
     if not todo:
         rep.progress("cut", 1.0, "Clips already cut")
         return
-    rep.action(f"Cutting {len(todo)} clips")
+    rep.action(f"Cutting {len(todo)} moments")
     path = _ensure_source(ctx)
+    transcript = run.get("transcript") or []
+    from worker_app import storage
+
     for i, c in enumerate(todo):
         cut_key = f"projects/{run['id']}/cuts/{c['id']}.mp4"
         local = os.path.join(ctx.work, f"cut_{c['id']}.mp4")
         try:
             _cut_window(path, local, float(c["start_seconds"]), float(c["end_seconds"]))
-            from worker_app import storage
-
             storage.put_file(cut_key, local)
-        except PipelinePaused:
-            raise
         except Exception as exc:
             _update_candidate(c["id"], {"status": "failed", "error": str(exc)[:300]})
             continue
-        _update_candidate(c["id"], {"status": "cut", "cut_key": cut_key})
-        rep.progress("cut", (i + 1) / len(todo), f"Cutting clip {i + 1} of {len(todo)}")
-
-
-def _stage_transcribe(ctx: Ctx) -> None:
-    rep = ctx.reporter
-    run = _get_run(ctx.run["id"])
-    selected = [c for c in _get_candidates(run["id"]) if c["selected"]]
-    todo = [c for c in selected if c["status"] == "cut"]
-    if not todo:
-        rep.progress("transcribe", 1.0, "No new clips to transcribe")
-        return
-    device, compute = whisper_compute()
-    rep.action(
-        f"Transcribing {len(todo)} clips", model=f"whisper:{device}/{compute}"
-    )
-    from worker_app import events, storage
-
-    events.log("model_load", f"whisper {device}/{compute}")
-    try:
-        for i, c in enumerate(todo):
-            local = os.path.join(ctx.work, f"cut_{c['id']}.mp4")
-            storage.get_file(c["cut_key"], local)
-            words = transcribe(local)
-            transcript = [
-                {"start": w.start, "end": w.end, "text": w.text} for w in words
-            ]
-            transcript_key = f"projects/{run['id']}/transcripts/{c['id']}.json"
-            tfile = os.path.join(ctx.work, f"transcript_{c['id']}.json")
-            pathlib.Path(tfile).write_text(json.dumps(transcript))
-            storage.put_file(transcript_key, tfile)
-            _update_candidate(
-                c["id"],
-                {"status": "transcribed", "transcript": json.dumps(transcript)},
+        words = _slice_words(transcript, float(c["start_seconds"]), float(c["end_seconds"]))
+        if not words:
+            _append_note(
+                run["id"],
+                f"no transcript words inside {c['start_seconds']:.0f}-{c['end_seconds']:.0f}s; "
+                "captioned without words",
             )
-            message = f"Transcribing clip {i + 1} of {len(todo)}"
-            if not transcript:
-                message += " (no speech detected)"
-            rep.progress("transcribe", (i + 1) / len(todo), message)
-    finally:
-        unload()
-        events.log("model_unload", "whisper")
-    actual = actual_compute()
-    if (device, compute) != tuple(actual or (device, compute)):
-        _append_note(
-            run["id"],
-            f"whisper fell back to {actual[0]}/{actual[1]} (requested {device}/{compute})",
+        _update_candidate(
+            c["id"],
+            {
+                "status": "cut",
+                "cut_key": cut_key,
+                "transcript": json.dumps(
+                    [{"start": w.start, "end": w.end, "text": w.text} for w in words]
+                ),
+            },
         )
-    _update_run(
-        run["id"],
-        {"compute_path": f"asr={actual[0]}/{actual[1]} encoder={detect_encoder()}"},
-    )
+        rep.progress("cut", (i + 1) / len(todo), f"Cutting moment {i + 1} of {len(todo)}")
 
 
-def _hook_text(words: list[dict]) -> str:
-    if not words:
-        return "Watch this"
+def _fallback_hook(words: list[Word]) -> str:
+    """Densest short phrase, used only when the scoring LLM gave no hook line."""
     best, best_density = "", 0.0
     for i in range(len(words)):
-        span = words[i:i + 6]
+        span = words[i : i + 6]
         if len(span) < 3:
             break
-        span_start = float(span[0]["start"])
-        span_end = float(span[-1]["end"])
-        density = len(span) / max(0.5, span_end - span_start)
-        text = " ".join(str(w["text"]) for w in span).strip()
+        density = len(span) / max(0.5, float(span[-1].end - span[0].start))
+        text = " ".join(w.text for w in span).strip()
         if density > best_density and text:
             best, best_density = text, density
     return (best or "Watch this")[:80]
 
 
-def _card(ctx: Ctx, candidate: dict, index: int) -> dict:
+def _card(candidate: dict, index: int, words: list[Word] | None = None) -> dict:
+    hook = (candidate.get("hook") or "").strip()
+    if not hook and words:
+        hook = _fallback_hook(words)
     return {
-        "id": f"pipe_{index + 1}",
-        "hook_text": _hook_text(candidate.get("transcript") or []),
+        "id": f"clip_{index + 1}",
+        "hook_text": hook or "Watch this",
         "question": "",
-        "title_options": [""],
+        "title_options": [hook[:100]],
         "mode": "auto",
-        "end_lines": ["CLIPDESK", f"Clip {index + 1}"],
+        # No internal branding is burned into the output.
+        "end_lines": [],
     }
 
 
@@ -664,8 +871,6 @@ def _publish(ctx: Ctx, candidate: dict, result: Result, words: list[Word]) -> st
     storage.put_file(f"clips/{clip_id}/thumb.jpg", result.thumb_path)
     storage.put_file(f"clips/{clip_id}/captions.srt", result.srt_path)
     storage.put_file(f"clips/{clip_id}/metadata.json", result.metadata_path)
-    # The canonical per-project copy: finished Shorts, captions, thumbnail and
-    # metadata live under the project folder too, so a project is self-contained.
     project_dir = f"projects/{run['id']}/clips/{candidate['id']}"
     storage.put_file(f"{project_dir}/short.mp4", result.out_path)
     storage.put_file(f"{project_dir}/thumb.jpg", result.thumb_path)
@@ -688,7 +893,7 @@ def _publish(ctx: Ctx, candidate: dict, result: Result, words: list[Word]) -> st
                 "VALUES (%s, NULL, %s, %s, 'ready', %s, %s, 'store', 100, %s, %s, %s, "
                 "%s, %s, %s, %s) RETURNING id",
                 (
-                    clip_id, key, metadata.get("title") or "Clip",
+                    clip_id, key, metadata.get("title") or candidate.get("hook") or "Short",
                     result.template, result.duration, result.layout,
                     metadata.get("caption_style", "word"), transcript,
                     run["source_key"], float(candidate["start_seconds"]),
@@ -703,7 +908,7 @@ def _stage_render(ctx: Ctx) -> None:
     rep = ctx.reporter
     run = _get_run(ctx.run["id"])
     selected = [c for c in _get_candidates(run["id"]) if c["selected"]]
-    todo = [c for c in selected if c["status"] == "transcribed"]
+    todo = [c for c in selected if c["status"] == "cut"]
     if not todo:
         rep.progress("render", 1.0, "No clips to render")
         return
@@ -720,7 +925,7 @@ def _stage_render(ctx: Ctx) -> None:
             for w in (c.get("transcript") or [])
         ]
         out_dir = os.path.join(ctx.work, f"render_{c['id']}")
-        result = render_cut(local, words, _card(ctx, c, i), out_dir)
+        result = render_cut(local, words, _card(c, i, words), out_dir)
         clip_id = _publish(ctx, c, result, words)
         _update_candidate(c["id"], {"status": "rendered", "clip_id": clip_id})
         rep.progress("render", (i + 1) / len(todo), f"Rendering captions {i + 1} of {len(todo)}")
@@ -749,9 +954,7 @@ def _finish(ctx: Ctx) -> None:
     from worker_app import storage
 
     storage.delete_prefix(f"projects/{run['id']}/cuts")
-    rendered = sum(
-        1 for c in _get_candidates(run["id"]) if c["status"] == "rendered"
-    )
+    rendered = sum(1 for c in _get_candidates(run["id"]) if c["status"] == "rendered")
     memory = _memory()
     rep.action(f"Done — {rendered} Shorts saved", model="")
     _update_run(
@@ -774,10 +977,11 @@ def _finish(ctx: Ctx) -> None:
 STAGE_FN = {
     "ingest": _stage_ingest,
     "scan": _stage_scan,
-    "rank": _stage_rank,
-    "vision": _stage_vision,
+    "regions": _stage_regions,
+    "detect": _stage_detect,
+    "signals": _stage_signals,
+    "score": _stage_score,
     "cut": _stage_cut,
-    "transcribe": _stage_transcribe,
     "render": _stage_render,
 }
 
@@ -809,9 +1013,7 @@ def run_pipeline(run_id: str, job_id: str | None = None) -> None:
                 timings[stage] = True
             _finish(ctx)
         except PipelinePaused as exc:
-            _update_run(
-                run_id, {"state": "paused", "error": str(exc), "action": str(exc)}
-            )
+            _update_run(run_id, {"state": "paused", "error": str(exc), "action": str(exc)})
             from worker_app import events
 
             events.log("pipeline_paused", f"{run_id}: {exc}")
