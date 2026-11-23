@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import pathlib
 import tempfile
+import threading
 import time
 import uuid
 
@@ -403,9 +404,53 @@ def preview_voice(payload: dict) -> None:
             )
 
 
-# The single-project lane. A session-level advisory lock, not a flag, so two
-# workers cannot analyse two projects at once even if their claims interleave.
-PROJECT_LOCK_KEY = 0x434C4B44  # "CLKD"
+# The single-project lane: a self-expiring lease row, so two workers can never
+# analyse at once even if their claims interleave, and a killed worker's orphan
+# session cannot hold the lane forever (the heartbeat goes stale and the lease is
+# taken over).
+LEASE_SECONDS = 300
+HEARTBEAT_SECONDS = 30
+
+
+def _acquire_lane(owner: str) -> bool:
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE pipeline_lane SET owner = %s, acquired_at = now(), "
+                "heartbeat = now() WHERE id = 1 AND (owner IS NULL OR "
+                "heartbeat < now() - make_interval(secs => %s)) RETURNING owner",
+                (owner, LEASE_SECONDS),
+            )
+            return cur.fetchone() is not None
+
+
+def _heartbeat_lane(owner: str) -> None:
+    try:
+        with db.session() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE pipeline_lane SET heartbeat = now() WHERE id = 1 AND owner = %s",
+                    (owner,),
+                )
+    except Exception:
+        pass
+
+
+def _release_lane(owner: str) -> None:
+    try:
+        with db.session() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE pipeline_lane SET owner = NULL WHERE id = 1 AND owner = %s",
+                    (owner,),
+                )
+    except Exception:
+        pass
+
+
+def _lane_heartbeat(owner: str, stop: threading.Event) -> None:
+    while not stop.wait(HEARTBEAT_SECONDS):
+        _heartbeat_lane(owner)
 
 
 def _analysis_active(recording_id: str) -> bool:
@@ -447,15 +492,6 @@ def _enqueue_analysis(recording_id: str, storage_key: str, vision: bool) -> None
                         f"vision:{recording_id}:{uuid.uuid4().hex}",
                     ),
                 )
-
-
-def _unlock_project_lane(conn) -> None:
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT pg_advisory_unlock(%s)", (PROJECT_LOCK_KEY,))
-        conn.commit()
-    except Exception:
-        conn.rollback()
 
 
 def _run_project_analysis(project_id: str) -> None:
@@ -528,55 +564,62 @@ def _run_project_analysis(project_id: str) -> None:
 @jobs.register("run_project")
 def run_project(payload: dict) -> None:
     """Analyse the oldest queued project. One at a time, across all workers."""
-    conn = db.connect(direct=True)
+    owner = f"run-project:{payload.get('_job_id')}"
+    while not _acquire_lane(owner):
+        time.sleep(2)
+    stop = threading.Event()
+    beat = threading.Thread(target=_lane_heartbeat, args=(owner, stop), daemon=True)
+    beat.start()
     try:
+        row = _claim_oldest_project()
+        if row is not None:
+            _run_project_analysis(str(row[0]))
+    finally:
+        stop.set()
+        beat.join(timeout=5)
+        _release_lane(owner)
+
+
+def _claim_oldest_project():
+    with db.session() as conn:
         with conn.cursor() as cur:
-            while True:
-                cur.execute("SELECT pg_try_advisory_lock(%s)", (PROJECT_LOCK_KEY,))
-                if cur.fetchone()[0]:
-                    break
-                conn.rollback()
-                time.sleep(2)
-            # Claim the oldest queued project, not necessarily the one this job
-            # was enqueued for, so the queue is FIFO even under concurrency.
             cur.execute(
                 "UPDATE projects SET queued_at = NULL, updated_at = now() "
                 "WHERE id = (SELECT id FROM projects WHERE queued_at IS NOT NULL "
                 "ORDER BY queued_at, created_at LIMIT 1) RETURNING id"
             )
-            row = cur.fetchone()
-            conn.commit()
-        if row is None:
-            _unlock_project_lane(conn)
-            return
-        try:
-            _run_project_analysis(str(row[0]))
-        finally:
-            _unlock_project_lane(conn)
-    finally:
-        conn.close()
+            return cur.fetchone()
 
 
 @jobs.register("run_pipeline")
 def run_pipeline(payload: dict) -> None:
     """Run one automatic pipeline at a time, under the same lane as a project.
 
-    The advisory lock is the hard guarantee that two models are never resident
-    at once, whichever path started them.
+    The lease is the hard guarantee that two models are never resident at once,
+    whichever path started them; it also self-expires after a kill.
     """
     from clip import pipeline as clip_pipeline
 
     requested = payload.get("run_id")
-    conn = db.connect(direct=True)
+    owner = f"run-pipeline:{payload.get('_job_id')}"
+    while not _acquire_lane(owner):
+        time.sleep(2)
+    stop = threading.Event()
+    beat = threading.Thread(target=_lane_heartbeat, args=(owner, stop), daemon=True)
+    beat.start()
     try:
+        run_id = _claim_pipeline(requested)
+        if run_id is not None:
+            clip_pipeline.run_pipeline(str(run_id), payload.get("_job_id"))
+    finally:
+        stop.set()
+        beat.join(timeout=5)
+        _release_lane(owner)
+
+
+def _claim_pipeline(requested: str | None):
+    with db.session() as conn:
         with conn.cursor() as cur:
-            while True:
-                cur.execute("SELECT pg_try_advisory_lock(%s)", (PROJECT_LOCK_KEY,))
-                if cur.fetchone()[0]:
-                    break
-                conn.rollback()
-                time.sleep(2)
-            row = None
             if requested:
                 cur.execute(
                     "SELECT id FROM pipeline_runs WHERE id = %s "
@@ -584,19 +627,10 @@ def run_pipeline(payload: dict) -> None:
                     (requested,),
                 )
                 row = cur.fetchone()
-            if row is None:
-                cur.execute(
-                    "SELECT id FROM pipeline_runs WHERE state = 'queued' "
-                    "ORDER BY created_at LIMIT 1"
-                )
-                row = cur.fetchone()
-            conn.commit()
-        if row is None:
-            _unlock_project_lane(conn)
-            return
-        try:
-            clip_pipeline.run_pipeline(str(row[0]), payload.get("_job_id"))
-        finally:
-            _unlock_project_lane(conn)
-    finally:
-        conn.close()
+                if row is not None:
+                    return row
+            cur.execute(
+                "SELECT id FROM pipeline_runs WHERE state = 'queued' "
+                "ORDER BY created_at LIMIT 1"
+            )
+            return cur.fetchone()

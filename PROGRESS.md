@@ -38,9 +38,10 @@ acceptance suite is running. Clip quality still needs the owner's gameplay.**
   action/progress/model, pause on a full disk or a missing source volume,
   resume from the last completed stage, cleanup of cuts and a live memory
   readout at the end.
-- **One model at a time**: the `run_pipeline` job takes the same Postgres
-  advisory lock as `run_project`, so a pipeline and a manual analysis can never
-  load models together.
+- **One model at a time**: `run_pipeline` and `run_project` share a
+  self-expiring **lane lease** row (`pipeline_lane`) instead of a session
+  advisory lock, so two models are never resident at once and a killed worker
+  cannot wedge the lane forever (a stale heartbeat is taken over after 5 min).
 - **API** (`api/app/pipeline.py`): `POST /pipeline/upload` (one upload starts
   the run), `GET /pipeline`, `GET /pipeline/{id}` (run + candidates + clips),
   `POST /pipeline/{id}/timestamps`, `POST /pipeline/{id}/resume`. Admin-only;
@@ -182,6 +183,11 @@ three minutes. This is unproven on real 2 h footage.
   run; timestamps add a user candidate while the AI candidates remain; a paused
   run resumes and finishes.
 - `test_projects.py` **6/6**; `test_contract.py` **2/2**.
+- **Restart recovery, real incident:** a worker killed overnight left an
+  orphaned Neon session holding the shared advisory lock (0 advisory locks, one
+  idle-in-transaction backend) and the next pipeline stayed queued behind it.
+  The lane is now a heartbeat lease; a killed holder loses the lane after 5 min
+  with no manual cleanup.
 - Live UI proof: `docs/screens/pipeline-live.png` (stage bars, ETA, model state,
   a user-marked candidate next to AI ones).
 
