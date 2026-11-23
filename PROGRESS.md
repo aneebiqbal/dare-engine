@@ -176,7 +176,7 @@ three minutes. This is unproven on real 2 h footage.
 
 ### Verification
 
-- Unit tests: **124 passed, 1 skipped**; the pipeline suite alone is 18,
+- Unit tests: **125 passed, 1 skipped**; the pipeline suite alone is 18,
   including stage sequencing, resume from the last completed stage, the
   no-model cheap scan, window-scoped vision with unload, user-timestamp
   merging, silent video, disk-full pause, high-res downscale and a real
@@ -187,6 +187,10 @@ three minutes. This is unproven on real 2 h footage.
   run; timestamps add a user candidate while the AI candidates remain; a paused
   run resumes and finishes.
 - `test_projects.py` **6/6**; `test_contract.py` **2/2**.
+- **Fallback path proven end to end:** with the MLX/VLM bridge deliberately down,
+  a 45 s upload still completed all seven stages on `asr=cpu/int8`
+  (`encoder=libx264`), the vision pass fell back to the cheap ranking and both
+  fallbacks were recorded in the run notes — never presented as the fast path.
 - **Restart recovery, real incident:** a worker killed overnight left an
   orphaned Neon session holding the shared advisory lock (0 advisory locks, one
   idle-in-transaction backend) and the next pipeline stayed queued behind it.
