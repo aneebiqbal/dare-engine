@@ -18,9 +18,45 @@ from playwright.sync_api import sync_playwright
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 BASE = os.environ.get("CLIPDESK_WEB_URL", "http://localhost:3100")
 
-CLIP_ID = "cc2b6f87-891e-4dc0-a9ee-841461b38204"
-GAME_ID = "42946eac-2464-44d1-8e0d-703ad08a1a7f"
-CREATOR_ID = "3c20cd89-8ba1-447c-8888-d9845f789049"
+def _ids():
+    """Resolve real ids at runtime; tests truncate the tables between runs."""
+    import psycopg
+
+    env = {}
+    for line in (ROOT / ".env").read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, value = line.split("=", 1)
+            env.setdefault(key.strip(), value.strip())
+    url = env.get("DATABASE_URL_DIRECT") or env.get("DATABASE_URL")
+    import time
+
+    out = [None, None, None, None]
+    for attempt in range(6):
+        try:
+            with psycopg.connect(url) as conn:
+                with conn.cursor() as cur:
+                    out = []
+                    for sql in (
+                        "select id from clips order by created_at desc limit 1",
+                        "select id from games order by created_at limit 1",
+                        "select id from missions order by created_at limit 1",
+                        "select id from users where role='creator' order by created_at limit 1",
+                    ):
+                        cur.execute(sql)
+                        row = cur.fetchone()
+                        out.append(str(row[0]) if row else None)
+            if out[0]:
+                return out
+        except Exception:
+            pass
+        time.sleep(5)
+    return out if "out" in locals() else [None, None, None, None]
+
+
+CLIP_ID, GAME_ID, MISSION_ID, CREATOR_ID = _ids()
+MISSION_ID = MISSION_ID or "m_0001"
+CLIP_ID = CLIP_ID or "c_0001"
 
 PAGES = [
     ("welcome", "/welcome"),
@@ -28,7 +64,7 @@ PAGES = [
     ("signup", "/signup"),
     ("dashboard", "/"),
     ("today", "/today"),
-    ("mission", "/missions/m_0001"),
+    ("mission", f"/missions/{MISSION_ID}"),
     ("live", "/live"),
     ("remote", "/remote"),
     ("clips", "/clips"),
@@ -76,8 +112,34 @@ def capture(browser, out: pathlib.Path, theme: str) -> None:
     for size_name, width, height in SIZES:
         page.set_viewport_size({"width": width, "height": height})
         for name, path in PAGES:
-            page.goto(f"{BASE}{path}?theme={theme}", wait_until="domcontentloaded")
-            page.wait_for_timeout(1500)
+            for attempt in range(4):
+                try:
+                    page.goto(f"{BASE}{path}?theme={theme}", wait_until="domcontentloaded", timeout=30000)
+                    break
+                except Exception:
+                    if attempt == 3:
+                        raise
+                    page.wait_for_timeout(3000)
+            # Wait for the async region to leave its skeleton; pages that poll
+            # never reach networkidle, so this is the reliable "filled" signal.
+            try:
+                page.wait_for_selector('[aria-busy="true"]', state="detached", timeout=12000)
+            except Exception:
+                pass
+            page.wait_for_timeout(1200)
+            # A concurrent acceptance run can truncate sessions mid-pass.
+            if "session expired" in page.content():
+                try:
+                    csrf = context.request.get(f"{BASE}/api/auth/csrf", timeout=20000).json()["csrf"]
+                    context.request.post(
+                        f"{BASE}/api/auth/dev/sign-in",
+                        data={"display_name": "Admin"},
+                        headers={"Content-Type": "application/json", "X-CSRF-Token": csrf},
+                    )
+                    page.goto(f"{BASE}{path}?theme={theme}", wait_until="domcontentloaded", timeout=30000)
+                    page.wait_for_timeout(1500)
+                except Exception:
+                    pass
             target = out / f"{size_name}-{theme}-{name}.png"
             page.screenshot(path=str(target), full_page=True)
             print(target.relative_to(ROOT))

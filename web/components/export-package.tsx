@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { api, type Clip, type ClipExport } from "@/lib/api";
 import { Badge, Button, Card, Field, Input, Notice, PageState, Textarea, useToast } from "@/components/ui";
+import { WorkHeader } from "./work";
 
 export function ExportPackage({ clip }: { clip: Clip }) {
   const [title, setTitle] = useState(clip.export_title ?? clip.title ?? "");
@@ -50,7 +51,9 @@ export function ExportPackage({ clip }: { clip: Clip }) {
 
   return (
     <PageState loading={false} error={error} empty={false}>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,24rem)_1fr]">
+      <div className="grid gap-6">
+        <WorkHeader eyebrow="Export" title={clip.title ?? "Export package"} status="idle" />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,24rem)_1fr]">
         <div className="mx-auto w-full max-w-[24rem]">
           <div className="overflow-hidden rounded-lg bg-black ring-surface">
             {clip.thumb_url ? (
@@ -122,6 +125,7 @@ export function ExportPackage({ clip }: { clip: Clip }) {
               </div>
             </div>
           </Card>
+        </div>
         </div>
       </div>
     </PageState>

@@ -77,7 +77,7 @@ function runStatus(run: ResearchRun | null): WorkStatus {
  * brain fetch sources, write ideas and store them instead of waiting on a
  * blocking button.
  */
-function ResearchPanel({ gameId, onDone }: { gameId: string; onDone: () => void }) {
+function ResearchPanel({ gameId, onDone, compact = false }: { gameId: string; onDone: () => void; compact?: boolean }) {
   const [run, setRun] = useState<ResearchRun | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -133,29 +133,29 @@ function ResearchPanel({ gameId, onDone }: { gameId: string; onDone: () => void 
   }, [run?.id, run?.status]);
 
   if (run && run.status === "running") {
-    return (
-      <Card>
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <span className="flex items-center gap-2 text-sm font-medium">
-              <StatusBadge status="running" label="Researching" />
-            </span>
-            <span className="font-mono text-xs text-muted">
-              {Object.entries(run.source_counts)
-                .map(([k, n]) => `${n} ${k}`)
-                .join(" · ") || "starting…"}
-            </span>
-          </div>
-          <Pipeline steps={RUN_STAGES} current={runStageIndex(run)} label="Research progress" />
-          <p className="text-xs text-muted">{run.detail ?? "Waiting for the first source…"}</p>
+    const body = (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <StatusBadge status="running" label="Researching" />
+          </span>
+          <span className="font-mono text-xs text-muted">
+            {Object.entries(run.source_counts)
+              .map(([k, n]) => `${n} ${k}`)
+              .join(" · ") || "starting…"}
+          </span>
         </div>
-      </Card>
+        <Pipeline steps={RUN_STAGES} current={runStageIndex(run)} label="Research progress" />
+        <p className="text-xs text-muted">{run.detail ?? "Waiting for the first source…"}</p>
+      </div>
     );
+    if (compact) return <div className="rounded-xl bg-surface-2 p-3 ring-surface">{body}</div>;
+    return <Card>{body}</Card>;
   }
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Button variant="outline" onClick={start} disabled={busy}>
+      <Button variant="outline" size={compact ? "sm" : "md"} onClick={start} disabled={busy}>
         {busy ? "Starting…" : "Research now"}
       </Button>
       {run && run.status === "done" && (
@@ -262,7 +262,7 @@ export function AdminGames() {
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {items.map((game) => (
-            <Card key={game.id} className={game.enabled ? "" : "opacity-60"}>
+            <Card key={game.id} className={game.enabled ? "" : "ring-border"}>
               <div className="flex h-full flex-col gap-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -307,16 +307,19 @@ export function AdminGames() {
                   {game.last_run?.fallback && <Badge tone="muted">sample</Badge>}
                 </div>
 
-                <div className="mt-auto flex flex-wrap gap-2 pt-1">
-                  <Button size="sm" variant="outline" onClick={() => void toggle(game)}>
-                    {game.enabled ? "Disable" : "Enable"}
-                  </Button>
-                  <Link
-                    href={`/admin/games/${game.id}`}
-                    className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
-                  >
-                    Open
-                  </Link>
+                <div className="mt-auto flex flex-col gap-2 pt-1">
+                  <ResearchPanel gameId={game.id} onDone={load} compact />
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={() => void toggle(game)}>
+                      {game.enabled ? "Disable" : "Enable"}
+                    </Button>
+                    <Link
+                      href={`/admin/games/${game.id}`}
+                      className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
+                    >
+                      Open
+                    </Link>
+                  </div>
                 </div>
               </div>
             </Card>

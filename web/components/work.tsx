@@ -126,7 +126,7 @@ export function Pipeline({
   label?: string;
 }) {
   return (
-    <div className="overflow-x-auto pb-1" role="list" aria-label={label}>
+    <div className="overflow-x-auto pb-1" role="list" aria-label={label} tabIndex={0}>
       <div className="flex min-w-max items-start">
         {steps.map((step, i) => {
           const state = i < current ? "done" : i === current ? "current" : "todo";
@@ -144,7 +144,7 @@ export function Pipeline({
                 />
                 <span
                   className={`text-[10px] uppercase leading-tight tracking-[0.14em] ${
-                    state === "current" ? "text-text" : state === "done" ? "text-muted" : "text-muted/70"
+                    state === "current" ? "text-text" : "text-muted"
                   }`}
                 >
                   {step}
@@ -342,7 +342,7 @@ export function LiveStrip({ overview }: { overview: AdminOverview }) {
       live: Boolean(analyzing),
     },
     {
-      label: "Mac memory",
+      label: "API memory",
       value: overview.system ? `${Math.round(overview.system.memory_percent)}%` : "—",
       hint: overview.system ? `CPU ${Math.round(overview.system.cpu_percent)}%` : "bridge off",
       href: "/admin/models",
@@ -367,12 +367,12 @@ export function LiveStrip({ overview }: { overview: AdminOverview }) {
   ];
   return (
     <div className="overflow-x-auto rounded-lg bg-surface p-1.5 bezel">
-      <div className="grid min-w-max grid-cols-2 divide-x divide-border sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 divide-x divide-border sm:grid-cols-3 lg:grid-cols-6">
         {cells.map((cell) => (
           <Link
             key={cell.label}
             href={cell.href}
-            className="flex min-w-[11rem] flex-col gap-1 px-4 py-3 transition hover:bg-surface-2"
+            className="flex min-w-0 flex-col gap-1 px-4 py-3 transition hover:bg-surface-2"
           >
             <span className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted">
               {cell.live && <LiveDot tone="accent" label="running" />}

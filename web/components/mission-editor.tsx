@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { api, type EditorResult, type MissionCard, type PoolEntry } from "@/lib/api";
 import { Badge, Button, Card, Field, Input, Notice, PageState, Textarea, useToast } from "@/components/ui";
+import { StatusBadge, WorkHeader } from "./work";
 
 export function MissionEditor({ initial }: { initial: PoolEntry | null }) {
   const [card, setCard] = useState<MissionCard | null>(initial?.card ?? null);
@@ -53,7 +54,14 @@ export function MissionEditor({ initial }: { initial: PoolEntry | null }) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+    <div className="grid gap-6">
+      <WorkHeader
+        eyebrow="Play"
+        title={card.hook_text || `Dare ${card.id}`}
+        status={card.status === "unverified" ? "done" : "idle"}
+        actions={<StatusBadge status={card.status === "unverified" ? "done" : "idle"} label={card.status} />}
+      />
+      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
       <div className="flex flex-col gap-5">
         <Card>
           <div className="flex flex-col gap-4">
@@ -175,6 +183,7 @@ export function MissionEditor({ initial }: { initial: PoolEntry | null }) {
           </Card>
         )}
       </aside>
+      </div>
     </div>
   );
 }

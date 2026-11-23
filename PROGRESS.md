@@ -1,5 +1,72 @@
 # Progress
 
+## Redesign sprint — a workplace tool, not a stat dashboard
+
+Status: **built, tested on the real stack, and screenshot-verified. The human
+visual verdict is pending.**
+
+### What changed
+
+- **Design tokens** (`web/app/globals.css`, `tailwind.config.ts`): the "control
+  room" theme. Light is the default (cool silver canvas, white surfaces,
+  diffused ambient shadows); dark is a first-class alternative. The accent is a
+  signal blue that means *running*; amber means *needs you*, green *done*, red
+  *failed*. Geist Mono for numbers, stages and ids. One motion curve; a
+  breathing live dot and a filling pipeline are the only moves.
+- **Component kit** (`web/components/work.tsx`): `WorkHeader`, `LiveStrip`,
+  `Pipeline`, `ProgressCard`, `StatusBadge`, `LiveDot`, `WorkQueue`,
+  `ActivityFeed`, `Metric`, `WorkEmpty`, `FilterBar`, `DataTable`, `Section`,
+  `Rail`. Every rebuilt page is built from these.
+- **Backend**: `GET /admin/overview` (one batched read of jobs, research,
+  projects, pool, keys, system, activity, best/worst results, clips today,
+  users, invites, storage); `GET /admin/projects` (admin-only, all users);
+  async research runs with real stages (`fetch → write → store`) via
+  `POST /admin/games/{id}/research` + `GET /admin/research/{run_id}`
+  (migration `0021_research_progress.sql`); pool filters (`q`, `source`,
+  `min_score`) and `POST /admin/pool/bulk`.
+- **Pages rebuilt on real data**: Overview (command center), Games + game
+  profile (live research pipeline), Pool (filterable table, row expansion, bulk
+  approve/reject/assign), Projects (full stage pipeline + queue position),
+  Studio (live detection job stage, render stages, candidates), Clip review +
+  Captions (render pipeline, sourced caption editor with re-render progress),
+  Calendar (week-first with the cadence guardrail), Long-form (live build),
+  Results (leading indicators + best/worst + sort), Models (live engine panel),
+  Setup (grouped checks + integration keys), Users, Invites, Jobs, AI, Audit,
+  Templates, Dashboard, Today, Clips, History, Settings, Mission editor, Export.
+- **Screenshots**: `docs/screens/before/` (the old build) and
+  `docs/screens/after/{mock,real}/` (the new build, phone/desktop × dark/light).
+
+### Verification
+
+- Unit **105 passed, 1 skipped**; `make check` **2 passed**.
+- Contract regenerated (**127 paths**, including `/admin/overview`,
+  `/admin/projects`, `/admin/research/{run_id}`, `/admin/pool/bulk`);
+  `test_contract.py` **2 passed**.
+- `test_redesign.py` **4 passed**; `test_games_research.py` **2 passed** — the
+  latter drives a real async research run (fetch → write → store) and asserts
+  the ideas land.
+- `make budgets` — **PASS**: LCP 20–156 ms and TBT 0 ms on the five main pages
+  at phone and desktop (`docs/screens/budgets.json`).
+- a11y (axe-core, every page × phone/desktop × dark/light): see
+  `docs/screens/a11y.json`. The first redesign build failed contrast (dark
+  accent-on-soft 4.29, dark muted 2.79, light success 4.2); the tokens were
+  darkened and re-measured to 0 serious/critical.
+
+### Honest labels
+
+- **Real work:** jobs, projects, clips, research runs, calendar, users,
+  invites, models, keys, the studio pipeline.
+- **Stand-in:** the AI provider is recorded unless a key is stored; research
+  uses the sample feed unless source keys are stored; publishing is a manual
+  marker.
+- **Empty because it needs the owner:** clip quality (no owner gameplay
+  fixture), live trends (source keys), real metrics (a YouTube collector).
+
+### Owner verdict pending
+
+The honest bar is a human looking at `docs/screens/after/` and calling the
+layout a real workplace tool. Screenshots are saved; the verdict is not claimed.
+
 ## Autonomous sprint — projects, setup wizard, edge cases
 
 Status: **projects and the first-run wizard are built, tested on the real

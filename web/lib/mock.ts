@@ -156,7 +156,10 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
     return { cards: created.map((c) => c.card), count: created.length, fallback: false } as T;
   }
   if (method === "GET" && pathname === "/clips") return envelope(clips) as T;
-  if (method === "GET" && pathname.startsWith("/clips/")) return clips[0] as T;
+  if (method === "GET" && pathname.startsWith("/clips/")) {
+    const id = pathname.split("/")[2];
+    return (clips.find((c) => c.id === id) ?? clips[0]) as T;
+  }
   if (method === "PATCH" && pathname.startsWith("/clips/")) {
     const id = pathname.split("/")[2];
     const clip = clips.find((c) => c.id === id);
@@ -323,7 +326,13 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
   if (method === "GET" && pathname === "/studio/system") {
     return { cpu_percent: 12.5, memory_percent: 41.2, gpu: null } as T;
   }
-  if (method === "GET" && pathname === "/studio/recordings") return { items: [] } as T;
+  if (method === "GET" && pathname === "/studio/recordings") {
+    return {
+      items: [
+        { id: "r_1", filename: "gameplay_4min.mp4", duration_seconds: 290.2, width: 1920, height: 1080 },
+      ],
+    } as T;
+  }
   if (method === "GET" && pathname === "/projects") {
     return {
       items: [
@@ -532,7 +541,7 @@ export async function mockRequest<T>(method: string, path: string, body?: unknow
       recording: { id: "r_1", filename: "gameplay_4min.mp4", duration_seconds: 290.2, width: 1920, height: 1080 },
       compute: { whisper_device: "mlx", whisper_compute_type: "metal", encoder: "h264_videotoolbox", gpu: true },
       vision: { model: "qwen2.5vl:7b", seconds_added: 45 },
-      job: { kind: "detect_moments", state: "running", stage: "detect" },
+      job: { kind: "detect_moments", state: "running", stage: "transcribe" },
       candidates: [
         { id: "sc_1", start: 240, end: 252, score: 6.91, reasons: ["commentary", "fast cuts"], state: "pending", template_id: "cold_open", clip_id: null, source: "audio", thumb_url: null },
         { id: "sc_2", start: 94, end: 106, score: 5.8, reasons: ["vision", "striking frame"], state: "accepted", template_id: "center", clip_id: "c_0002", source: "vision", thumb_url: null },

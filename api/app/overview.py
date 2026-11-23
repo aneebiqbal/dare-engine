@@ -10,7 +10,7 @@ import datetime
 
 from fastapi import APIRouter, Depends, Request
 
-from . import db, keys, research, storage, studio
+from . import db, keys, studio
 from .projects import project_state
 from .users import require_admin
 
@@ -154,7 +154,6 @@ def _overview() -> dict:
     except Exception:
         system = None
 
-    store = storage.get_storage()
     return {
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "jobs": {
@@ -189,7 +188,6 @@ def _overview() -> dict:
         "clips_today": clips_today,
         "users": {"total": users_total, "admins": admins, "locked": locked},
         "invites": {"open": open_invites},
-        "storage": {"driver": storage.settings.storage_driver, "bytes": store.usage_bytes()},
     }
 
 

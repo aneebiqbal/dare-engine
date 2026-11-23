@@ -104,7 +104,7 @@ export function Clips({ initial }: { initial: Clip[] }) {
     <div className="flex flex-col gap-6">
       <WorkHeader
         eyebrow="Review"
-        title="Clips"
+        title="Your Shorts"
         status={clips.some((c) => !["ready", "approved", "posted", "discarded"].includes(c.state)) ? "running" : "idle"}
         actions={
           <div className="flex items-center gap-4">

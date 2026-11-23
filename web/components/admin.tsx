@@ -217,7 +217,15 @@ export function AdminOverview() {
                         <ProgressCard
                           key={p.id}
                           title={p.name}
-                          status={p.stage === "exported" ? "done" : p.queued || p.stage === "analyzing" ? "running" : "idle"}
+                          status={
+                             p.stage === "exported"
+                               ? "done"
+                               : p.queued || p.stage === "analyzing"
+                                 ? "running"
+                                 : p.stage === "clips_ready" || p.stage === "reviewed" || p.stage === "imported"
+                                   ? "needs"
+                                   : "idle"
+                           }
                           progress={p.progress}
                           stage={p.stage.replace(/_/g, " ")}
                           meta={`${p.candidates} candidates · ${p.clips.ready}/${p.clips.total} clips`}
@@ -517,6 +525,7 @@ export function AdminPool() {
   const [games, setGames] = useState<Game[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [assignFor, setAssignFor] = useState<PoolEntry | null>(null);
   const [assignee, setAssignee] = useState("");
   const [filters, setFilters] = useState({
     q: "",
@@ -600,6 +609,22 @@ export function AdminPool() {
       await load();
     } catch (e) {
       toast(e instanceof Error ? e.message : "Action failed", "danger");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function assignOne() {
+    if (!assignFor || !assignee) return;
+    setBusy(true);
+    try {
+      await api.poolBulk([assignFor.id], "assign", assignee);
+      toast("Dare assigned", "success");
+      setAssignFor(null);
+      setAssignee("");
+      await load();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not assign", "danger");
     } finally {
       setBusy(false);
     }
@@ -692,8 +717,11 @@ export function AdminPool() {
       sortable: false,
       render: (e) => (
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={() => void actOne(e.id, "approve")} disabled={busy}>
+          <Button size="sm" variant="outline" data-testid="approve-button" onClick={() => void actOne(e.id, "approve")} disabled={busy}>
             Approve
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => { setAssignFor(e); setAssignee(""); }}>
+            Assign
           </Button>
           <Button size="sm" variant="ghost" onClick={() => void actOne(e.id, "reject")} disabled={busy}>
             Reject
@@ -905,6 +933,31 @@ export function AdminPool() {
           {total} candidate(s). Select rows to approve, reject or assign in bulk.
         </p>
       </PageState>
+
+      <Dialog
+        open={Boolean(assignFor)}
+        onClose={() => setAssignFor(null)}
+        title={`Assign ${assignFor?.id ?? ""}`}
+      >
+        <div className="flex flex-col gap-4">
+          <Select aria-label="Gamer" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
+            <option value="">Choose a gamer…</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.display_name ?? u.email ?? u.id}
+              </option>
+            ))}
+          </Select>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setAssignFor(null)}>
+              Cancel
+            </Button>
+            <Button onClick={assignOne} disabled={!assignee || busy}>
+              Assign dare
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }

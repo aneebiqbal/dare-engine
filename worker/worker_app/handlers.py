@@ -205,8 +205,10 @@ def detect_moments(payload: dict) -> None:
     recording_id = payload["recording_id"]
     key = payload["storage_key"]
     top_n = int(payload.get("top_n", 5))
+    job_id = payload.get("_job_id")
     # Store the path before the expensive pass so the studio shows which
     # compute path is live, not only after the candidates land.
+    jobs.set_stage(job_id, "fetch")
     compute = detect_compute_path()
     events.log("model_load", f"whisper {compute.whisper_device}/{compute.whisper_compute_type}")
     with db.session() as conn:
@@ -220,8 +222,10 @@ def detect_moments(payload: dict) -> None:
     with tempfile.TemporaryDirectory(prefix="detect-") as tmp:
         path = str(pathlib.Path(tmp) / "recording.mp4")
         storage.get_file(key, path)
+        jobs.set_stage(job_id, "transcribe")
         candidates, _ = run_detection(path, top_n=top_n)
     events.log("model_unload", "whisper")
+    jobs.set_stage(job_id, "rank")
     with db.session() as conn:
         with conn.cursor() as cur:
             for c in candidates:
@@ -245,12 +249,16 @@ def suggest_clips(payload: dict) -> None:
     events.log("model_load", f"vision {settings.vision_model}")
     recording_id = payload["recording_id"]
     key = payload["storage_key"]
+    job_id = payload.get("_job_id")
+    jobs.set_stage(job_id, "fetch")
     with tempfile.TemporaryDirectory(prefix="vision-") as tmp:
         path = str(pathlib.Path(tmp) / "recording.mp4")
         storage.get_file(key, path)
+        jobs.set_stage(job_id, "sample")
         suggestions, meta = suggest(
             path, top_n=int(payload.get("top_n", 5)), model=settings.vision_model
         )
+        jobs.set_stage(job_id, "rank")
         with db.session() as conn:
             with conn.cursor() as cur:
                 for s in suggestions:

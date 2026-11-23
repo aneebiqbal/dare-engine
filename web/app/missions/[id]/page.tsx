@@ -23,7 +23,7 @@ export default async function MissionPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const user = await requireUser();
   return (
-    <AppPage user={user} eyebrow={`Mission ${id}`} title="Dare editor">
+    <AppPage user={user} eyebrow={`Mission ${id}`} title="Dare editor" header={false}>
       <Suspense fallback={<PageState loading />}>
         <MissionData id={id} />
       </Suspense>

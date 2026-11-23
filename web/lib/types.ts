@@ -653,5 +653,4 @@ export type AdminOverview = {
   clips_today: number;
   users: { total: number; admins: number; locked: number };
   invites: { open: number };
-  storage: { driver: string; bytes: number };
 };

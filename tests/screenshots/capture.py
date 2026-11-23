@@ -10,7 +10,7 @@ import sys
 from playwright.sync_api import sync_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-OUT = pathlib.Path(os.environ.get("CLIPDESK_SCREENS_DIR", ROOT / "docs" / "screens"))
+OUT = pathlib.Path(os.environ.get("CLIPDESK_SCREENS_DIR", ROOT / "docs" / "screens")).resolve()
 BASE = os.environ.get("CLIPDESK_WEB_URL", "http://localhost:3100")
 
 PAGES = [

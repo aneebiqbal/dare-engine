@@ -23,7 +23,7 @@ export default async function ExportPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const user = await requireUser();
   return (
-    <AppPage user={user} eyebrow="Export" title="Export package">
+    <AppPage user={user} eyebrow="Export" title="Export package" header={false}>
       <Suspense fallback={<PageState loading />}>
         <ExportData id={id} />
       </Suspense>

@@ -25,6 +25,7 @@ import {
   useToast,
 } from "@/components/ui";
 import { ThemeToggle } from "@/components/theme";
+import { Metric, Pipeline, ProgressCard, StatusBadge, WorkQueue } from "@/components/work";
 
 export default function Styleguide() {
   const [tab, setTab] = useState("one");
@@ -155,6 +156,45 @@ export default function Styleguide() {
         </PageState>
         <EmptyState title="Nothing here yet" body="This is the empty state." icon="◌" />
         <Skeleton className="h-20" />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm uppercase tracking-[0.2em] text-muted">Work kit</h2>
+        <div className="flex flex-wrap gap-2">
+          <StatusBadge status="running" />
+          <StatusBadge status="needs" />
+          <StatusBadge status="done" />
+          <StatusBadge status="failed" />
+          <StatusBadge status="idle" />
+        </div>
+        <Pipeline steps={["fetch", "write", "store"]} current={1} label="Research progress" />
+        <Pipeline
+          steps={["planned", "recording", "imported", "analyzing", "clips_ready", "reviewed", "exported"]}
+          current={3}
+          label="Project stage"
+        />
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card>
+            <Metric label="Host RAM" value="18.4 / 32 GB" hint="58% used" />
+          </Card>
+          <Card>
+            <ProgressCard
+              title="Friday stream — GTA"
+              status="running"
+              progress={50}
+              stage="analyzing"
+              meta="5 candidates"
+            />
+          </Card>
+          <Card>
+            <WorkQueue
+              items={[
+                { id: "1", title: "detect_moments", subtitle: "transcribe", status: "running", meta: "45%" },
+                { id: "2", title: "render_clip", subtitle: "failed", status: "failed", meta: "render" },
+              ]}
+            />
+          </Card>
+        </div>
       </section>
 
       <section className="flex flex-col gap-4">

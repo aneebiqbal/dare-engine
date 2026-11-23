@@ -24,10 +24,7 @@ def _cleanup(game_id: str) -> None:
     sql(f"DELETE FROM games WHERE id = '{game_id}';")
 
 
-def _run_research(admin, game_id: str) -> dict:
-    """Start a run and poll its real stage until it finishes."""
-    started = admin.post(f"/admin/games/{game_id}/research", {})
-    run_id = started["run_id"]
+def _poll_run(admin, run_id: str) -> dict:
     for _ in range(60):
         run = admin.get(f"/admin/research/{run_id}")
         if run["status"] != "running":
@@ -36,8 +33,20 @@ def _run_research(admin, game_id: str) -> dict:
     raise AssertionError("research run did not finish")
 
 
+def _run_research(admin, game_id: str) -> dict:
+    """Start a run and poll its real stage until it finishes."""
+    started = admin.post(f"/admin/games/{game_id}/research", {})
+    return _poll_run(admin, started["run_id"])
+
+
+def _reset_provider() -> None:
+    """Research must run on the recorded provider; clear any stored override."""
+    sql("DELETE FROM global_settings")
+
+
 def test_research_brain_to_gamer_today():
     admin = dev_sign_in("admin")
+    _reset_provider()
     slug = f"research-test-{int(time.time())}"
     game = admin.post("/admin/games", {"slug": slug, "name": "Research Test Game"})
     game_id = game["id"]
@@ -46,7 +55,7 @@ def test_research_brain_to_gamer_today():
         started = admin.post(f"/admin/games/{game_id}/research", {})
         assert started["status"] == "running"
         assert started["run_id"]
-        run = _run_research(admin, game_id)
+        run = _poll_run(admin, started["run_id"])
         assert run["ideas_count"] >= 1, "research produced no ideas"
         assert run["fallback"] is True, "recorded mode must be flagged as a fallback"
         assert sum(run["source_counts"].values()) >= 1
@@ -98,6 +107,7 @@ def test_research_brain_to_gamer_today():
 
 def test_pool_filters_by_game():
     admin = dev_sign_in("admin")
+    _reset_provider()
     slug = f"research-filter-{int(time.time())}"
     game = admin.post("/admin/games", {"slug": slug, "name": "Filter Test Game"})
     game_id = game["id"]

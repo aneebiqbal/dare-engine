@@ -20,13 +20,18 @@ import { Metric, Pipeline, Section, StatusBadge, WorkHeader } from "./work";
 
 const TEMPLATES = ["cold_open", "center", "punch", "clean", "wide"];
 
-const DETECT_STAGES = ["upload", "transcribe", "detect", "rank"];
+const DETECT_STAGES = ["fetch", "transcribe", "rank"];
+const VISION_STAGES = ["fetch", "sample", "rank"];
 const RENDER_STAGES = ["fetch", "transcribe", "select", "render", "store"];
 
 function stageIndex(stage: string | null, steps: string[]): number {
   if (!stage) return 0;
   const i = steps.indexOf(stage);
   return i < 0 ? 0 : i;
+}
+
+function jobStages(kind: string | null): string[] {
+  return kind === "suggest_clips" ? VISION_STAGES : DETECT_STAGES;
 }
 
 type Window = { candidate_id: string; start: number; end: number; template_id: string | null };
@@ -347,9 +352,9 @@ export function Studio() {
               </span>
             </div>
             <Pipeline
-              steps={DETECT_STAGES}
-              current={stageIndex(recording.job.stage, DETECT_STAGES)}
-              label="Detection progress"
+              steps={jobStages(recording.job.kind)}
+              current={stageIndex(recording.job.stage, jobStages(recording.job.kind))}
+              label="Analysis progress"
             />
             <p className="text-xs text-muted">
               The worker reports its real stage. Detection loads a model, so the first run is

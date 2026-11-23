@@ -1,5 +1,10 @@
 # Pages — why each exists
 
+> The 2026-11 redesign turned these routes into a workplace tool: a live status
+> strip, pipelines for research/projects/renders, and a needs-you rail. See
+> `docs/redesign-plan.md` for the per-page design and `docs/design.md` for the
+> "control room" theme.
+
 One row per route in the product nav. Supporting pages that stay reachable by
 URL but are off the nav are listed separately at the bottom. Every kept page
 reads real data; the only mocked data is behind `NEXT_PUBLIC_API_MOCK=1`, which

@@ -1,6 +1,8 @@
 # Redesign plan — Clipdesk as a workplace tool
 
-Status: **Phase 1 (design) written and saved. No rebuild code written yet.**
+Status: **Phase 1 (design) written; Phase 2 (build) and Phase 3 (QA) carried out
+on top of it. The human visual verdict is pending.** See `PROGRESS.md` for the
+build log and `docs/screens/README.md` for the before/after sets.
 
 The current pages render numbers in tiles. They answer "how many?" and never
 "what is happening?". This plan turns every page into a surface that shows real
