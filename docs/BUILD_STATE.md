@@ -67,9 +67,10 @@ Last updated after the research-brain sprint.
 
 ## Blocked on the user (cannot be closed by code)
 
-1. **The user's own gameplay recording with commentary.** The only thing that
-   makes the clip-quality verdict meetable. Until then the detector and grammar
-   are validated on a publisher trailer and a synthetic stand-in.
+1. **The owner's verdict on their own GTA stream.** The 2 h 21 m stream ran end
+   to end (10 Shorts, 38.6 min, saved to `~/Desktop/clipdesk-review/last-gta-stream/`).
+   What remains is the human call: are those Shorts worth posting? Until that
+   verdict, clip quality is unproven.
 2. **Credit on the AI key.** The account returns 402/429, so every AI path runs
    on the recorded provider. The client, schema validation, retry and fallback
    are tested; the live call is not.
@@ -81,7 +82,7 @@ Last updated after the research-brain sprint.
 5. **A git remote with a safe credential.** The token embedded in `origin` was
    removed from the remote URL; revoke it on GitHub and choose the real remote
    (the current one points at `dare-engine`). See `docs/launch.md`.
-6. **Real 2 h gameplay footage.** The automatic pipeline is built and measured
-   on a 45 s stand-in and the 4.9 min trailer with the real VLM and MLX Whisper;
-   only the owner's own long recording proves the 2 h timing budget and clip
-   quality.
+6. **A real gameplay verdict + a faster scan host.** The pipeline is measured on
+   the owner's 2 h 21 m stream (38.6 min total); the cheap scan was 1501 s of it.
+   First-clip latency and scan time still depend on CPU allocation / a native Mac
+   worker, and clip quality needs the owner's watch.

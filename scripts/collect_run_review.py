@@ -42,7 +42,7 @@ def main(run_id: str) -> None:
         if row:
             timings, compute, notes = row[1] or {}, row[2] or "", row[3] or []
         cur.execute(
-            "select start_seconds, end_seconds, cheap_score, vision_score, "
+            "select id, start_seconds, end_seconds, cheap_score, vision_score, "
             "final_score, origin, status, clip_id from pipeline_candidates "
             "where run_id = %s order by final_score desc",
             (run_id,),

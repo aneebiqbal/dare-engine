@@ -162,6 +162,39 @@ The lever is real and measurable: the same 2 h cheap scan took **87.1 s on 4
 cores** and **55.4 s after `colima start --cpu 8`** (0.0121 → 0.0077 s/s), with
 no code change.
 
+### The owner's own GTA stream — first real gameplay (2026-11-24)
+
+Source: `~/Downloads/last gta stream .mp4` — **8475 s (2 h 21 m)**, 1280×720,
+30 fps, AAC stereo, 1.49 GB. Uploaded through `POST /pipeline/upload`
+(streamed, 10 s) and run with the default top_n=10.
+
+| Stage | Seconds |
+| --- | --- |
+| ingest | 11.51 |
+| cheap scan | **1501.3** |
+| rank | 16.40 |
+| vision (15 windows × 2 frames) | 204.65 |
+| cut (10 clips) | 138.50 |
+| transcribe | 284.09 |
+| render (10 Shorts) | 161.66 |
+| **total** | **2318.1** (~38.6 min) |
+
+- **10 finished Shorts**, 6.9–16.0 s, 1080×1920 H.264 30 fps with burned captions.
+  Copied to **`~/Desktop/clipdesk-review/last-gta-stream/`** with a manifest of
+  windows, origins and scores.
+- ETA converged exactly: final estimate **2318 s** vs **2318.1 s** actual.
+- Compute path recorded: `asr=cpu/int8 encoder=libx264`. The MLX Whisper bridge
+  was unreachable mid-transcribe, so it used faster-whisper CPU; the run note
+  says `whisper fell back to cpu/int8 (requested mlx/metal)` and the vision pass
+  ran normally.
+- **The scan is the long-video bottleneck on real footage:** 1501 s for 8475 s
+  of 720p30 gameplay (0.177 s/s) vs 55 s for the low-res synthetic. Total is
+  still 3.7× shorter than the source itself (38.6 min vs 141 min).
+- Worth a look: every candidate's vision score came back exactly **0.7**, so the
+  ranking leaned on the cheap scores. Investigate the VLM prompt/format next.
+- **Clip quality is now the owner's call** — this is their own stream, not a
+  stand-in.
+
 ### Honest latency note
 
 The stages are sequential by design, so on a 2 h upload the cheap scan plus the
