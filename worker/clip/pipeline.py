@@ -662,6 +662,13 @@ def _publish(ctx: Ctx, candidate: dict, result: Result, words: list[Word]) -> st
     storage.put_file(f"clips/{clip_id}/thumb.jpg", result.thumb_path)
     storage.put_file(f"clips/{clip_id}/captions.srt", result.srt_path)
     storage.put_file(f"clips/{clip_id}/metadata.json", result.metadata_path)
+    # The canonical per-project copy: finished Shorts, captions, thumbnail and
+    # metadata live under the project folder too, so a project is self-contained.
+    project_dir = f"projects/{run['id']}/clips/{candidate['id']}"
+    storage.put_file(f"{project_dir}/short.mp4", result.out_path)
+    storage.put_file(f"{project_dir}/thumb.jpg", result.thumb_path)
+    storage.put_file(f"{project_dir}/captions.srt", result.srt_path)
+    storage.put_file(f"{project_dir}/metadata.json", result.metadata_path)
     transcript = json.dumps(
         [{"start": w.start, "end": w.end, "text": w.text} for w in words]
     )

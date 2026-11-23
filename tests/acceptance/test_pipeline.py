@@ -67,6 +67,10 @@ def test_upload_starts_a_run_and_finishes_with_shorts(admin):
 
     keys = storage_keys()
     assert any(k.startswith(f"projects/{run_id}/") for k in keys), keys
+    assert any(
+        k.startswith(f"projects/{run_id}/clips/") and k.endswith("/short.mp4")
+        for k in keys
+    ), "finished Shorts are not in the per-project folder"
     assert run["memory"], "the idle memory readout was not recorded"
     assert run["model_loaded"] == ""
 

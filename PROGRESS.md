@@ -48,6 +48,10 @@ acceptance suite is running. Clip quality still needs the owner's gameplay.**
   remaining, ranked candidates with reasons and thumbnails, finished Shorts as
   cards that appear one by one, optional timestamp entry, resume on a paused or
   failed run.
+- **Output**: every run is self-contained under `projects/<run_id>/` on the SSD —
+  the source, candidate thumbnails, transcripts, and the finished Shorts,
+  captions and metadata. The same finals are served from `clips/<id>/` for the
+  existing review/calendar pages. Nothing media-sized enters the database.
 - Contract regenerated (**133 paths**). Unit tests **16 passed**; `make check`
   **2 passed**; web `tsc --noEmit` clean.
 
