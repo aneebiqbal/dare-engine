@@ -83,7 +83,8 @@ export function AdminOverview() {
   const [loading, setLoading] = useState(true);
   const toast = useToast();
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (initial = false) => {
+    if (initial) setLoading(true);
     try {
       setData(await api.adminOverview());
       setError(null);
@@ -95,7 +96,7 @@ export function AdminOverview() {
   }, []);
 
   useEffect(() => {
-    void load();
+    void load(true);
     const timer = setInterval(() => void load(), 5000);
     return () => clearInterval(timer);
   }, [load]);
@@ -176,7 +177,7 @@ export function AdminOverview() {
         title="Overview"
         status={live ? "running" : "idle"}
         actions={
-          <Button variant="outline" onClick={() => void load()} disabled={loading}>
+          <Button variant="outline" onClick={() => void load(true)} disabled={loading}>
             {loading ? "Refreshing…" : "Refresh"}
           </Button>
         }

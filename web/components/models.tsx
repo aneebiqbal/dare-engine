@@ -42,7 +42,8 @@ export function AdminModels() {
     asr: "mlx",
   });
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (initial = false) => {
+    if (initial) setLoading(true);
     try {
       setStatus(await api.adminModels());
       setError(null);
@@ -54,8 +55,8 @@ export function AdminModels() {
   }, []);
 
   useEffect(() => {
-    load();
-    const id = setInterval(load, 30_000);
+    void load(true);
+    const id = setInterval(() => void load(), 30_000);
     return () => clearInterval(id);
   }, [load]);
 

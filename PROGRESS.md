@@ -45,8 +45,11 @@ visual verdict is pending.**
 - `test_redesign.py` **4 passed**; `test_games_research.py` **2 passed** — the
   latter drives a real async research run (fetch → write → store) and asserts
   the ideas land.
-- `make budgets` — **PASS**: LCP 20–156 ms and TBT 0 ms on the five main pages
-  at phone and desktop (`docs/screens/budgets.json`).
+- `make budgets` — **PASS**: TBT 0 ms everywhere; LCP 28–2032 ms on the five
+  main pages at phone and desktop (`docs/screens/budgets.json`). The range is
+  Neon-bound: the managed compute answered ~10 ms/query when warm and
+  ~240–600 ms/query during the run, and `/today` makes two to three queries.
+  `/admin/overview` batches its five scalar counts into one round trip.
 - a11y (axe-core, every page × phone/desktop × dark/light): see
   `docs/screens/a11y.json`. The first redesign build failed contrast (dark
   accent-on-soft 4.29, dark muted 2.79, light success 4.2); the tokens were

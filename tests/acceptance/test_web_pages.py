@@ -10,6 +10,7 @@ from helpers import (
     dev_sign_in,
     make_admin,
     seed_mission,
+    sql,
     upload_recording,
 )
 
@@ -153,6 +154,9 @@ def test_w4_clips_and_history(browser, size):
 
 
 def test_w6_admin_pool(browser):
+    # The recorded provider writes fixed card ids; clear the pool first so the
+    # test does not depend on another test having approved them.
+    sql("TRUNCATE missions, assignments, daily_sets RESTART IDENTITY CASCADE")
     context = browser.new_context(viewport={"width": 390, "height": 844})
     page = context.new_page()
     try:

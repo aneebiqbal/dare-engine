@@ -44,8 +44,26 @@ _RUN_SELECT = (
 def _overview() -> dict:
     with db.session() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT state, count(*) FROM jobs GROUP BY state")
-            job_counts = {r[0]: r[1] for r in cur.fetchall()}
+            # The five scalar counts go in one round trip: every extra statement
+            # is another Neon latency hit on the command center.
+            cur.execute(
+                "SELECT "
+                "(SELECT json_object_agg(state, n) FROM "
+                "  (SELECT state, count(*) AS n FROM jobs GROUP BY state) s), "
+                "(SELECT json_object_agg(status, n) FROM "
+                "  (SELECT status, count(*) AS n FROM missions GROUP BY status) s), "
+                "(SELECT count(*) FROM clips WHERE created_at::date = current_date), "
+                "(SELECT count(*) FROM users), "
+                "(SELECT count(*) FROM users WHERE role = 'admin'), "
+                "(SELECT count(*) FROM users WHERE locked_until IS NOT NULL "
+                "  AND locked_until > now()), "
+                "(SELECT count(*) FROM invites WHERE used_at IS NULL AND revoked_at IS NULL)"
+            )
+            (job_json, pool_json, clips_today, users_total, admins, locked, open_invites) = (
+                cur.fetchone()
+            )
+            job_counts = job_json or {}
+            pool = pool_json or {}
             cur.execute(
                 "SELECT id, kind, state, stage, error, updated_at FROM jobs "
                 "WHERE state IN ('queued', 'running', 'failed') "
@@ -68,26 +86,6 @@ def _overview() -> dict:
 
             cur.execute("SELECT id FROM projects ORDER BY created_at DESC LIMIT 50")
             projects = [project_state(cur, str(r[0])) for r in cur.fetchall()]
-
-            cur.execute("SELECT status, count(*) FROM missions GROUP BY status")
-            pool = {r[0]: r[1] for r in cur.fetchall()}
-
-            cur.execute(
-                "SELECT count(*) FROM clips WHERE created_at::date = current_date"
-            )
-            clips_today = cur.fetchone()[0]
-
-            cur.execute(
-                "SELECT count(*), count(*) FILTER (WHERE role = 'admin'), "
-                "count(*) FILTER (WHERE locked_until IS NOT NULL AND locked_until > now()) "
-                "FROM users"
-            )
-            users_total, admins, locked = cur.fetchone()
-
-            cur.execute(
-                "SELECT count(*) FROM invites WHERE used_at IS NULL AND revoked_at IS NULL"
-            )
-            open_invites = cur.fetchone()[0]
 
             cur.execute(
                 "SELECT c.id, c.title, COALESCE(SUM(m.views), 0), "

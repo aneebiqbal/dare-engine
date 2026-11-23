@@ -55,7 +55,8 @@ export function Projects() {
   const [attachFor, setAttachFor] = useState<Record<string, string>>({});
   const toast = useToast();
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (initial = false) => {
+    if (initial) setLoading(true);
     try {
       const [p, r] = await Promise.all([api.projects(), api.studioRecordings()]);
       setItems(p.items);
@@ -69,7 +70,7 @@ export function Projects() {
   }, []);
 
   useEffect(() => {
-    void load();
+    void load(true);
     const timer = setInterval(() => void load(), 4000);
     return () => clearInterval(timer);
   }, [load]);
