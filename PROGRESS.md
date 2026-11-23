@@ -1,5 +1,84 @@
 # Progress
 
+## Transcript-first moment selection (rebuild)
+
+Status: **built, unit-tested, and proven end to end on the real trailer with the
+local scoring LLM. Owner-gameplay quality verdict still pending.**
+
+The old picker was vision-first and produced random 7–9 s fragments. This
+rebuild makes the transcript the primary signal, exactly like the tools studied
+in `docs/decisions.md`.
+
+### What changed
+
+- **Transcribe first, on regions only** (`worker/clip/regions.py`): the cheap
+  FFmpeg scan produces per-second speech/RMS/scene signals; those become a
+  bounded set of speech regions (silent and music-only stretches are skipped).
+  Whisper transcribes only those regions — never the whole video — and the
+  detected language is stored (`pipeline_runs.language`).
+- **Sentence-aligned moments** (`worker/clip/select.py`): words are segmented
+  into sentences on punctuation and pauses; windows grow from whole sentences to
+  15/25/35/45 s targets, clamped to a **14–60 s** range, edges always on speech;
+  overlaps above 50 % are suppressed.
+- **Multimodal event timeline**: each candidate carries a compact text timeline
+  (audio peak/baseline, quiet→burst moments, speech %, scene cuts, plus the
+  shortlist vision read) that the scoring LLM reads alongside the words.
+- **Calibrated rubric in editable skill files** (`skills/clip-scoring/`):
+  seven weighted dimensions, 0–10 bands with worked examples, kill criteria
+  (hook < 4 or payoff < 4 rejects), labels, strict JSON schema. Scored by the
+  local Ollama model at temperature 0.75 for spread. All tuning lives in those
+  files.
+- **Head-to-head rerank** (`local_scoring.rerank`): finalists are ordered
+  relatively at temperature 0.3, which fixes the narrow-band scoring of small
+  models.
+- **Quality-bar selection, no arbitrary cap**: keep everything above
+  `quality_bar` (default 60) and ≥ `min_seconds` (14), ceiling `max_clips`
+  (40). Labels are mixed so one does not dominate.
+- **Whole-window render**: the selected window IS the story, so `render_cut`
+  preserves all of it (no template truncation). Hook line burned over the start,
+  word-synced captions, **no internal branding** anywhere.
+- Pipeline stages are now
+  `ingest → scan → regions → detect → signals → score → cut → render → done`,
+  still resumable per stage/candidate under the lane lease.
+
+### Measured on the real trailer (2026-11-24)
+
+`fixtures/gameplay_4min.mp4`, 291.8 s, 7 clips:
+
+| Stage | Seconds |
+| --- | --- |
+| ingest | 12.95 |
+| scan | 18.70 |
+| regions (transcribe speech) | 148.53 |
+| detect | 14.98 |
+| signals (vision fusion) | 199.55 |
+| score (LLM + rerank) | 297.55 |
+| cut | 59.33 |
+| render | 103.56 |
+| **total** | **~856** (~14.3 min) |
+
+- **9 candidates grew; 7 cleared the bar.** Composites were genuinely spread:
+  74.5, 74.0, 73.0, 72.0, 71.5, 71.0, 71.0 kept; 68.0 and 58.5 dropped. Labels
+  mixed (insight / spicy / funny / story). Each carried a hook line and reason,
+  e.g. *“In an industrial area, vehicles pull off a series of audacious heists to
+  survive.”* (spicy, 74.0).
+- Language detected `en`; compute path `asr=mlx/metal encoder=libx264`;
+  `ollama_running: []` at the end.
+- **Bug found and fixed:** the grammar used to drop content before the cold open
+  and produced 6.8–8.2 s Shorts from 14–22 s windows. Render now preserves the
+  selected window whole (regression test asserts duration ≈ cut length).
+
+### Proven vs needs the owner
+
+- **Proven:** the full selection path on a real 4.9 min video with the real local
+  LLM and MLX Whisper; differentiated rubric scores; language detection; no
+  branding; resume after a completed run.
+- **Needs the owner:** their own stream through this new engine (the 2 h 21 m GTA
+  run in the previous section used the old vision-first picker), and a human
+  verdict on whether the selected moments are actually worth posting.
+- **Not yet tuned:** the scoring prompt/model (qwen2.5-coder:14b default) and the
+  region budget; the rubric is the intended tuning surface.
+
 ## Automatic upload-to-Shorts pipeline
 
 Status: **built and committed on branch `auto-pipeline`; proven end to end
