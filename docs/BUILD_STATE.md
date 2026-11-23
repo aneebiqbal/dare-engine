@@ -84,7 +84,8 @@ Last updated after the research-brain sprint.
 5. **A git remote with a safe credential.** The token embedded in `origin` was
    removed from the remote URL; revoke it on GitHub and choose the real remote
    (the current one points at `dare-engine`). See `docs/launch.md`.
-6. **A real gameplay verdict + a faster scan host.** The pipeline is measured on
-   the owner's 2 h 21 m stream (38.6 min total); the cheap scan was 1501 s of it.
-   First-clip latency and scan time still depend on CPU allocation / a native Mac
-   worker, and clip quality needs the owner's watch.
+6. **A human verdict on the new picker.** The new transcript-first engine is
+   built and measured on the real trailer (7 clips, rubric scores 74.5–71,
+   labels mixed). It has not yet been run on the owner's own stream, and no
+   person has watched its selections. Scan time and first-clip latency still
+   depend on CPU allocation / a native Mac worker.
