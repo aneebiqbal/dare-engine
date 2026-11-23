@@ -111,10 +111,19 @@ top_n=2, real VLM + MLX:
 The cheap scan is CPU-bound FFmpeg. In this 4-core Colima VM it measured
 **0.107 s of scan per second of video** (a 2 h upload ≈ 12.8 min); on the
 14-core host the same scan measured **0.020 s/s** (2 h ≈ 2.4 min). The scan does
-not get faster by adding a model — it needs CPU threads or a smaller working
-resolution. `colima start --cpu 8` is the one-line fix on this machine. The
+not get faster by adding a model — it needs CPU threads. `colima start --cpu 8`
+(or running the worker natively on the Mac) is the fix on this machine. The
 vision pass is capped at 15 windows × 2 frames regardless of length, so it stays
-~4 min; the scan is the part that scales with duration.
+~3–4 min; the scan is the part that scales with duration.
+
+Reproduce a long-video run on a generated 2 h file:
+
+```sh
+ffmpeg -f lavfi -i testsrc2=duration=7200:size=640x360:rate=15 \
+       -f lavfi -i sine=frequency=440:duration=7200 \
+       -c:v libx264 -preset veryfast -crf 30 -c:a aac -shortest /tmp/long2h.mp4
+make pipeline-demo FILE=/tmp/long2h.mp4 TOP_N=10
+```
 
 ### Honest latency note
 
