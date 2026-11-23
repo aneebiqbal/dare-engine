@@ -88,6 +88,22 @@ mode (`VISION_FRAMES_PER_WINDOW=1`) is the lever if the owner needs the first
 Short under three minutes; it is not the default because two frames judge a
 window more reliably. This is unproven on real 2 h footage.
 
+### Verification
+
+- Unit tests: **123 passed, 1 skipped**; the pipeline suite alone is 18,
+  including stage sequencing, resume from the last completed stage, the
+  no-model cheap scan, window-scoped vision with unload, user-timestamp
+  merging, silent video, disk-full pause, high-res downscale and a real
+  `render_cut` on a cached cut.
+- `make check` (no mock + licence): **2 passed**. Web `tsc --noEmit`: clean.
+- Pipeline acceptance through the real API: **4/4 passed** — upload → done with
+  three published Shorts and all seven stage timings; the project shows the live
+  run; timestamps add a user candidate while the AI candidates remain; a paused
+  run resumes and finishes.
+- `test_projects.py` **6/6**; `test_contract.py` **2/2**.
+- Live UI proof: `docs/screens/pipeline-live.png` (stage bars, ETA, model state,
+  a user-marked candidate next to AI ones).
+
 ### Real vs stand-in
 
 - **Real:** ingest, cheap scan, ranking, real VLM scoring with reasons, cutting,

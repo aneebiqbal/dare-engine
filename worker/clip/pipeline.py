@@ -403,7 +403,8 @@ def _stage_rank(ctx: Ctx) -> None:
         ],
     )
     if notes:
-        _update_run(run["id"], {"notes": json.dumps(notes)})
+        for note in notes:
+            _append_note(run["id"], note)
     rep.progress("rank", 1.0, f"Ranked {len(ranked)} windows")
 
 
@@ -437,6 +438,7 @@ def _stage_vision(ctx: Ctx) -> None:
             vision_mod.unload(model)
         except Exception:
             pass
+    events.log("model_unload", f"vision {model}")
     by_window = {
         (round(float(s["start"]), 3), round(float(s["end"]), 3)): s for s in scored
     }

@@ -81,6 +81,7 @@ Last updated after the research-brain sprint.
 5. **A git remote with a safe credential.** The token embedded in `origin` was
    removed from the remote URL; revoke it on GitHub and choose the real remote
    (the current one points at `dare-engine`). See `docs/launch.md`.
-6. **The vision model and real footage.** The sampled pass is built and
-   unit-tested; a real ranked-suggestion run needs `qwen2.5vl:7b` installed and a
-   real recording.
+6. **Real 2 h gameplay footage.** The automatic pipeline is built and measured
+   on a 45 s stand-in and the 4.9 min trailer with the real VLM and MLX Whisper;
+   only the owner's own long recording proves the 2 h timing budget and clip
+   quality.

@@ -4,10 +4,10 @@ import pathlib
 import sys
 import time
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "tests" / "acceptance"))
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tests" / "acceptance"))
 from helpers import make_admin, sql  # noqa: E402
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "fixtures" / "gameplay_4min.mp4"
 
 
