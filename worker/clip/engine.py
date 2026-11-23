@@ -316,12 +316,17 @@ def _render_window(
 
         duration = _duration(str(out_path))
         flags = title_flags(card.get("title_options", [""])[0])
+        if card.get("end_lines") == []:
+            # Automatic pipeline output ships clean, content-only metadata.
+            tags = [card["label"]] if card.get("label") else []
+        else:
+            tags = ["clipdesk", "missions", card.get("mode", "")]
         metadata = {
             "mission_id": card.get("id"),
             "question": card.get("question"),
             "title": card.get("title_options", [""])[0],
             "description": card.get("question") or card.get("hook_text") or "",
-            "tags": ["clipdesk", "missions", card.get("mode", "")],
+            "tags": tags,
             "layout": layout,
             "template": tpl.id,
             "caption_style": captions,

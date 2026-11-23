@@ -879,6 +879,7 @@ def _card(candidate: dict, index: int, words: list[Word] | None = None) -> dict:
         "question": "",
         "title_options": [hook[:100]],
         "mode": "auto",
+        "label": candidate.get("label") or "",
         # No internal branding is burned into the output.
         "end_lines": [],
     }
