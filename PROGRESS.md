@@ -75,6 +75,18 @@ MLX Whisper bridge up, real Qwen2.5-VL-7B vision bridge up:
   speech 1.2, scene 3.2, frame stats 1.2), 18 candidates, **no model**.
 - Vision cost is ~15 s per frame on this 6 GB VLM; the first finished Short
   lands after the vision pass, the cut, all transcripts and the first render.
+- Sampling frames at **512 px** instead of full resolution measured **8.5 s vs
+  12.7 s per frame** with the same clippability judgment.
+
+### Honest latency note
+
+The stages are sequential by design, so on a 2 h upload the vision pass
+(~15 windows × 2 frames × 8.5 s ≈ 4.3 min) plus the cheap scan dominate before
+the first cut. The measured 45 s run put the first finished Short at ~3.9 min;
+a 2 h run is estimated at 6–8 min to the first Short. A one-frame-per-window
+mode (`VISION_FRAMES_PER_WINDOW=1`) is the lever if the owner needs the first
+Short under three minutes; it is not the default because two frames judge a
+window more reliably. This is unproven on real 2 h footage.
 
 ### Real vs stand-in
 

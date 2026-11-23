@@ -62,6 +62,13 @@ def test_upload_starts_a_run_and_finishes_with_shorts(admin):
     assert all(c["state"] == "ready" for c in state["clips"])
     assert run["compute_path"]
     assert run["finished_at"]
+    # Media lives on the SSD under the project folder; the model is gone.
+    from helpers import storage_keys
+
+    keys = storage_keys()
+    assert any(k.startswith(f"projects/{run_id}/") for k in keys), keys
+    assert run["memory"], "the idle memory readout was not recorded"
+    assert run["model_loaded"] == ""
 
 
 def test_project_shows_the_live_pipeline_state(admin):

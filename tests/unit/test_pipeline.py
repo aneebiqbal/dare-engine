@@ -126,6 +126,36 @@ def test_speech_activity_marks_silence_without_a_model(tmp_path):
     assert sum(active) == 0
 
 
+def test_a_silent_video_is_flagged_and_still_scanned(tmp_path):
+    silent = tmp_path / "silent.mp4"
+    subprocess.run(
+        ["ffmpeg", "-y", "-hide_banner", "-nostats",
+         "-f", "lavfi", "-i", "testsrc=duration=8:size=320x240:rate=10",
+         "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono",
+         "-shortest", str(silent)],
+        capture_output=True, check=True,
+    )
+    result = scan.cheap_scan(str(silent))
+    assert result.no_speech is True
+    assert result.candidates
+
+
+def test_a_missing_source_volume_pauses_instead_of_crashing(tmp_path, monkeypatch):
+    from worker_app import storage
+
+    def boom(*a, **k):
+        raise OSError("volume gone")
+
+    monkeypatch.setattr(storage, "get_file", boom)
+    ctx = pipeline.Ctx(
+        run={"id": "r1", "source_key": "projects/r1/source.mp4"},
+        work=str(tmp_path),
+        reporter=object(),
+    )
+    with pytest.raises(pipeline.PipelinePaused):
+        pipeline._ensure_source(ctx)
+
+
 # --------------------------------------------------------------------- ranking
 
 

@@ -238,7 +238,7 @@ def add_timestamps(request: Request, run_id: str, payload: dict):
     with db.session() as conn:
         with conn.cursor() as cur:
             run = _owned_run(cur, request, run_id)
-            project_id = run["project_id"]
+            project_id = str(run["project_id"])
             state = run["state"]
             duration = float(run.get("duration_seconds") or 0.0)
             if duration <= 0:
@@ -314,6 +314,6 @@ def resume(request: Request, run_id: str):
                 "action = 'Queued to resume', updated_at = now() WHERE id = %s",
                 (run_id,),
             )
-            project_id = run["project_id"]
+            project_id = str(run["project_id"])
     _enqueue(run_id, project_id)
     return {"run_id": run_id, "state": "queued"}
