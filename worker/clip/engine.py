@@ -180,11 +180,15 @@ def _render_window(
     caption_override: list[dict] | None,
     file_duration: float,
     allow_silent: bool = False,
+    preserve_story: bool = False,
 ) -> Result:
     """Build the Short from an already-selected source window.
 
     `words` are window-relative. `src` is cut at beat boundaries, so a cached
-    transcript stays exact and the whole file is never re-read.
+    transcript stays exact and the whole file is never re-read. When
+    `preserve_story` is set (the automatic pipeline), the window IS the story
+    the scorer picked, so it is rendered whole — no content is dropped to fit a
+    template.
     """
     out_dir = Path(out_dir)
     payoff_start = max(win_start, payoff_end - PAYOFF_SECONDS)
@@ -205,13 +209,15 @@ def _render_window(
         layout = tpl.layout
         captions = caption_style or tpl.captions
 
-        setup = select_setup(words, 0.0, max(0.0, rel_payoff_lo), llm)
-        context_range = None
-        if setup:
-            s, e = setup[0]
-            context_range = (win_start + s, win_start + e)
-
-        beats = build_beats(tpl, peak, payoff_start, payoff_end, context_range)
+        if preserve_story:
+            beats = [Beat(0.0, file_duration, "story")]
+        else:
+            setup = select_setup(words, 0.0, max(0.0, rel_payoff_lo), llm)
+            context_range = None
+            if setup:
+                s, e = setup[0]
+                context_range = (win_start + s, win_start + e)
+            beats = build_beats(tpl, peak, payoff_start, payoff_end, context_range)
         for beat in beats:
             beat.src_start = max(0.0, min(beat.src_start, file_duration - 0.2))
             beat.length = max(0.4, min(beat.length, file_duration - beat.src_start))
@@ -420,5 +426,5 @@ def render_cut(
         src, card, 0.0, file_duration, file_duration,
         [Word(float(w.start), float(w.end), w.text) for w in words_rel],
         str(out_dir), result_value, template, llm, caption_style, template_id,
-        caption_override, file_duration, allow_silent=True,
+        caption_override, file_duration, allow_silent=True, preserve_story=True,
     )

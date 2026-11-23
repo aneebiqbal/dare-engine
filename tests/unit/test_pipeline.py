@@ -215,7 +215,12 @@ def test_render_cut_builds_a_vertical_short_from_a_cached_cut(tmp_path):
     assert pathlib.Path(result.thumb_path).is_file()
     assert pathlib.Path(result.srt_path).is_file()
     assert pipeline._dimensions(result.out_path) == (1080, 1920)
-    assert result.duration > 5.0
+    # The selected window IS the story: nothing is dropped by a template.
+    assert abs(result.duration - 8.0) < 0.6, result.duration
+    meta = json.loads(pathlib.Path(result.metadata_path).read_text())
+    assert "MISSION" not in json.dumps(meta)
+    ass = pathlib.Path(result.srt_path).read_text()
+    assert "CLIPDESK" not in ass.upper()
 
 
 # ----------------------------------------------------------------- vision pass
