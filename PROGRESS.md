@@ -298,11 +298,10 @@ three minutes. This is unproven on real 2 h footage.
 
 ### Verification
 
-- Unit tests: **125 passed, 1 skipped**; the pipeline suite alone is 18,
-  including stage sequencing, resume from the last completed stage, the
-  no-model cheap scan, window-scoped vision with unload, user-timestamp
-  merging, silent video, disk-full pause, high-res downscale and a real
-  `render_cut` on a cached cut.
+- Unit tests: **136 passed, 1 skipped** (selection/rubric, regions, pipeline
+  sequencing, resume from the last completed stage, window-scoped vision with
+  unload, user-timestamp merging, silent video, disk-full pause, high-res
+  downscale, render preservation and a real `render_cut` on a cached cut).
 - `make check` (no mock + licence): **2 passed**. Web `tsc --noEmit`: clean.
 - Pipeline acceptance through the real API: **4/4 passed** — upload → done with
   three published Shorts and all seven stage timings; the project shows the live
