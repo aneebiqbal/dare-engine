@@ -68,6 +68,36 @@ in `docs/decisions.md`.
   and produced 6.8–8.2 s Shorts from 14–22 s windows. Render now preserves the
   selected window whole (regression test asserts duration ≈ cut length).
 
+### The owner's own GTA stream through the new engine (2026-11-24)
+
+`~/Downloads/last gta stream .mp4` — 8475 s (2 h 21 m), 1280×720, 1.49 GB,
+**19 Shorts** selected from 55 candidates:
+
+| Stage | Seconds |
+| --- | --- |
+| ingest | 13.15 |
+| scan | 259.97 |
+| regions (transcribe speech) | 1693.77 |
+| detect | 30.63 |
+| signals | 398.50 |
+| score (40 candidates + rerank) | 801.22 |
+| cut (19) | 170.14 |
+| render (19) | 381.27 |
+| **total** | **3748.7** (~62.5 min) |
+
+- **19 self-contained moments**, 14.1–34.9 s, labels mixed (surprising, spicy,
+  insight, funny, tip); composites spread 81.5 → 60.5.
+- Language: `en` (Whisper also guessed hi/jw/ml/pa/ur on quiet regions — noted).
+- Compute: `asr=mlx/metal encoder=libx264`.
+- **Quality bug found on real footage:** Whisper auto-detected a wrong language
+  inside quiet game audio and hallucinated Urdu/Hindi lines; those reached the
+  hooks and captions. Fixed by locking the detected language after the first
+  region (`X-Language` on the bridge) and stripping wrong-script words from a
+  Latin-language transcript. The stored transcript was cleaned (4703 → 2966
+  English words) and the run rescored/re-rendered.
+- **Bottleneck on long video:** region transcription (28 min) then scoring
+  (13.4 min for 40 candidates). Total is still 2.3× shorter than the source.
+
 ### Proven vs needs the owner
 
 - **Proven:** the full selection path on a real 4.9 min video with the real local
