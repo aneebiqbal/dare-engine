@@ -86,6 +86,13 @@ def test_regions_skip_music_only_and_honour_budget():
     assert not regions.plan_regions([0.0] * 100, [-20.0] * 100, [], 100.0)
 
 
+def test_regions_handles_mismatched_signal_lengths():
+    # Audio-derived signals can be a second shorter than the container duration.
+    regs = regions.plan_regions([1.0] * 50, [-20.0] * 30, [], 50.0)
+    assert regs
+    assert regs[-1].end <= 50.0
+
+
 def test_rubric_composite_and_kill_criteria(monkeypatch):
     captured = {}
 

@@ -38,10 +38,10 @@ def plan_regions(
     max_span: float = MAX_SPAN,
     gap_join: float = GAP_JOIN,
 ) -> list[Region]:
-    seconds = len(speech)
+    seconds = min(len(speech), len(energy))
     if seconds == 0 or not energy:
         return []
-    baseline = _baseline(energy)
+    baseline = _baseline(energy[:seconds])
     cut_near = [False] * seconds
     for t in scenes:
         lo = max(0, int(t) - 2)

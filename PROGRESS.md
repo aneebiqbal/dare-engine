@@ -73,11 +73,18 @@ in `docs/decisions.md`.
 - **Proven:** the full selection path on a real 4.9 min video with the real local
   LLM and MLX Whisper; differentiated rubric scores; language detection; no
   branding; resume after a completed run.
-- **Needs the owner:** their own stream through this new engine (the 2 h 21 m GTA
-  run in the previous section used the old vision-first picker), and a human
-  verdict on whether the selected moments are actually worth posting.
-- **Not yet tuned:** the scoring prompt/model (qwen2.5-coder:14b default) and the
-  region budget; the rubric is the intended tuning surface.
+- **Scan got 6× faster:** the new scan dropped the per-frame luma pass (the LLM
+  no longer needs it) — 8475 s of real 720p30 gameplay scanned in **230.8 s**
+  (0.027 s/s), against 1501 s with the old vision-first scan.
+- **Bugs the real runs caught and fixed:** signals were cached in the run temp
+  dir so a retry could not see them (now stored on the run row, migration
+  0026); `plan_regions` indexed past the shorter audio signal array
+  (IndexError on a 2 h file). Both have regression tests.
+- **Needs the owner:** their own stream through this new engine (in progress) and
+  a human verdict on whether the selected moments are actually worth posting.
+- **Not yet tuned:** the scoring prompt/model (qwen2.5-coder:14b default), the
+  region budget, and scoring throughput (~20–30 s per candidate → the top 40
+  shortlist is the lever).
 
 ## Automatic upload-to-Shorts pipeline
 

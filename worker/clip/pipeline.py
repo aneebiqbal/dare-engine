@@ -354,11 +354,13 @@ def _ensure_source(ctx: Ctx) -> str:
 
 
 def _save_signals(ctx: Ctx, signals: dict) -> None:
-    pathlib.Path(ctx.work, "signals.json").write_text(json.dumps(signals))
+    # Durable, not temp: a retried attempt resumes with the same scan.
+    _update_run(ctx.run["id"], {"signals": json.dumps(signals)})
 
 
 def _load_signals(ctx: Ctx) -> dict:
-    return json.loads(pathlib.Path(ctx.work, "signals.json").read_text())
+    run = _get_run(ctx.run["id"])
+    return run.get("signals") or {}
 
 
 def _stage_ingest(ctx: Ctx) -> None:
@@ -1024,6 +1026,10 @@ def run_pipeline(run_id: str, job_id: str | None = None) -> None:
     )
     rep = Reporter(run_id, job_id)
     timings = dict(run.get("stage_timings") or {})
+    # A recorded scan whose signals are missing (an older interrupted run) is not
+    # resumable — force the scan again so every later stage has its inputs.
+    if timings.get("scan") and not run.get("signals"):
+        timings.pop("scan", None)
     with tempfile.TemporaryDirectory(prefix=f"pipeline-{run_id}-") as work:
         ctx = Ctx(run=run, work=work, reporter=rep)
         try:
