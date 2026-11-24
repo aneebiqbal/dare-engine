@@ -52,6 +52,7 @@ Last updated after the research-brain sprint.
 | Client error reporting + admin view | yes | yes | yes (unit) | — |
 | Database backup (`make backup`) | yes | yes | no | a real restore drill |
 | Desktop app (Tauri shell, builds a .dmg) | yes | yes (build + mount) | partial (no human launch) | a human at a Mac |
+| Desktop .dmg rebuilt from this tree (2026-11-24) | yes | yes (`tauri build`) | partial (unsigned; no human launch) | Apple signing/notarisation |
 | Windows installer (Tauri `.msi`/`.nsis`) | documented | no | no | a Windows machine + signing certificate |
 | Landing page with owner download slots (`/landing`) | yes | yes (build) | partial (slots unfilled) | real download URLs + demo clip |
 | Desktop capture (OBS path) | yes | yes | yes (OBS 33.0.1) | — |
@@ -60,7 +61,7 @@ Last updated after the research-brain sprint.
 | Models & Setup suggested engine + one-click install | yes | yes | yes (real bridge) | — |
 | Projects: derived stages, dashboard, sequential analysis queue | yes | yes | yes (acceptance, real stack) | — |
 | First-run setup wizard (persisted, verified steps) | yes | yes | yes (acceptance, real endpoints) | — |
-| In-window caption editor (text/timing, no re-transcribe) | yes | yes | yes (acceptance, real render) | — |
+| In-window caption editor (text/timing, no re-transcribe; opens pipeline clips) | yes | yes | partial (trailer; ownership bug fixed 2026-11-24) | owner watch |
 | Engine activity log (model load/unload, cleanup) on the dashboard | yes | yes | yes (acceptance, real worker) | — |
 | Automatic upload-to-Shorts pipeline (scan→regions→detect→signals→score→cut→render) | yes | yes | partial (45 s stand-in, 4.9 min trailer with the new engine; owner stream still on the old picker) | owner's footage through the new engine |
 | Transcript-first LLM moment scoring (skill-file rubric + head-to-head rerank) | yes | yes | yes (trailer: scores 74.5–71 kept, 68/58.5 dropped, mixed labels) | owner verdict on virality |

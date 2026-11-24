@@ -520,6 +520,11 @@ def _window_text(transcript: list[dict], start: float, end: float) -> str:
     ).strip()
 
 
+def clamp_window(start: float, end: float, max_seconds: float) -> tuple[float, float]:
+    """A platform's maximum clip length, applied to a detected window."""
+    return start, min(end, start + max_seconds)
+
+
 def _stage_detect(ctx: Ctx) -> None:
     rep = ctx.reporter
     rep.action("Growing sentence-aligned moments")
@@ -533,7 +538,7 @@ def _stage_detect(ctx: Ctx) -> None:
     min_seconds = float(run.get("min_seconds") or 14)
     max_seconds = float(platform_get(run.get("platform"))["max_seconds"])
     windows = [
-        Window(w.start, min(w.end, w.start + max_seconds), w.text, w.words, w.density, w.prior)
+        Window(*clamp_window(w.start, w.end, max_seconds), w.text, w.words, w.density, w.prior)
         for w in grow_windows(sentences, min_seconds=min_seconds)
     ]
     # Exact user timestamps are added as high-priority candidates, never as a

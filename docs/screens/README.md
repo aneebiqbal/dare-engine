@@ -22,6 +22,27 @@ clips rendering). This is the layout reference.
 
 Every shot is phone (390×844) and desktop (1280×900), dark and light.
 
+## `after/2026-11-24/`
+
+Fresh shots of this session's changes, captured against a locally running API
+and `next dev` on the real Neon database (not the mock): cover-art games cards,
+the platform selectors, the clip editor opening a real pipeline clip, and the
+`/landing` download page. 68 shots, phone/desktop × dark/light.
+
+```sh
+# terminal 1 — API against Neon, with a writable storage dir
+PYDIR=$(cat /tmp/clipdesk_pydir)
+PYTHONPATH="api:shared:$PYDIR" STORAGE_LOCAL_DIR="$PYDIR/storage" \
+  .venv/bin/python -m uvicorn app.main:app --port 8001
+# terminal 2 — web
+cd web && API_URL=http://127.0.0.1:8001 NEXT_PUBLIC_DEV_AUTH=1 npm run dev -- -p 3200
+# terminal 3 — capture
+.venv/bin/python scripts/capture_after.py
+```
+
+The QA admin (`qa-admin@example.com`) is created in the shared dev database by
+hand for these runs; delete it before launch.
+
 ## Honest labels
 
 - **Real work:** jobs, projects, clips, research runs, calendar, users, invites,

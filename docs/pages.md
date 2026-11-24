@@ -60,6 +60,7 @@ app code may not import (`make check`).
 | `/admin/ai` | AI usage and provider config. |
 | `/admin/audit` | Audit log. |
 | `/welcome`, `/leaderboard`, `/m/[slug]`, `/creators/[id]` | Public community pages. |
+| `/landing` | Public download page; owner slots for the `.dmg`, Windows installer, web origin and demo clip. |
 | `/help` | In-app guide. |
 
 ## Trimmed

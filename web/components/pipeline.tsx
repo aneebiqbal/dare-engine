@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   api,
@@ -120,12 +120,28 @@ export function PipelinePanel({ runId, name }: { runId: string; name?: string })
   const [busy, setBusy] = useState(false);
   const toast = useToast();
   const platforms = usePlatforms();
+  const prevState = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       const next = await api.pipeline(runId);
       setDetail(next);
       setError(null);
+      // A finished run gets one clear completion prompt, then its clips are
+      // already rendered below. No silent "it just stopped" moment.
+      const prev = prevState.current;
+      const state = next.run.state;
+      if (prev && prev !== state && ["running", "queued", "paused"].includes(prev)) {
+        if (state === "done") {
+          toast(
+            `Done — ${next.clips.length} Short${next.clips.length === 1 ? "" : "s"} ready to review`,
+            "success",
+          );
+        } else if (state === "failed") {
+          toast(`Pipeline failed: ${next.run.error ?? "unknown error"}`, "danger");
+        }
+      }
+      prevState.current = state;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     }

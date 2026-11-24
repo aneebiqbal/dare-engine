@@ -4,8 +4,10 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "shared"))
+sys.path.insert(0, str(ROOT / "worker"))
 
 from platforms import DEFAULT_PLATFORM, PLATFORMS, get, is_valid, public_list  # noqa: E402
+from clip.pipeline import clamp_window  # noqa: E402
 
 
 def test_registry_has_the_three_targets():
@@ -30,3 +32,10 @@ def test_public_list_puts_the_default_first():
 def test_platforms_pick_distinct_caption_styles():
     styles = {p["id"]: p["caption_style"] for p in public_list()}
     assert len(set(styles.values())) >= 2
+
+
+def test_windows_are_clamped_to_the_platform_maximum():
+    # A 14 s window is untouched; a 75 s window is cut to the platform limit.
+    assert clamp_window(10, 24, 60) == (10, 24)
+    assert clamp_window(10, 85, 60) == (10, 70)
+    assert clamp_window(10, 100, 90) == (10, 100)

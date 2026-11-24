@@ -54,6 +54,8 @@ NULL`. It now falls back to the clip's recording window + cached transcript.
 
 - Web production build green; API imports clean; contract regenerated (134
   paths).
+- **Mac `.dmg` rebuilt from this tree**: `Clipdesk Missions_0.1.0_aarch64.dmg`
+  (2.37 MiB), sha256 `a8aad18f…bde612cc`. Unsigned.
 - Unit tests: 119 passed + 5 new platform/research tests; the 15 failures are
   all missing host `ffmpeg` plus one SSD env-key test (environmental).
 - Not run here: Docker acceptance/web suites and the budgets/axe runs (no Docker

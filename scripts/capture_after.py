@@ -78,25 +78,28 @@ def main() -> None:
         browser = p.chromium.launch()
         for size_name, width, height in [("phone", 390, 844), ("desktop", 1280, 900)]:
             for theme in ("dark", "light"):
-                context = browser.new_context(viewport={"width": width, "height": height})
-                page = context.new_page()
-                page.goto(f"{BASE}/signin", wait_until="networkidle")
-                page.fill('[data-testid="email"]', EMAIL)
-                page.fill('[data-testid="password"]', PASSWORD)
-                page.wait_for_timeout(400)
-                page.click('[data-testid="signin-submit"]')
-                page.wait_for_url(f"{BASE}/", timeout=20000)
                 for name, path in pages:
-                    url = f"{BASE}{path}?theme={theme}"
-                    page.goto(url, wait_until="domcontentloaded", timeout=20000)
-                    page.wait_for_timeout(6000)
                     target = OUT / f"{size_name}-{theme}-{name}.png"
                     if target.exists():
                         print(f"skip {target.name}")
                         continue
+                    # A fresh context per page: repeated heavy pages otherwise
+                    # exhaust headless Chromium and the run stalls.
+                    context = browser.new_context(viewport={"width": width, "height": height})
+                    page = context.new_page()
+                    page.goto(f"{BASE}/signin", wait_until="networkidle")
+                    page.fill('[data-testid="email"]', EMAIL)
+                    page.fill('[data-testid="password"]', PASSWORD)
+                    page.wait_for_timeout(500)
+                    page.wait_for_selector('[data-testid="signin-submit"]:not([disabled])', timeout=15000)
+                    page.click('[data-testid="signin-submit"]')
+                    page.wait_for_url(f"{BASE}/", timeout=20000)
+                    url = f"{BASE}{path}?theme={theme}"
+                    page.goto(url, wait_until="domcontentloaded", timeout=20000)
+                    page.wait_for_timeout(6000)
                     page.screenshot(path=str(target), full_page=True)
                     print(target.relative_to(ROOT))
-                context.close()
+                    context.close()
         browser.close()
 
 
