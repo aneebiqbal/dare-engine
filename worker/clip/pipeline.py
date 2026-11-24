@@ -486,7 +486,9 @@ def _stage_regions(ctx: Ctx) -> None:
     events.log("model_unload", "whisper")
     words_abs.sort(key=lambda w: w.start)
     transcript = [{"start": w.start, "end": w.end, "text": w.text} for w in words_abs]
-    language = max(languages, key=languages.get) if languages else "en"
+    base_language = run.get("language") or "en"
+    language = max(languages, key=languages.get) if languages else base_language
+    language = sane_language(language, words_abs)
     notes = []
     if len(languages) > 1:
         notes.append(f"mixed languages detected: {', '.join(sorted(languages))}; scoring in {language}")
@@ -878,6 +880,27 @@ def _stage_cut(ctx: Ctx) -> None:
             },
         )
         rep.progress("cut", (i + 1) / len(todo), f"Cutting moment {i + 1} of {len(todo)}")
+
+
+NON_LATIN_SCRIPTS = {
+    "ur", "ar", "fa", "he", "hi", "bn", "pa", "zh", "ja", "ko", "ru", "uk",
+    "el", "th", "ta", "te", "ml", "kn", "gu", "mr", "ne", "si", "km", "lo",
+    "my", "ka", "hy", "am", "ka",
+}
+
+
+def sane_language(code: str | None, words: list[Word]) -> str:
+    """Whisper sometimes mislabels English game audio (e.g. as Urdu). If the
+    detected language uses a non-Latin script but the transcript is Latin, trust
+    the text."""
+    code = code or "en"
+    sample = " ".join(w.text for w in words[:200])
+    letters = sum(1 for c in sample if c.isalpha())
+    if letters and code in NON_LATIN_SCRIPTS:
+        ascii_letters = sum(1 for c in sample if c.isascii() and c.isalpha())
+        if ascii_letters / letters > 0.8:
+            return "en"
+    return code
 
 
 def _fallback_hook(words: list[Word]) -> str:

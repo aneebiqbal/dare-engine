@@ -156,6 +156,14 @@ def test_language_is_passed_to_the_scoring_prompt(monkeypatch):
     assert "es" in seen["system"].lower()
 
 
+def test_sane_language_rejects_mislabelled_english():
+    words = [Word(i * 0.4, i * 0.4 + 0.35, t) for i, t in enumerate(
+        "I have to fix your car because the engine is giving up on me".split()
+    )]
+    assert pipeline.sane_language("ur", words) == "en"
+    assert pipeline.sane_language("es", words) == "es"
+
+
 def test_skill_files_exist_and_are_the_tuning_surface():
     base = ROOT / "skills" / "clip-scoring"
     skill = (base / "SKILL.md").read_text()
