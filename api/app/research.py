@@ -5,9 +5,12 @@ Reddit, gaming-news RSS), passes the raw signal to the one AI client, and stores
 the result as sourced mission candidates. An idea is only stored when it cites a
 real source from the feed; an idea with no source is never shown.
 
-With no source keys (or LLM_PROVIDER=recorded, the CI mode) it runs on the saved
-sample feed and marks the run as a fallback, so the whole pipeline is provable
-without credentials.
+Source fetching and idea writing are separate facts. Live sources are fetched
+whenever a source key exists — independently of the AI provider — so a stored
+YouTube key is actually read. The saved sample feed is used only when no source
+key exists or every live fetch fails, and that is flagged per run as
+`source_fallback`. A recorded/stub AI provider flags `ai_fallback`; the two are
+reported separately so a live YouTube run is never mistaken for a full live run.
 """
 from __future__ import annotations
 
@@ -207,19 +210,32 @@ def sample_feed() -> list[dict]:
 
 
 def gather_sources(game: dict) -> tuple[list[dict], bool]:
-    """Return (sources, used_fallback). Never raises."""
-    live_keys = bool(
-        resolve("youtube") or (resolve("reddit_client") and resolve("reddit_secret"))
-    )
-    if settings.llm_provider == "recorded" or not live_keys:
+    """Return (sources, used_sample_fallback). Never raises.
+
+    A configured source key is always used; the sample feed is a fallback of
+    last resort, not the default. News has no key, so it is tried whenever any
+    keyed source is configured (it is independent and free).
+    """
+    keyed = {
+        "youtube": bool(resolve("youtube")),
+        "reddit": bool(resolve("reddit_client") and resolve("reddit_secret")),
+    }
+    if not any(keyed.values()):
         return sample_feed(), True
 
     sources: list[dict] = []
-    for fetch in (_youtube_sources, _reddit_sources, _news_sources):
+    for name, fetch in (
+        ("youtube", _youtube_sources),
+        ("reddit", _reddit_sources),
+        ("news", _news_sources),
+    ):
+        if name in keyed and not keyed[name]:
+            continue
         try:
-            sources.extend(fetch(game))
+            got = fetch(game)
         except Exception:
             continue
+        sources.extend(got or [])
     # Deduplicate by URL, keeping the first (most specific) source.
     seen = set()
     unique = []
@@ -229,6 +245,8 @@ def gather_sources(game: dict) -> tuple[list[dict], bool]:
             continue
         seen.add(url)
         unique.append(source)
+    if not unique:
+        return sample_feed(), True
     return unique, False
 
 
@@ -380,16 +398,31 @@ def execute_research(run_id: str, game_id: str, actor_id: str | None) -> dict:
     game = _game_by_id(game_id)
     started = time.monotonic()
     counts: dict[str, int] = {}
+    source_fallback = False
+    ai_fallback = False
+    provider = (settings.llm_provider or "").lower()
+    provider_live = provider not in ("recorded", "stub")
     try:
-        _set_stage(run_id, "fetch", "Fetching YouTube, Reddit and gaming news…")
-        sources, fallback = gather_sources(game)
+        _set_stage(run_id, "fetch", "Fetching live YouTube, Reddit and gaming news…")
+        sources, source_fallback = gather_sources(game)
         for source in sources:
             counts[source["kind"]] = counts.get(source["kind"], 0) + 1
+        kinds = ", ".join(sorted(counts)) or "no"
+        origin = "sample feed" if source_fallback else f"live sources ({kinds})"
         _set_stage(
             run_id, "write",
-            f"{len(sources)} sources fetched — the AI is writing ideas…",
+            f"{len(sources)} {origin} fetched — "
+            + (
+                "the AI is writing ideas…"
+                if provider_live
+                else f"AI provider is '{provider or 'unset'}'; ideas need a live key"
+            ),
         )
-        ideas, ai_fallback = generate_ideas(game, sources)
+        if provider_live:
+            ideas, ai_fallback = generate_ideas(game, sources)
+        else:
+            ideas = []
+            ai_fallback = True
         _set_stage(run_id, "store", f"Storing {len(ideas)} sourced idea(s)…")
         stored = store_ideas(game_id, ideas, sources) if ideas else 0
         result = {
@@ -397,14 +430,20 @@ def execute_research(run_id: str, game_id: str, actor_id: str | None) -> dict:
             "game_id": game_id,
             "sources": counts,
             "ideas": stored,
-            "fallback": fallback or ai_fallback,
+            "source_fallback": source_fallback,
+            "ai_fallback": ai_fallback,
+            "fallback": source_fallback or ai_fallback,
+            "provider": provider,
             "latency_ms": int((time.monotonic() - started) * 1000),
         }
-        _finish_run(run_id, "done", counts, stored, result["fallback"], None)
+        _finish_run(
+            run_id, "done", counts, stored,
+            source_fallback, ai_fallback, result["fallback"], None,
+        )
         audit(actor_id, "research.run", "game", game_id, result)
         return result
     except Exception as exc:
-        _finish_run(run_id, "failed", counts, 0, False, str(exc))
+        _finish_run(run_id, "failed", counts, 0, source_fallback, ai_fallback, True, str(exc))
         raise
 
 
@@ -428,6 +467,13 @@ def start_research(game_id: str, actor_id: str | None = None) -> dict:
     return {"run_id": run_id, "status": "running", "stage": "queued"}
 
 
+RUN_COLUMNS = (
+    "r.id, r.game_id, g.name, r.status, r.stage, r.detail, "
+    "r.source_counts, r.ideas_count, r.fallback, r.source_fallback, "
+    "r.ai_fallback, r.error, r.created_at, r.finished_at"
+)
+
+
 def _serialize_run(r) -> dict:
     return {
         "id": str(r[0]),
@@ -439,9 +485,11 @@ def _serialize_run(r) -> dict:
         "source_counts": r[6],
         "ideas_count": r[7],
         "fallback": r[8],
-        "error": r[9],
-        "created_at": r[10].isoformat() if r[10] else None,
-        "finished_at": r[11].isoformat() if r[11] else None,
+        "source_fallback": r[9],
+        "ai_fallback": r[10],
+        "error": r[11],
+        "created_at": r[12].isoformat() if r[12] else None,
+        "finished_at": r[13].isoformat() if r[13] else None,
     }
 
 
@@ -449,10 +497,8 @@ def get_run(run_id: str) -> dict | None:
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT r.id, r.game_id, g.name, r.status, r.stage, r.detail, "
-                "r.source_counts, r.ideas_count, r.fallback, r.error, "
-                "r.created_at, r.finished_at "
-                "FROM research_runs r JOIN games g ON g.id = r.game_id WHERE r.id = %s",
+                f"SELECT {RUN_COLUMNS} FROM research_runs r "
+                "JOIN games g ON g.id = r.game_id WHERE r.id = %s",
                 (run_id,),
             )
             row = cur.fetchone()
@@ -463,10 +509,8 @@ def recent_runs(limit: int = 10) -> list[dict]:
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT r.id, r.game_id, g.name, r.status, r.stage, r.detail, "
-                "r.source_counts, r.ideas_count, r.fallback, r.error, "
-                "r.created_at, r.finished_at "
-                "FROM research_runs r JOIN games g ON g.id = r.game_id "
+                f"SELECT {RUN_COLUMNS} FROM research_runs r "
+                "JOIN games g ON g.id = r.game_id "
                 "ORDER BY r.created_at DESC LIMIT %s",
                 (limit,),
             )
@@ -474,13 +518,26 @@ def recent_runs(limit: int = 10) -> list[dict]:
     return [_serialize_run(r) for r in rows]
 
 
-def _finish_run(run_id: str, status: str, counts: dict, ideas: int, fallback: bool, error: str | None):
+def _finish_run(
+    run_id: str,
+    status: str,
+    counts: dict,
+    ideas: int,
+    source_fallback: bool,
+    ai_fallback: bool,
+    fallback: bool,
+    error: str | None,
+):
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE research_runs SET status = %s, source_counts = %s, ideas_count = %s, "
-                "fallback = %s, error = %s, finished_at = now() WHERE id = %s",
-                (status, json.dumps(counts), ideas, fallback, error, run_id),
+                "fallback = %s, source_fallback = %s, ai_fallback = %s, "
+                "error = %s, finished_at = now() WHERE id = %s",
+                (
+                    status, json.dumps(counts), ideas, fallback,
+                    source_fallback, ai_fallback, error, run_id,
+                ),
             )
 
 

@@ -17,6 +17,7 @@ from .config import settings
 from .paging import envelope, order_clause, parse
 from .projects import attach_stream
 from .users import current_user
+from platforms import get as platform_get
 
 router = APIRouter()
 
@@ -45,6 +46,7 @@ def _clip(row) -> dict:
         "export_tags": row[16],
         "transcript": row[17],
         "commentary": row[18],
+        "platform": row[19] or "youtube_shorts",
         "download_url": f"/clips/{row[0]}/download" if row[2] else None,
         "thumb_url": f"/clips/{row[0]}/thumbnail" if row[2] else None,
     }
@@ -54,7 +56,7 @@ _SELECT = (
     "SELECT c.id, c.assignment_id, c.file_key, c.title, c.state, c.template, "
     "c.duration_seconds, c.stage, c.progress, c.error, c.layout, c.caption_style, "
     "c.voice_over, c.voice, c.export_title, c.export_description, c.export_tags, "
-    "c.transcript, c.commentary "
+    "c.transcript, c.commentary, c.platform "
     "FROM clips c"
 )
 
@@ -373,6 +375,12 @@ def update_clip(request: Request, clip_id: str, payload: dict):
     for key in ("title", "layout", "caption_style", "voice_over", "voice", "export_title", "export_description", "export_tags", "commentary"):
         if key in payload:
             fields[key] = payload[key]
+    # A platform change carries its caption style with it, so the re-render
+    # already matches the target instead of needing a second edit.
+    if "platform" in payload:
+        preset = platform_get(payload["platform"])
+        fields["platform"] = payload["platform"]
+        fields.setdefault("caption_style", preset["caption_style"])
     captions = None
     if "captions" in payload:
         captions = _clean_captions(payload["captions"])
@@ -386,24 +394,30 @@ def update_clip(request: Request, clip_id: str, payload: dict):
             if fields:
                 set_clause = ", ".join(f"{k} = %s" for k in fields)
                 cur.execute(f"UPDATE clips SET {set_clause} WHERE id = %s", (*fields.values(), clip_id))
-            # A template, layout or caption change re-renders in place.
-            if template_id or "layout" in fields or "caption_style" in fields or captions is not None:
+            # A template, layout, platform or caption change re-renders in place.
+            if template_id or any(k in fields for k in ("layout", "caption_style", "platform")) or captions is not None:
                 cur.execute(
                     "SELECT c.recording_key, c.source_start, c.source_end, m.card, "
-                    "c.trim_start, c.trim_end, c.voice_over, c.voice "
-                    "FROM clips c JOIN assignments a ON a.id = c.assignment_id "
-                    "JOIN missions m ON m.id = a.mission_id WHERE c.id = %s",
+                    "c.trim_start, c.trim_end, c.voice_over, c.voice, c.title "
+                    "FROM clips c LEFT JOIN assignments a ON a.id = c.assignment_id "
+                    "LEFT JOIN missions m ON m.id = a.mission_id WHERE c.id = %s",
                     (clip_id,),
                 )
                 row = cur.fetchone()
                 if row:
+                    card = row[3] or {
+                        "id": str(clip_id),
+                        "hook_text": row[8] or "Watch this",
+                        "question": "",
+                        "mode": "auto",
+                    }
                     _enqueue_render(
                         cur,
                         clip_id=clip_id,
                         assignment_id=None,
-                        card=row[3],
-                        start=float(row[4] or row[1]),
-                        end=float(row[5] or row[2]),
+                        card=card,
+                        start=float(row[4] if row[4] is not None else row[1]),
+                        end=float(row[5] if row[5] is not None else row[2]),
                         result="",
                         recording_key=row[0],
                         layout=fields.get("layout"),

@@ -12,32 +12,14 @@ from fastapi import APIRouter, Depends, Request
 
 from . import db, keys, studio
 from .projects import project_state
+from .research import RUN_COLUMNS, _serialize_run
 from .users import require_admin
 
 router = APIRouter(dependencies=[Depends(require_admin)])
 
 
-def _serialize_run(r) -> dict:
-    return {
-        "id": str(r[0]),
-        "game_id": str(r[1]),
-        "game_name": r[2],
-        "status": r[3],
-        "stage": r[4],
-        "detail": r[5],
-        "source_counts": r[6],
-        "ideas_count": r[7],
-        "fallback": r[8],
-        "error": r[9],
-        "created_at": r[10].isoformat() if r[10] else None,
-        "finished_at": r[11].isoformat() if r[11] else None,
-    }
-
-
 _RUN_SELECT = (
-    "SELECT r.id, r.game_id, g.name, r.status, r.stage, r.detail, r.source_counts, "
-    "r.ideas_count, r.fallback, r.error, r.created_at, r.finished_at "
-    "FROM research_runs r JOIN games g ON g.id = r.game_id "
+    f"SELECT {RUN_COLUMNS} FROM research_runs r JOIN games g ON g.id = r.game_id "
 )
 
 

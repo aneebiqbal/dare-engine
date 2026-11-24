@@ -21,6 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from . import db
 from .users import current_user, require_admin
+from platforms import is_valid as platform_valid
 
 router = APIRouter(dependencies=[Depends(require_admin)])
 
@@ -77,7 +78,7 @@ def project_state(cur, project_id: str) -> dict | None:
     """Derive one project's live state. Returns None when it does not exist."""
     cur.execute(
         "SELECT id, user_id, name, game_id, recording_id, stream_id, vision, "
-        "stage_note, queued_at, created_at, updated_at "
+        "stage_note, queued_at, created_at, updated_at, platform "
         "FROM projects WHERE id = %s",
         (project_id,),
     )
@@ -85,7 +86,7 @@ def project_state(cur, project_id: str) -> dict | None:
     if row is None:
         return None
     (pid, user_id, name, game_id, recording_id, stream_id, vision,
-     stage_note, queued_at, created_at, updated_at) = row
+     stage_note, queued_at, created_at, updated_at, platform) = row
 
     live = False
     if stream_id:
@@ -184,6 +185,7 @@ def project_state(cur, project_id: str) -> dict | None:
         "recording_id": str(recording_id) if recording_id else None,
         "stream_id": str(stream_id) if stream_id else None,
         "vision": bool(vision),
+        "platform": platform or "youtube_shorts",
         "stage": stage,
         "stage_index": STAGES.index(stage),
         "progress": STAGE_PROGRESS[stage],
@@ -198,12 +200,13 @@ def project_state(cur, project_id: str) -> dict | None:
     }
 
 
-def create_for_recording(cur, user_id: str, recording_id: str, name: str) -> str:
+def create_for_recording(cur, user_id: str, recording_id: str, name: str, platform: str | None = None) -> str:
     """A recording starts a project. Called by upload and SSD import."""
     cur.execute(
-        "INSERT INTO projects (user_id, name, recording_id) VALUES (%s, %s, %s) "
+        "INSERT INTO projects (user_id, name, recording_id, platform) VALUES (%s, %s, %s, %s) "
         "RETURNING id",
-        (user_id, name[:120] or "Untitled project", recording_id),
+        (user_id, name[:120] or "Untitled project", recording_id,
+         platform if platform_valid(platform) else "youtube_shorts"),
     )
     return str(cur.fetchone()[0])
 
@@ -237,12 +240,16 @@ def create_project(request: Request, payload: dict):
     if not name:
         raise HTTPException(422, "name required")
     game_id = payload.get("game_id")
+    platform = payload.get("platform")
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO projects (user_id, name, game_id) VALUES (%s, %s, %s) "
+                "INSERT INTO projects (user_id, name, game_id, platform) VALUES (%s, %s, %s, %s) "
                 "RETURNING id",
-                (user["id"], name[:120], game_id or None),
+                (
+                    user["id"], name[:120], game_id or None,
+                    platform if platform_valid(platform) else "youtube_shorts",
+                ),
             )
             pid = str(cur.fetchone()[0])
             state = project_state(cur, pid)
@@ -327,6 +334,11 @@ def queue(request: Request, project_id: str, payload: dict | None = None):
                     "UPDATE projects SET vision = %s WHERE id = %s",
                     (bool(payload["vision"]), project_id),
                 )
+            if platform_valid(payload.get("platform")):
+                cur.execute(
+                    "UPDATE projects SET platform = %s WHERE id = %s",
+                    (payload["platform"], project_id),
+                )
             cur.execute(
                 "UPDATE projects SET queued_at = now(), updated_at = now() WHERE id = %s",
                 (project_id,),
@@ -350,3 +362,11 @@ def delete_project(request: Request, project_id: str):
         with conn.cursor() as cur:
             cur.execute("DELETE FROM projects WHERE id = %s AND user_id = %s", (project_id, user["id"]))
     return {"deleted": True}
+
+
+@router.get("/platforms")
+def list_platforms():
+    """The shared platform registry. Adding a target is a data change here."""
+    from platforms import public_list
+
+    return {"items": public_list(), "default": "youtube_shorts"}

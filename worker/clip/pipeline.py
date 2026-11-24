@@ -33,6 +33,7 @@ from datetime import datetime, timezone
 from . import regions as regions_mod
 from . import select as select_mod
 from . import vision as vision_mod
+from platforms import get as platform_get
 from .detect import _audio_energy, _duration, _scene_changes
 from .engine import Result, codec_args, detect_encoder, render_cut
 from .local_scoring import ScoringError, available as scorer_available, score_window, unload as unload_scorer
@@ -530,7 +531,11 @@ def _stage_detect(ctx: Ctx) -> None:
     words = [Word(float(w["start"]), float(w["end"]), str(w["text"])) for w in transcript]
     sentences = segment_sentences(words)
     min_seconds = float(run.get("min_seconds") or 14)
-    windows = grow_windows(sentences, min_seconds=min_seconds)
+    max_seconds = float(platform_get(run.get("platform"))["max_seconds"])
+    windows = [
+        Window(w.start, min(w.end, w.start + max_seconds), w.text, w.words, w.density, w.prior)
+        for w in grow_windows(sentences, min_seconds=min_seconds)
+    ]
     # Exact user timestamps are added as high-priority candidates, never as a
     # replacement for the AI suggestions.
     user_starts: set[int] = set()
@@ -544,7 +549,7 @@ def _stage_detect(ctx: Ctx) -> None:
         if not text:
             continue
         user_starts.add(round(start, 2))
-        windows.append(Window(start, min(end, float(run["duration_seconds"])), text,
+        windows.append(Window(start, min(end, start + max_seconds, float(run["duration_seconds"])), text,
                               len(text.split()), 0.0, 999.0))
     windows = non_max_suppress(windows)
     rows = [
@@ -895,23 +900,28 @@ NON_LATIN_SCRIPTS = {
 }
 
 
+NON_LATIN_RANGES = (
+    (0x0600, 0x06FF), (0x0750, 0x077F), (0x08A0, 0x08FF),  # Arabic, Urdu, extended
+    (0x0900, 0x097F),                                       # Devanagari/Hindi
+    (0x0400, 0x04FF), (0x0590, 0x05FF),                     # Cyrillic, Hebrew
+    (0x3040, 0x30FF), (0x4E00, 0x9FFF), (0xAC00, 0xD7AF),   # Kana, Han, Hangul
+    (0x0E00, 0x0E7F),                                       # Thai
+)
+
+
+def _has_wrong_script(text: str) -> bool:
+    return any(lo <= ord(ch) <= hi for ch in text for lo, hi in NON_LATIN_RANGES)
+
+
 def _clean_words(words: list[Word], language: str) -> list[Word]:
-    """Drop non-Latin-script tokens from a Latin-language transcript.
+    """Drop wrong-script tokens from a Latin-language transcript.
 
     Whisper hallucinates Urdu/Hindi lines inside quiet game audio when it
     auto-detects per region; those words must never reach captions or hooks.
     """
     if language in NON_LATIN_SCRIPTS:
         return words
-    kept: list[Word] = []
-    for w in words:
-        letters = [c for c in w.text if c.isalpha()]
-        if len(letters) >= 3:
-            ascii_letters = sum(1 for c in letters if c.isascii())
-            if ascii_letters / len(letters) < 0.5:
-                continue
-        kept.append(w)
-    return kept
+    return [w for w in words if not _has_wrong_script(w.text)]
 
 
 def sane_language(code: str | None, words: list[Word]) -> str:

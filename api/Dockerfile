@@ -16,6 +16,7 @@ COPY api/app /app/app
 COPY contracts /app/contracts
 COPY shared/llm.py /app/llm_shared.py
 COPY shared/key_crypto.py /app/key_crypto.py
+COPY shared/platforms.py /app/platforms.py
 COPY worker/clip/templates.json /app/app/clip_templates.json
 
 EXPOSE 8000

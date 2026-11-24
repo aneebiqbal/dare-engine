@@ -13,7 +13,7 @@ import shutil
 import tempfile
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
@@ -21,6 +21,7 @@ from . import db, storage
 from .config import settings
 from .studio import _probe, require_disk
 from .users import current_user, require_admin
+from platforms import is_valid as platform_valid
 
 router = APIRouter(dependencies=[Depends(require_admin)])
 
@@ -55,9 +56,11 @@ def _enqueue(run_id: str, project_id: str | None = None) -> None:
 
 
 @router.post("/pipeline/upload")
-async def upload(request: Request, file: UploadFile = File(...)):
+async def upload(request: Request, file: UploadFile = File(...), platform: str = Form("youtube_shorts")):
     """Accept one video and start the automatic pipeline. Zero manual steps."""
     user = current_user(request)
+    if not platform_valid(platform):
+        raise HTTPException(422, "unknown platform")
     suffix = pathlib.Path(file.filename or "video.mp4").suffix or ".mp4"
     with tempfile.TemporaryDirectory(prefix="pipeline-upload-") as tmp:
         require_disk(tmp)
@@ -70,14 +73,14 @@ async def upload(request: Request, file: UploadFile = File(...)):
         with db.session() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO projects (user_id, name) VALUES (%s, %s) RETURNING id",
-                    (user["id"], name),
+                    "INSERT INTO projects (user_id, name, platform) VALUES (%s, %s, %s) RETURNING id",
+                    (user["id"], name, platform),
                 )
                 project_id = str(cur.fetchone()[0])
                 cur.execute(
-                    "INSERT INTO pipeline_runs (project_id, user_id, top_n) "
-                    "VALUES (%s, %s, %s) RETURNING id",
-                    (project_id, user["id"], DEFAULT_TOP_N),
+                    "INSERT INTO pipeline_runs (project_id, user_id, top_n, platform) "
+                    "VALUES (%s, %s, %s, %s) RETURNING id",
+                    (project_id, user["id"], DEFAULT_TOP_N, platform),
                 )
                 run_id = str(cur.fetchone()[0])
                 key = f"projects/{run_id}/source{suffix}"
@@ -119,7 +122,7 @@ def list_runs(request: Request):
             cur.execute(
                 "SELECT r.id, r.project_id, r.state, r.stage, r.progress, r.action, "
                 "r.eta_seconds, r.remaining_seconds, r.model_loaded, r.error, "
-                "r.created_at, r.finished_at, p.name "
+                "r.platform, r.created_at, r.finished_at, p.name "
                 "FROM pipeline_runs r JOIN projects p ON p.id = r.project_id "
                 "WHERE r.user_id = %s ORDER BY r.created_at DESC LIMIT 50",
                 (user["id"],),
@@ -180,7 +183,7 @@ def get_run(request: Request, run_id: str):
             clips: list[dict] = []
             if clip_ids:
                 cur.execute(
-                    "SELECT id, state, duration_seconds, title, layout, caption_style "
+                    "SELECT id, state, duration_seconds, title, layout, caption_style, platform "
                     "FROM clips WHERE id = ANY(%s)",
                     (clip_ids,),
                 )

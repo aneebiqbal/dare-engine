@@ -169,6 +169,7 @@ def test_clean_words_strips_wrong_script_hallucinations():
         pipeline.Word(0.0, 0.3, "hello"),
         pipeline.Word(0.4, 0.7, "دوسرا"),
         pipeline.Word(0.8, 1.1, "world"),
+        pipeline.Word(1.2, 1.5, "کی"),
     ]
     kept = pipeline._clean_words(words, "en")
     assert [w.text for w in kept] == ["hello", "world"]

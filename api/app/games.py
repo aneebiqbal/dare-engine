@@ -121,6 +121,7 @@ def list_games(request: Request):
                 "g.art_url, g.enabled, g.created_at, "
                 "(SELECT json_build_object('id', r.id, 'status', r.status, 'stage', r.stage, "
                 "'detail', r.detail, 'ideas_count', r.ideas_count, 'fallback', r.fallback, "
+                "'source_fallback', r.source_fallback, 'ai_fallback', r.ai_fallback, "
                 "'created_at', r.created_at) "
                 "FROM research_runs r WHERE r.game_id = g.id ORDER BY r.created_at DESC LIMIT 1) "
                 f"FROM games g ORDER BY {order_clause(sort, GAME_SORT, 'g.created_at', order)} "
@@ -253,8 +254,8 @@ def game_profile(request: Request, game_id: str):
                 for r in cur.fetchall()
             ]
             cur.execute(
-                "SELECT id, status, stage, detail, source_counts, ideas_count, fallback, error, "
-                "created_at, finished_at "
+                "SELECT id, status, stage, detail, source_counts, ideas_count, fallback, "
+                "source_fallback, ai_fallback, error, created_at, finished_at "
                 "FROM research_runs WHERE game_id = %s ORDER BY created_at DESC LIMIT 10",
                 (game_id,),
             )
@@ -267,9 +268,11 @@ def game_profile(request: Request, game_id: str):
                     "source_counts": r[4],
                     "ideas_count": r[5],
                     "fallback": r[6],
-                    "error": r[7],
-                    "created_at": r[8].isoformat(),
-                    "finished_at": r[9].isoformat() if r[9] else None,
+                    "source_fallback": r[7],
+                    "ai_fallback": r[8],
+                    "error": r[9],
+                    "created_at": r[10].isoformat(),
+                    "finished_at": r[11].isoformat() if r[11] else None,
                 }
                 for r in cur.fetchall()
             ]
