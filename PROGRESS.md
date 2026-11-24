@@ -328,7 +328,7 @@ three minutes. This is unproven on real 2 h footage.
 
 ### Verification
 
-- Unit tests: **136 passed, 1 skipped** (selection/rubric, regions, pipeline
+- Unit tests: **138 passed, 1 skipped** (selection/rubric, regions, pipeline
   sequencing, resume from the last completed stage, window-scoped vision with
   unload, user-timestamp merging, silent video, disk-full pause, high-res
   downscale, render preservation and a real `render_cut` on a cached cut).
