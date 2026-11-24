@@ -441,12 +441,24 @@ def _stage_regions(ctx: Ctx) -> None:
     rep.action(f"Transcribing {sum(r.end - r.start for r in regions) / 60:.0f} min of speech")
     path = _ensure_source(ctx)
     device, compute = whisper_compute()
-    words_abs: list[Word] = []
+    # Resume per region: keep whatever words earlier attempts produced.
+    words_abs = [
+        Word(float(w["start"]), float(w["end"]), str(w["text"]))
+        for w in (run.get("transcript") or [])
+    ]
+    done_regions: set[int] = set()
+    for i, region in enumerate(regions):
+        if any(
+            region.start <= (w.start + w.end) / 2 < region.end for w in words_abs
+        ):
+            done_regions.add(i)
     languages: dict[str, int] = {}
     from worker_app import events
 
     events.log("model_load", f"whisper {device}/{compute}")
     for i, region in enumerate(regions):
+        if i in done_regions:
+            continue
         wav = os.path.join(ctx.work, f"region_{i:04d}.wav")
         _cut_region_audio(path, wav, region.start, region.end)
         words = transcribe(wav)
@@ -455,6 +467,17 @@ def _stage_regions(ctx: Ctx) -> None:
             languages[language] = languages.get(language, 0) + len(words)
         for w in words:
             words_abs.append(Word(w.start + region.start, w.end + region.start, w.text))
+        words_abs.sort(key=lambda w: w.start)
+        # Checkpoint every region so a dropped connection cannot cost the stage.
+        _update_run(
+            run["id"],
+            {
+                "transcript": json.dumps(
+                    [{"start": w.start, "end": w.end, "text": w.text} for w in words_abs]
+                ),
+                "language": max(languages, key=languages.get) if languages else "en",
+            },
+        )
         rep.progress(
             "regions", (i + 1) / len(regions),
             f"Transcribing speech {i + 1} of {len(regions)}", model=f"whisper:{device}/{compute}",
