@@ -71,32 +71,34 @@ in `docs/decisions.md`.
 ### The owner's own GTA stream through the new engine (2026-11-24)
 
 `~/Downloads/last gta stream .mp4` — 8475 s (2 h 21 m), 1280×720, 1.49 GB,
-**19 Shorts** selected from 55 candidates:
+**11 Shorts** selected from 15 candidates (after transcript cleaning):
 
 | Stage | Seconds |
 | --- | --- |
 | ingest | 13.15 |
 | scan | 259.97 |
 | regions (transcribe speech) | 1693.77 |
-| detect | 30.63 |
-| signals | 398.50 |
-| score (40 candidates + rerank) | 801.22 |
-| cut (19) | 170.14 |
-| render (19) | 381.27 |
-| **total** | **3748.7** (~62.5 min) |
+| detect | 20.08 |
+| signals | 443.39 |
+| score (15 candidates + rerank) | 277.99 |
+| cut (11) | 102.75 |
+| render (11) | 244.80 |
+| **total** | **3055.9** (~51 min) |
 
-- **19 self-contained moments**, 14.1–34.9 s, labels mixed (surprising, spicy,
-  insight, funny, tip); composites spread 81.5 → 60.5.
-- Language: `en` (Whisper also guessed hi/jw/ml/pa/ur on quiet regions — noted).
-- Compute: `asr=mlx/metal encoder=libx264`.
+- **11 self-contained moments**, 14.7–34.1 s, labels mixed (funny, surprising,
+  spicy, insight, story, tip); composites spread 79.5 → 64.0.
+- Language: `en`. Compute: `asr=mlx/metal encoder=libx264`.
+- Saved to **`~/Desktop/clipdesk-review/last-gta-stream-transcript-first/`**
+  with a manifest of windows, labels, scores and hook lines.
 - **Quality bug found on real footage:** Whisper auto-detected a wrong language
   inside quiet game audio and hallucinated Urdu/Hindi lines; those reached the
-  hooks and captions. Fixed by locking the detected language after the first
-  region (`X-Language` on the bridge) and stripping wrong-script words from a
-  Latin-language transcript. The stored transcript was cleaned (4703 → 2966
-  English words) and the run rescored/re-rendered.
+  hooks and captions (first pass: 19 clips, several wrong-script). Fixed by
+  locking the detected language after the first region (`X-Language` on the
+  bridge) and strictly stripping wrong-script tokens from a Latin-language
+  transcript (4703 → 1442 English words). The cleaned re-run produced only
+  English hooks; the old clips are still in `last-gta-stream/` for comparison.
 - **Bottleneck on long video:** region transcription (28 min) then scoring
-  (13.4 min for 40 candidates). Total is still 2.3× shorter than the source.
+  (~18 s/candidate). Total is still 2.8× shorter than the source.
 
 ### Proven vs needs the owner
 
@@ -113,8 +115,9 @@ in `docs/decisions.md`.
   connection mid-transcription on the 2 h stream killed the stage; regions are
   now **checkpointed per region**, so a resume continues instead of restarting
   all 61 regions.
-- **Needs the owner:** their own stream through this new engine (in progress) and
-  a human verdict on whether the selected moments are actually worth posting.
+- **Needs the owner:** a human verdict on whether the selected moments are
+  actually worth posting (11 clean clips are on the Desktop for their own
+  stream, 7 from the trailer).
 - **Not yet tuned:** the scoring prompt/model (qwen2.5-coder:14b default), the
   region budget, and scoring throughput (~20–30 s per candidate → the top 40
   shortlist is the lever).

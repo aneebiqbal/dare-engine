@@ -71,6 +71,8 @@ export type Game = {
     detail: string | null;
     ideas_count: number;
     fallback: boolean;
+    source_fallback?: boolean;
+    ai_fallback?: boolean;
     created_at: string;
   } | null;
 };
@@ -94,6 +96,8 @@ export type ResearchRun = {
   source_counts: Record<string, number>;
   ideas_count: number;
   fallback: boolean;
+  source_fallback: boolean;
+  ai_fallback: boolean;
   error: string | null;
   created_at: string;
   finished_at: string | null;
@@ -141,6 +145,7 @@ export type Clip = {
   export_tags: string[] | null;
   transcript: { start: number; end: number; text: string }[] | null;
   commentary?: string | null;
+  platform?: string;
   download_url: string | null;
   thumb_url?: string | null;
 };
@@ -462,6 +467,19 @@ export type WizardState = {
   next: string | null;
 };
 
+export type Platform = {
+  id: string;
+  label: string;
+  aspect: string;
+  width: number;
+  height: number;
+  min_seconds: number;
+  max_seconds: number;
+  hook_seconds: number;
+  caption_style: string;
+  hint: string;
+};
+
 export type Project = {
   id: string;
   name: string;
@@ -469,6 +487,7 @@ export type Project = {
   recording_id: string | null;
   stream_id: string | null;
   vision: boolean;
+  platform?: string;
   stage: "planned" | "recording" | "imported" | "analyzing" | "clips_ready" | "reviewed" | "exported";
   stage_index: number;
   progress: number;
@@ -492,6 +511,7 @@ export type PipelineRun = {
   eta_seconds: number | null;
   remaining_seconds: number | null;
   model_loaded: string;
+  platform?: string;
   stage_timings: Record<string, number>;
   compute_path: string;
   error: string | null;
@@ -530,6 +550,7 @@ export type PipelineClip = {
   title: string | null;
   layout: string | null;
   caption_style: string | null;
+  platform?: string;
   thumb_url: string;
   download_url: string;
 };

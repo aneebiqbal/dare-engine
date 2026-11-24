@@ -77,6 +77,62 @@ function useList<T>(fetcher: (params?: string) => Promise<{ items: T[]; total: n
   return { items, total, loading, error, reload: load, setItems };
 }
 
+const SETUP_INVITE_KEY = "clipdesk.setup-invite-hidden";
+
+function SetupInvite({ overview }: { overview: AdminOverview }) {
+  const [hidden, setHidden] = useState(true);
+  useEffect(() => {
+    setHidden(localStorage.getItem(SETUP_INVITE_KEY) === "1");
+  }, []);
+  if (hidden) return null;
+  const incomplete =
+    !overview.keys.research_sources_configured ||
+    overview.keys.failing.length > 0 ||
+    overview.keys.unreachable.length > 0;
+  if (!incomplete) return null;
+  return (
+    <Card>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Get set up</span>
+          <h2 className="mt-1 text-base font-medium">
+            Run the setup wizard — optional, five verified steps
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            SSD import, OBS, local models and your research keys. Every step is checked against the
+            real service, and you can skip any of them. Nothing here blocks basic use.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href="/admin/wizard"
+              className="inline-flex items-center rounded-full bg-accent px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+            >
+              Open the setup wizard
+            </Link>
+            <Link
+              href="/admin/setup"
+              className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2"
+            >
+              See check status
+            </Link>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            localStorage.setItem(SETUP_INVITE_KEY, "1");
+            setHidden(true);
+          }}
+          className="rounded-full px-3 py-1 text-xs text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
+          aria-label="Dismiss the setup invitation"
+        >
+          Dismiss
+        </button>
+      </div>
+    </Card>
+  );
+}
+
 export function AdminOverview() {
   const [data, setData] = useState<AdminOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -186,6 +242,7 @@ export function AdminOverview() {
         {data && (
           <>
             <LiveStrip overview={data} />
+            <SetupInvite overview={data} />
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
               <div className="flex min-w-0 flex-col gap-6">
                 <Section title="Needs you" count={needs.length} live={needs.length > 0}>

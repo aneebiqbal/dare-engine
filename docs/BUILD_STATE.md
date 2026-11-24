@@ -84,8 +84,8 @@ Last updated after the research-brain sprint.
 5. **A git remote with a safe credential.** The token embedded in `origin` was
    removed from the remote URL; revoke it on GitHub and choose the real remote
    (the current one points at `dare-engine`). See `docs/launch.md`.
-6. **A human verdict on the new picker.** The new transcript-first engine is
-   built and measured on the real trailer (7 clips, rubric scores 74.5–71,
-   labels mixed). It has not yet been run on the owner's own stream, and no
-   person has watched its selections. Scan time and first-clip latency still
-   depend on CPU allocation / a native Mac worker.
+6. **A human verdict.** The new picker ran on the owner's real 2 h 21 m GTA
+   stream: 11 Shorts in ~51 min, English hooks only, saved to
+   `~/Desktop/clipdesk-review/last-gta-stream-transcript-first/`. Whether they
+   are actually viral is the human call. Scan/transcription speed still depends
+   on CPU allocation and Whisper region throughput.

@@ -20,6 +20,7 @@ import {
   useToast,
 } from "@/components/ui";
 import { LiveDot, StatusBadge, type WorkStatus } from "./work";
+import { PlatformBadge, usePlatforms } from "./platforms";
 
 const STAGES = [
   "ingest",
@@ -118,6 +119,7 @@ export function PipelinePanel({ runId, name }: { runId: string; name?: string })
   const [end, setEnd] = useState("");
   const [busy, setBusy] = useState(false);
   const toast = useToast();
+  const platforms = usePlatforms();
 
   const load = useCallback(async () => {
     try {
@@ -209,6 +211,7 @@ export function PipelinePanel({ runId, name }: { runId: string; name?: string })
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <PlatformBadge platform={run.platform} items={platforms.items} />
           <StatusBadge status={statusFor(run)} label={run.state} />
           {(run.state === "paused" || run.state === "failed") && (
             <Button size="sm" onClick={resume} disabled={busy}>

@@ -3,6 +3,7 @@ import type {
   PipelineRun,
   PipelineCandidate,
   PipelineClip,
+  Platform,
   AiUsage,
   Attempt,
   AuditEntry,
@@ -60,6 +61,7 @@ export type {
   PipelineRun,
   PipelineCandidate,
   PipelineClip,
+  Platform,
   AiUsage,
   Attempt,
   AuditEntry,
@@ -504,25 +506,27 @@ export const api = {
   engineEvents: (limit = 20) => get<{ items: EngineEvent[] }>(`/admin/engine-events?limit=${limit}`),
 
   // --- projects ---------------------------------------------------------
+  platforms: () => get<{ items: Platform[]; default: string }>("/platforms"),
   projects: () => get<{ items: Project[] }>("/projects"),
   project: (id: string) => get<Project>(`/projects/${id}`),
-  createProject: (name: string, game_id?: string) =>
-    post<Project>("/projects", { name, game_id }),
+  createProject: (name: string, game_id?: string, platform?: string) =>
+    post<Project>("/projects", { name, game_id, platform }),
   attachProject: (id: string, recording_id: string) =>
     post<Project>(`/projects/${id}/attach`, { recording_id }),
-  queueProject: (id: string, vision?: boolean) =>
+  queueProject: (id: string, vision?: boolean, platform?: string) =>
     post<{ queued: boolean; project_id: string; state: Project }>(
       `/projects/${id}/queue`,
-      { vision },
+      { vision, platform },
     ),
   setProjectVision: (id: string, vision: boolean) =>
     post<Project>(`/projects/${id}/vision`, { vision }),
   deleteProject: (id: string) => del(`/projects/${id}`),
 
   // --- automatic upload-to-Shorts pipeline -----------------------------
-  pipelineUpload: (file: File) => {
+  pipelineUpload: (file: File, platform?: string) => {
     const form = new FormData();
     form.append("file", file);
+    if (platform) form.append("platform", platform);
     const headers: Record<string, string> = {};
     const csrf = csrfToken();
     if (csrf) headers["X-CSRF-Token"] = csrf;

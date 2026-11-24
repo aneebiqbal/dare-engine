@@ -29,7 +29,7 @@ import {
   useToast,
 } from "@/components/ui";
 import { ResearchSourceBanner } from "./admin-keys";
-import { Pipeline, StatusBadge, WorkHeader, type WorkStatus } from "./work";
+import { Pipeline, StatusBadge, WorkHeader, LiveDot, type WorkStatus } from "./work";
 
 export function Sources({ sources }: { sources?: PoolEntry["sources"] }) {
   if (!sources || sources.length === 0) {
@@ -264,24 +264,43 @@ export function AdminGames() {
           {items.map((game) => (
             <Card key={game.id} className={game.enabled ? "" : "ring-border"}>
               <div className="flex h-full flex-col gap-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Link
-                      href={`/admin/games/${game.id}`}
-                      className="block truncate text-base font-medium hover:underline"
-                    >
+                <div className="relative -mx-5 -mt-5 mb-1 h-36 overflow-hidden rounded-t-[calc(2rem-0.375rem)] bg-surface-3">
+                  {game.art_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={game.art_url}
+                      alt=""
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(600px_200px_at_70%_0%,var(--accent-soft),transparent)] text-2xl font-semibold text-muted">
+                      {game.name.slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-3 pt-8">
+                    <span className="block truncate text-sm font-medium text-white">
                       {game.name}
-                    </Link>
-                    <p className="text-xs text-muted">
+                    </span>
+                    <span className="text-[11px] text-white/70">
                       {game.genre ?? "—"} · {game.release_date?.slice(0, 4) ?? "—"}
-                    </p>
+                    </span>
                   </div>
-                  <Badge tone={game.enabled ? "success" : "muted"}>
-                    {game.enabled ? "enabled" : "off"}
-                  </Badge>
+                  <div className="absolute right-3 top-3">
+                    <Badge tone={game.enabled ? "success" : "muted"}>
+                      {game.enabled ? "enabled" : "off"}
+                    </Badge>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 rounded-xl bg-surface-2 p-3 text-center ring-surface">
+                <Link
+                  href={`/admin/games/${game.id}`}
+                  className="text-xs font-medium text-accent hover:underline"
+                >
+                  Open research workspace →
+                </Link>
+
+                <div className="grid grid-cols-3 gap-2 rounded-xl bg-surface p-3 text-center ring-surface">
                   <div>
                     <div className="font-mono text-base font-semibold">{game.candidates ?? 0}</div>
                     <div className="text-[10px] uppercase tracking-[0.14em] text-muted">ideas</div>
@@ -296,15 +315,26 @@ export function AdminGames() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-2 text-xs text-muted">
-                  <span className="truncate">
-                    {game.last_run
-                      ? `Last run ${game.last_run.status}${
-                          game.last_run.ideas_count ? ` · ${game.last_run.ideas_count} ideas` : ""
-                        }`
-                      : "Never researched"}
-                  </span>
-                  {game.last_run?.fallback && <Badge tone="muted">sample</Badge>}
+                <div className="flex min-h-[1.5rem] items-center gap-2 text-xs text-muted">
+                  {game.last_run?.status === "running" ? (
+                    <>
+                      <LiveDot tone="accent" label="research running" />
+                      <span className="truncate">Research · {game.last_run.stage ?? "running"}</span>
+                    </>
+                  ) : game.last_run?.status === "failed" ? (
+                    <Badge tone="danger">last run failed</Badge>
+                  ) : game.last_run ? (
+                    <span className="truncate">
+                      Last run {game.last_run.status}
+                      {game.last_run.ideas_count ? ` · ${game.last_run.ideas_count} ideas` : ""}
+                    </span>
+                  ) : (
+                    <span>Never researched</span>
+                  )}
+                  {game.last_run?.source_fallback && <Badge tone="muted">sample feed</Badge>}
+                  {game.last_run?.ai_fallback && !game.last_run?.source_fallback && (
+                    <Badge tone="muted">recorded AI</Badge>
+                  )}
                 </div>
 
                 <div className="mt-auto flex flex-col gap-2 pt-1">
@@ -315,7 +345,7 @@ export function AdminGames() {
                     </Button>
                     <Link
                       href={`/admin/games/${game.id}`}
-                      className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
+                      className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface hover:text-text"
                     >
                       Open
                     </Link>

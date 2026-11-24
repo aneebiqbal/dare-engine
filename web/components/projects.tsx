@@ -15,6 +15,7 @@ import {
 } from "@/components/ui";
 import { Pipeline, StatusBadge, WorkHeader, type WorkStatus } from "./work";
 import { PipelinePanel } from "./pipeline";
+import { PlatformBadge, PlatformSelect, usePlatforms } from "./platforms";
 
 const STAGES = [
   "planned",
@@ -53,6 +54,10 @@ export function Projects() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [platform, setPlatform] = useState("youtube_shorts");
+  const [uploadPlatform, setUploadPlatform] = useState("youtube_shorts");
+  const [projectPlatforms, setProjectPlatforms] = useState<Record<string, string>>({});
+  const platforms = usePlatforms();
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [attachFor, setAttachFor] = useState<Record<string, string>>({});
@@ -88,7 +93,7 @@ export function Projects() {
     if (!name.trim()) return;
     setBusy(true);
     try {
-      await api.createProject(name.trim());
+      await api.createProject(name.trim(), undefined, platform);
       setName("");
       await load();
       toast("Project created", "success");
@@ -102,7 +107,7 @@ export function Projects() {
   async function uploadVideo(file: File) {
     setUploading(true);
     try {
-      const res = await api.pipelineUpload(file);
+      const res = await api.pipelineUpload(file, uploadPlatform);
       toast("Uploaded — the pipeline started", "success");
       await load();
       if (fileRef.current) fileRef.current.value = "";
@@ -127,9 +132,9 @@ export function Projects() {
     }
   }
 
-  async function queue(id: string, vision: boolean) {
+  async function queue(id: string, vision: boolean, platform?: string) {
     try {
-      await api.queueProject(id, vision);
+      await api.queueProject(id, vision, platform);
       await load();
       toast("Queued for analysis", "success");
     } catch (e) {
@@ -186,13 +191,19 @@ export function Projects() {
               placeholder="Friday stream — GTA"
               className="sm:max-w-sm"
             />
+            <PlatformSelect
+              value={platform}
+              onChange={setPlatform}
+              items={platforms.items}
+              label="Project target platform"
+            />
             <Button onClick={create} disabled={busy || !name.trim()}>
               Create project
             </Button>
           </div>
           <p className="text-xs text-muted">
-            One stream or recording is one project. Import a recording and it starts a project
-            automatically.
+            One stream or recording is one project. The target decides clip length and caption
+            style. Import a recording and it starts a project automatically.
           </p>
         </div>
       </Card>
@@ -215,12 +226,18 @@ export function Projects() {
               aria-label="Upload a video to clip automatically"
               data-testid="pipeline-upload"
             />
+            <PlatformSelect
+              value={uploadPlatform}
+              onChange={setUploadPlatform}
+              items={platforms.items}
+              label="Upload target platform"
+            />
             {uploading && <span className="font-mono text-xs text-muted">uploading…</span>}
           </div>
           <p className="text-xs text-muted">
             Upload one video and walk away: it scans, ranks, vision-scores, cuts, transcribes,
-            captions and renders finished 9:16 Shorts with no further steps. Nothing leaves this
-            Mac.
+            captions and renders finished 9:16 clips for the target you picked, with no further
+            steps. Nothing leaves this Mac.
           </p>
         </div>
       </Card>
@@ -259,6 +276,18 @@ export function Projects() {
                   <StatusBadge status={statusFor(p)} label={
                     p.queued ? `Queued #${p.queue_position ?? "…"}` : LABELS[p.stage]
                   } />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <PlatformBadge platform={projectPlatforms[p.id] ?? p.platform} items={platforms.items} />
+                  <PlatformSelect
+                    value={projectPlatforms[p.id] ?? p.platform ?? "youtube_shorts"}
+                    onChange={(v) =>
+                      setProjectPlatforms((prev) => ({ ...prev, [p.id]: v }))
+                    }
+                    items={platforms.items}
+                    label={`Target platform for ${p.name}`}
+                  />
                 </div>
 
                 <Pipeline steps={STAGES.map((s) => LABELS[s])} current={p.stage_index} label={`${p.name} stage`} />
@@ -317,7 +346,7 @@ export function Projects() {
                   )}
 
                   <div className="flex flex-wrap items-center gap-3">
-                    <Button size="sm" onClick={() => queue(p.id, p.vision)} disabled={!p.recording_id}>
+                    <Button size="sm" onClick={() => queue(p.id, p.vision, projectPlatforms[p.id] ?? p.platform)} disabled={!p.recording_id}>
                       {p.queued ? "Queued…" : "Run analysis"}
                     </Button>
                     <label className="flex items-center gap-2 text-xs text-muted">

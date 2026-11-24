@@ -25,6 +25,7 @@ import {
   useToast,
 } from "@/components/ui";
 import { Pipeline, Section, StatusBadge, WorkHeader } from "./work";
+import { PlatformSelect, usePlatforms } from "./platforms";
 
 const VOICES = [
   "en_US-amy-medium",
@@ -59,6 +60,7 @@ export function ClipReview({ clip }: { clip: Clip }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
+  const platforms = usePlatforms();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -113,6 +115,13 @@ export function ClipReview({ clip }: { clip: Clip }) {
       await api.updateClip(clip.id, { layout, caption_style });
       setCurrent((p) => ({ ...p, layout, caption_style }));
       toast("Re-rendering with the new style", "success");
+    });
+
+  const applyPlatform = (platform: string) =>
+    run(async () => {
+      await api.updateClip(clip.id, { platform });
+      setCurrent(await api.clip(clip.id));
+      toast("Target changed — re-rendering for that platform", "success");
     });
 
   const toggleVoice = (enabled: boolean) =>
@@ -368,6 +377,14 @@ export function ClipReview({ clip }: { clip: Clip }) {
                   Apply trim
                 </Button>
               </div>
+              <Field label="Target platform">
+                <PlatformSelect
+                  value={current.platform ?? "youtube_shorts"}
+                  onChange={applyPlatform}
+                  items={platforms.items}
+                  label={`Target platform for ${current.title ?? "this clip"}`}
+                />
+              </Field>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Layout">
                   <Select

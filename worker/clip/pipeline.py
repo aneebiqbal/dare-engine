@@ -1000,15 +1000,16 @@ def _publish(ctx: Ctx, candidate: dict, result: Result, words: list[Word]) -> st
             cur.execute(
                 "INSERT INTO clips (id, assignment_id, file_key, title, state, template, "
                 "duration_seconds, stage, progress, layout, caption_style, transcript, "
-                "recording_key, source_start, source_end, render_key) "
+                "recording_key, source_start, source_end, render_key, platform) "
                 "VALUES (%s, NULL, %s, %s, 'ready', %s, %s, 'store', 100, %s, %s, %s, "
-                "%s, %s, %s, %s) RETURNING id",
+                "%s, %s, %s, %s, %s) RETURNING id",
                 (
                     clip_id, key, metadata.get("title") or candidate.get("hook") or "Short",
                     result.template, result.duration, result.layout,
                     metadata.get("caption_style", "word"), transcript,
                     run["source_key"], float(candidate["start_seconds"]),
                     float(candidate["end_seconds"]), idem,
+                    run.get("platform") or "youtube_shorts",
                 ),
             )
             cur.fetchone()
@@ -1036,7 +1037,10 @@ def _stage_render(ctx: Ctx) -> None:
             for w in (c.get("transcript") or [])
         ]
         out_dir = os.path.join(ctx.work, f"render_{c['id']}")
-        result = render_cut(local, words, _card(c, i, words), out_dir)
+        result = render_cut(
+            local, words, _card(c, i, words), out_dir,
+            caption_style=platform_get(run.get("platform"))["caption_style"],
+        )
         clip_id = _publish(ctx, c, result, words)
         _update_candidate(c["id"], {"status": "rendered", "clip_id": clip_id})
         rep.progress("render", (i + 1) / len(todo), f"Rendering captions {i + 1} of {len(todo)}")
