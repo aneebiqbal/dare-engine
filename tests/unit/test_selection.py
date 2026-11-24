@@ -7,7 +7,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "worker"))
 sys.path.insert(0, str(ROOT / "shared"))
 
-from clip import local_scoring, regions, select  # noqa: E402
+from clip import local_scoring, pipeline, regions, select  # noqa: E402
 from clip.transcribe import Word  # noqa: E402
 
 
