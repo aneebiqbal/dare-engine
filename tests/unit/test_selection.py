@@ -140,6 +140,22 @@ def test_rerank_orders_relatively(monkeypatch):
     assert set(result["order"]) == {10, 30}
 
 
+def test_language_is_passed_to_the_scoring_prompt(monkeypatch):
+    seen = {}
+
+    def fake_post(messages, temperature, timeout=300):
+        seen["system"] = messages[0]["content"]
+        return json.dumps(
+            {"start": 0, "end": 20, "label": "insight", "hook": "x",
+             "reason": "ok", "scores": {k: 7 for k in local_scoring.DIMENSIONS},
+             "composite": 70, "keep": True}
+        )
+
+    monkeypatch.setattr(local_scoring, "_post", fake_post)
+    local_scoring.score_window("Nadie sabía esto", "", "es")
+    assert "es" in seen["system"].lower()
+
+
 def test_skill_files_exist_and_are_the_tuning_surface():
     base = ROOT / "skills" / "clip-scoring"
     skill = (base / "SKILL.md").read_text()
