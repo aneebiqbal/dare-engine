@@ -43,6 +43,13 @@ cd web && API_URL=http://127.0.0.1:8001 NEXT_PUBLIC_DEV_AUTH=1 npm run dev -- -p
 The QA admin (`qa-admin@example.com`) is created in the shared dev database by
 hand for these runs; delete it before launch.
 
+**Capture caveat.** These were taken against `next dev`, not the production
+build. Two artefacts of dev mode are visible: the admin overview was caught in
+its skeleton state (client hydration/polling under dev compilation), and a few
+documents fell back to the signed-out shell mid-run. The dark set and
+`after/mock/` show the same routes filled; the product build itself is green.
+The visual verdict is a human call either way.
+
 ## Honest labels
 
 - **Real work:** jobs, projects, clips, research runs, calendar, users, invites,

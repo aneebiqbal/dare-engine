@@ -93,7 +93,13 @@ def main() -> None:
                     page.wait_for_timeout(500)
                     page.wait_for_selector('[data-testid="signin-submit"]:not([disabled])', timeout=15000)
                     page.click('[data-testid="signin-submit"]')
-                    page.wait_for_url(f"{BASE}/", timeout=20000)
+                    # Do not depend on where the app redirects: wait for the
+                    # session cookie, then go home explicitly.
+                    for _ in range(40):
+                        if any(c["name"] == "clipdesk_session" for c in context.cookies()):
+                            break
+                        page.wait_for_timeout(500)
+                    page.goto(f"{BASE}/", wait_until="domcontentloaded")
                     url = f"{BASE}{path}?theme={theme}"
                     page.goto(url, wait_until="domcontentloaded", timeout=20000)
                     page.wait_for_timeout(6000)
