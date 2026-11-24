@@ -79,7 +79,10 @@ in `docs/decisions.md`.
 - **Bugs the real runs caught and fixed:** signals were cached in the run temp
   dir so a retry could not see them (now stored on the run row, migration
   0026); `plan_regions` indexed past the shorter audio signal array
-  (IndexError on a 2 h file). Both have regression tests.
+  (IndexError on a 2 h file). Both have regression tests. A dropped Neon
+  connection mid-transcription on the 2 h stream killed the stage; regions are
+  now **checkpointed per region**, so a resume continues instead of restarting
+  all 61 regions.
 - **Needs the owner:** their own stream through this new engine (in progress) and
   a human verdict on whether the selected moments are actually worth posting.
 - **Not yet tuned:** the scoring prompt/model (qwen2.5-coder:14b default), the
