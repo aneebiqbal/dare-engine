@@ -54,3 +54,10 @@ A candidate is rejected regardless of its composite when:
 `reaction`, `story`, `tip`, `quote`.
 
 The final set should mix labels; do not let one label dominate a single video.
+
+## Hook lines
+
+The hook line is burned on screen over the first seconds, so it must be **4–10
+words**, punchy and verbatim from the transcript where possible. Never a whole
+sentence, never a summary longer than ten words. If the strongest line is long,
+cut it to its first clause that still lands.

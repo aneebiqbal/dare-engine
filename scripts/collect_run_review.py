@@ -43,8 +43,8 @@ def main(run_id: str) -> None:
             timings, compute, notes = row[1] or {}, row[2] or "", row[3] or []
         cur.execute(
             "select id, start_seconds, end_seconds, cheap_score, vision_score, "
-            "final_score, origin, status, clip_id from pipeline_candidates "
-            "where run_id = %s order by final_score desc",
+            "final_score, origin, status, clip_id, label, composite, hook "
+            "from pipeline_candidates where run_id = %s order by final_score desc",
             (run_id,),
         )
         candidates = [
@@ -72,6 +72,9 @@ def main(run_id: str) -> None:
                 "file": dest.name,
                 "window": [c["start_seconds"], c["end_seconds"]],
                 "origin": c["origin"],
+                "label": c.get("label"),
+                "composite": c.get("composite"),
+                "hook": c.get("hook"),
                 "scores": [c["cheap_score"], c["vision_score"], c["final_score"]],
                 "status": c["status"],
             }
@@ -95,9 +98,10 @@ def main(run_id: str) -> None:
         "",
     ]
     lines += [
-        f"{i['file']}  | {i['origin']} | scores cheap={i['scores'][0]:.2f} "
-        f"vision={i['scores'][1] if i['scores'][1] is not None else '—'} "
-        f"final={i['scores'][2]:.2f} | {i['window'][0]:.0f}-{i['window'][1]:.0f}s"
+        f"{i['file']}  | {i['origin']} | label={i.get('label') or '?'} "
+        f"composite={i.get('composite') if i.get('composite') is not None else '—'} "
+        f"| {i['window'][0]:.0f}-{i['window'][1]:.0f}s"
+        + (f" | hook: {i.get('hook')}" if i.get("hook") else "")
         for i in index
     ]
     (out / "manifest.txt").write_text("\n".join(lines) + "\n")

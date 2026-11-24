@@ -23,7 +23,7 @@ Write the hook line and reason in {language}. Return JSON only, exactly:
   "start": <window start seconds>,
   "end": <window end seconds>,
   "label": "<one label>",
-  "hook": "<short punchy opening line, grounded in the transcript>",
+  "hook": "<4-10 words, punchy, grounded in the transcript>",
   "reason": "<one sentence: why this works or why it fails>",
   "scores": {
     "hook_strength": 0-10, "emotional_peak": 0-10, "payoff_delivery": 0-10,

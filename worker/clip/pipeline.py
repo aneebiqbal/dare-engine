@@ -898,9 +898,13 @@ def _card(candidate: dict, index: int, words: list[Word] | None = None) -> dict:
     hook = (candidate.get("hook") or "").strip()
     if not hook and words:
         hook = _fallback_hook(words)
+    # The hook is burned on screen: keep it short even if the model was verbose.
+    display = hook
+    if len(display) > 60:
+        display = display[:57].rsplit(" ", 1)[0].rstrip(",;:") + "…"
     return {
         "id": f"clip_{index + 1}",
-        "hook_text": hook or "Watch this",
+        "hook_text": display or "Watch this",
         "question": "",
         "title_options": [hook[:100]],
         "mode": "auto",
