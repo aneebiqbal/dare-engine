@@ -4,6 +4,14 @@ Status: **Phase 1 (design) written; Phase 2 (build) and Phase 3 (QA) carried out
 on top of it. The human visual verdict is pending.** See `PROGRESS.md` for the
 build log and `docs/screens/README.md` for the before/after sets.
 
+> **2026-11-24 addendum.** This plan was written before its build and still
+> describes the intended design accurately, but it is not a picture of the
+> current tree. Read `docs/audit.md` first for the real state and the gap list.
+> Since this addendum the plan has three new requirements that postdate it:
+> platform targeting (YouTube Shorts / Reels / TikTok drives length, aspect and
+> caption style), a cover-art games showcase, and a public download landing
+> page. Those are tracked in `docs/audit.md` §4 and `docs/decisions.md`.
+
 The current pages render numbers in tiles. They answer "how many?" and never
 "what is happening?". This plan turns every page into a surface that shows real
 work: a research run fetching sources, a project advancing a stage, a clip
