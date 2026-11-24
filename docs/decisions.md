@@ -272,4 +272,19 @@ score against a calibrated rubric in editable skill files, head-to-head rerank,
 then keep everything above the quality bar with no arbitrary cap. The vision
 model is one signal, never the primary picker.
 
+## 2026-11-24 session — intelligence and distribution
+
+| Choice | Reason | Licence |
+| --- | --- | --- |
+| Research source fetch is independent of the AI provider | A stored `YOUTUBE_API_KEY` was attached but never read because `gather_sources()` also required `LLM_PROVIDER != recorded`. Live sources now fetch whenever a source key exists; the sample feed is used only when no key exists or every live fetch fails. | — |
+| `source_fallback` and `ai_fallback` are separate columns | They are different facts. A run can read ten live YouTube sources and still have no AI credit; the UI must not call that either "all live" or "all sample". | — |
+| A local OpenAI-compatible model can prove the whole brain | `make setup-engine` + `LLM_BASE_URL=http://localhost:11434/v1` produced a real YouTube→idea run with no cloud credit (10 sources, 1 sourced idea, 37 s). | — |
+| One platform registry in `shared/platforms.py`, copied into both images | Adding a target is a data change, never a code fork. The API validates from it; the worker reads `max_seconds` when growing windows and `caption_style` when rendering. | — |
+| Platform is carried on project → pipeline run → clip | The user picks the target once; the engine adapts length and caption style, and the clip keeps the target for the calendar and export. | — |
+| `PATCH /clips/{id}` re-renders assignment-less clips too | The automatic pipeline publishes clips with `assignment_id = NULL`; the old re-render query inner-joined assignments, so layout/caption edits on those clips silently did nothing. The editor now falls back to the clip's own recording window and cached transcript. | — |
+| Cover art comes from RAWG and is backfilled, not drawn | `scripts/backfill_game_art.py` fills empty `art_url` from RAWG; games with no match stay empty and get a gradient monogram rather than a grey tile. | — |
+| `/landing` reads owner slots from env | No dead buttons and no committed URLs: `NEXT_PUBLIC_DOWNLOAD_MAC`, `NEXT_PUBLIC_DOWNLOAD_WINDOWS`, `NEXT_PUBLIC_WEB_PORTAL`, `NEXT_PUBLIC_DEMO_CLIP`. | — |
+| Setup is invited, never forced | The admin overview shows a dismissible wizard invitation when a check fails; basic use is never blocked. | — |
+
+
 

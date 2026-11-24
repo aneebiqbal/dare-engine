@@ -1449,6 +1449,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /platforms:
+    get:
+      summary: List Platforms
+      description: The shared platform registry. Adding a target is a data change
+        here.
+      operationId: list_platforms_platforms_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /m/{slug}:
     get:
       summary: Mission Page
@@ -2951,6 +2963,10 @@ components:
           type: string
           format: binary
           title: File
+        platform:
+          type: string
+          title: Platform
+          default: youtube_shorts
       type: object
       required:
       - file

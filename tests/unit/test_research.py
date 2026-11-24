@@ -47,6 +47,37 @@ def test_gather_sources_uses_the_sample_feed_without_keys(monkeypatch):
     assert sources == research.sample_feed()
 
 
+def test_gather_sources_reads_a_configured_youtube_key_with_a_recorded_provider(monkeypatch):
+    """The source fetch must not be gated on the AI provider: a stored YouTube
+    key is read even while idea writing stays on the recorded stand-in."""
+    monkeypatch.setattr(research, "resolve", lambda name: "yt-key" if name == "youtube" else "")
+    monkeypatch.setattr(research.settings, "llm_provider", "recorded")
+    monkeypatch.setattr(
+        research, "_youtube_sources",
+        lambda game: [{"kind": "youtube", "title": "Real trend", "url": "https://y.test/1",
+                       "external_id": "1", "published_at": None}],
+    )
+    monkeypatch.setattr(research, "_reddit_sources", lambda game: [])
+    monkeypatch.setattr(research, "_news_sources", lambda game: [])
+    sources, fallback = research.gather_sources({"name": "X", "slug": "x"})
+    assert fallback is False
+    assert [s["url"] for s in sources] == ["https://y.test/1"]
+
+
+def test_gather_sources_flags_the_sample_feed_when_every_live_fetch_fails(monkeypatch):
+    monkeypatch.setattr(research, "resolve", lambda name: "yt-key" if name == "youtube" else "")
+
+    def boom(game):
+        raise RuntimeError("network down")
+
+    monkeypatch.setattr(research, "_youtube_sources", boom)
+    monkeypatch.setattr(research, "_reddit_sources", boom)
+    monkeypatch.setattr(research, "_news_sources", lambda game: [])
+    sources, fallback = research.gather_sources({"name": "X", "slug": "x"})
+    assert fallback is True
+    assert sources == research.sample_feed()
+
+
 def test_generate_ideas_cites_only_real_sources(monkeypatch):
     sample = research.sample_feed()
     monkeypatch.setattr(research, "run_ai", lambda *a, **k: (RECORDED["research"], False))

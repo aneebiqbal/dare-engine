@@ -122,13 +122,19 @@ def run_ai(user: dict, page: str, kind: str, system: str, prompt: str, schema: d
     return result, fallback
 
 
-def _clip_rows(cur, user_id: str, clip_id: str | None = None):
+def _clip_rows(cur, user: dict, clip_id: str | None = None):
+    admin = user["role"] == "admin"
+    where = "" if admin else "a.user_id = %s"
+    params: list = [] if admin else [user["id"]]
+    if clip_id:
+        where += (" AND " if where else "") + "c.id = %s"
+        params.append(clip_id)
     cur.execute(
         "SELECT c.id, c.title, c.transcript, c.state, m.card, c.commentary "
-        "FROM clips c JOIN assignments a ON a.id = c.assignment_id "
-        "JOIN missions m ON m.id = a.mission_id "
-        "WHERE a.user_id = %s" + (" AND c.id = %s" if clip_id else ""),
-        (user_id, clip_id) if clip_id else (user_id,),
+        "FROM clips c LEFT JOIN assignments a ON a.id = c.assignment_id "
+        "LEFT JOIN missions m ON m.id = a.mission_id "
+        + (f"WHERE {where}" if where else ""),
+        params,
     )
     return cur.fetchall()
 
@@ -198,7 +204,7 @@ def clip_review(request: Request, payload: dict):
     clip_id = payload.get("clip_id")
     with db.session() as conn:
         with conn.cursor() as cur:
-            rows = _clip_rows(cur, user["id"], clip_id)
+            rows = _clip_rows(cur, user, clip_id)
     if not rows:
         raise HTTPException(404, "clip not found")
     _cid, title, transcript, state, card, commentary = rows[0]
@@ -229,7 +235,7 @@ def export_copy(request: Request, payload: dict):
     clip_id = payload.get("clip_id")
     with db.session() as conn:
         with conn.cursor() as cur:
-            rows = _clip_rows(cur, user["id"], clip_id)
+            rows = _clip_rows(cur, user, clip_id)
     if not rows:
         raise HTTPException(404, "clip not found")
     _cid, title, transcript, state, card, commentary = rows[0]

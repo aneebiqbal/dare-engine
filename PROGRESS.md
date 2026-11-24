@@ -1,5 +1,74 @@
 # Progress
 
+## 2026-11-24 — audit, live research fix, platform targeting, showcase
+
+### Audit first
+
+`docs/audit.md` records the real tree before any change: a prior session had
+already built the whole product and a control-room redesign (568 screenshots,
+29 routes, the nine-stage pipeline). The brief's "flat tiles, 2–3/10" described
+an earlier build. The actual gaps were three features and a distribution
+surface, not the whole UI.
+
+### Research brain fixed and proved live
+
+- `gather_sources()` no longer gates on the AI provider. A configured YouTube
+  key is read; the sample feed is used only with no key or when every live
+  fetch fails.
+- New `research_runs.source_fallback` / `ai_fallback` columns report the two
+  facts separately; the UI says which one happened.
+- `scripts/prove_research_live.py` proves a run end to end. With the recorded
+  provider: 10 live YouTube sources in ~15 s, `source_fallback=false`,
+  `ai_fallback=true`. With a local Ollama model
+  (`qwen2.5-coder:14b`, no cloud credit): 10 live sources → **1 stored sourced
+  idea**, `fallback=false`, 37 s. Run `f313e8ed-7b31-4bcf-b98a-72a1b6d5deb9`.
+
+### Platform targeting
+
+`shared/platforms.py` is the single registry (YouTube Shorts, Instagram Reels,
+TikTok) copied into both images. It drives `max_seconds` when windows grow, the
+default caption style at render, and is carried on project → run → clip. New
+`/platforms`, project create/queue platform, upload `platform` form field, a
+platform selector on the projects page, a badge on the pipeline panel, and a
+target selector in the clip editor. Adding a target is now a data change.
+
+### Editor fix (real bug)
+
+Layout/caption edits on automatic-pipeline clips did nothing: the re-render
+lookup inner-joined `assignments`, but pipeline clips have `assignment_id =
+NULL`. It now falls back to the clip's recording window + cached transcript.
+
+### Showcase, setup invite, landing
+
+- Games grid rebuilt as cover-art cards (real RAWG art, live research state,
+  idea counts, actions). Both art-less games backfilled from RAWG
+  (`scripts/backfill_game_art.py`).
+- Admin overview shows a dismissible setup-wizard invitation when a check fails;
+  never blocks basic use.
+- Public `/landing` download page with marked owner slots for the `.dmg`,
+  Windows installer, web origin and demo clip.
+- `docs/desktop-app.md` now has the concrete Windows build, capture and signing
+  steps (still needs a Windows machine).
+
+### Verification
+
+- Web production build green; API imports clean; contract regenerated (134
+  paths).
+- Unit tests: 119 passed + 5 new platform/research tests; the 15 failures are
+  all missing host `ffmpeg` plus one SSD env-key test (environmental).
+- Not run here: Docker acceptance/web suites and the budgets/axe runs (no Docker
+  on this machine). Fresh screenshots were captured against a locally running
+  API + `next dev` on the real Neon database: `docs/screens/after/2026-11-24/`
+  (phone/desktop × dark/light). Visual verdict remains pending a human.
+
+### Next three tasks
+
+1. Human visual verdict on the new games cards and landing page (screenshots
+   refreshed once Docker is available).
+2. Build the Windows installer on a Windows box and record the artifact hash.
+3. Run the real pipeline on a clip with a non-default platform and confirm the
+   rendered duration/caption style follow the preset.
+
 ## Transcript-first moment selection (rebuild)
 
 Status: **built, unit-tested, and proven end to end on the real trailer with the

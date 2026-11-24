@@ -20,9 +20,14 @@ export default async function Welcome() {
       />
       <header className="relative flex items-center justify-between">
         <span className="text-sm font-medium tracking-tight text-text">clipdesk</span>
-        <Link href="/signin" className="text-sm text-muted transition hover:text-text">
-          Sign in
-        </Link>
+        <nav className="flex items-center gap-2">
+          <Link href="/landing" className="rounded-full px-4 py-2 text-sm text-muted ring-surface transition hover:bg-surface-2 hover:text-text">
+            Download
+          </Link>
+          <Link href="/signin" className="text-sm text-muted transition hover:text-text">
+            Sign in
+          </Link>
+        </nav>
       </header>
 
       <section className="relative flex flex-1 flex-col justify-center gap-6 py-24">

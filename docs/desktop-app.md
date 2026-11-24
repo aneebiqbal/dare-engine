@@ -67,13 +67,67 @@ We do not reinvent OBS. OBS is the default; the bundled recorder is the fallback
 | `CLIPDESK_APP_URL` | `http://localhost:3100` | The URL the window opens. Set it to the cloud origin to use the app as a desktop client of the cloud. |
 | `CLIPDESK_HOME` | the repo it was built from | Where `docker compose up` runs. |
 
+## Download page
+
+`/landing` is the public download page. It reads three environment slots and
+shows an honest `NEXT_PUBLIC_*` placeholder until they are filled:
+
+| Variable | Meaning |
+| --- | --- |
+| `NEXT_PUBLIC_DOWNLOAD_MAC` | The `.dmg` download URL. |
+| `NEXT_PUBLIC_DOWNLOAD_WINDOWS` | The Windows installer URL. |
+| `NEXT_PUBLIC_WEB_PORTAL` | The deployed web origin (also linked in the header). |
+| `NEXT_PUBLIC_DEMO_CLIP` | A real demo clip (mp4) recorded from a real run. |
+
+`docs/desktop-app.md` and `docs/deploy-web.md` say where those artifacts come
+from. Never commit a real URL as a build artifact; set it in the deploy
+environment.
+
 ## Windows
 
-The Rust commands are cross-platform except `capture_start`, which uses macOS
-`avfoundation`. The Windows path is: replace `avfoundation` with `gdigrab` (or
-`dshow` for a capture card) and `kill -INT` with a console-control event. The
-Tauri config already lists the Windows `.ico`. This path is **documented, not
-built or tested**.
+Tauri can bundle a Windows installer (`.exe` / `.msi`) on a Windows machine.
+A macOS host cannot cross-compile it; build it on Windows or in a Windows CI
+runner. The Rust commands are cross-platform except `capture_start`, which uses
+macOS `avfoundation`.
+
+### Build on Windows
+
+```powershell
+cd desktop
+npm install
+npm run tauri build
+```
+
+Artifact:
+
+```
+desktop\src-tauri\target\release\bundle\nsis\Clipdesk Missions_0.1.0_x64_en-US.msi
+desktop\src-tauri\target\release\bundle\msix\Clipdesk Missions_0.1.0_x64.msix
+```
+
+### Capture on Windows
+
+Replace the macOS capture with FFmpeg's Windows grabbers in
+`desktop/src-tauri/src/lib.rs`:
+
+| macOS | Windows |
+| --- | --- |
+| `-f avfoundation` | `-f gdigrab` (screen) or `-f dshow` (capture card) |
+| `kill -INT <pid>` to finalise | send `CTRL_C_EVENT` / terminate cleanly |
+
+### Signing (required before distribution)
+
+An unsigned Windows installer triggers SmartScreen. Buy a code-signing
+certificate (OV or EV) and sign both artifacts:
+
+```powershell
+signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
+  "desktop\src-tauri\target\release\bundle\nsis\Clipdesk Missions_0.1.0_x64_en-US.msi"
+```
+
+EV certificates give immediate SmartScreen reputation; OV needs reputation to
+build. This path is **documented, not built or tested** — it needs a Windows
+machine and a certificate.
 
 ## What is proven, and what is not
 

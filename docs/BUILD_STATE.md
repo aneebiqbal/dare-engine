@@ -10,9 +10,10 @@ Last updated after the research-brain sprint.
 | Managed PostgreSQL (Neon, pooled + direct) | yes | yes | yes | — |
 | Migrations on an empty database | yes | yes | yes | — |
 | Job queue, backoff, errors, stale recovery | yes | yes | yes | — |
-| Games: admin grid, RAWG search, profile, enable/disable | yes | yes | yes (recorded RAWG fallback) | RAWG key for live search |
-| Research brain: YouTube + Reddit + news → sourced ideas | yes | yes | partial (sample feed, recorded AI) | source keys + AI credit |
-| Idea accuracy: citations stored and shown, schema-validated | yes | yes | yes (sample feed) | live sources |
+| Games: admin grid, RAWG search, profile, enable/disable | yes | yes | yes (real RAWG art backfilled) | — |
+| Research brain: YouTube + Reddit + news → sourced ideas | yes | yes | **yes** (live YouTube + local AI: 10 sources → 1 sourced idea) | — |
+| Idea accuracy: citations stored and shown, schema-validated | yes | yes | yes (live run, no fallback) | — |
+| Platform targeting: Shorts / Reels / TikTok length + caption style | yes | yes (unit) | partial (no rendered non-default platform yet) | real footage through a non-default target |
 | Local open-weight models (Ollama: Qwen / Kimi, Metal) | yes | yes | yes (host, no cloud) | — |
 | OBS live view (obs-websocket 5.x: connection, stream, record, scene, mic) | yes | yes | yes (real OBS 33.0.1) | — |
 | SSD import (host bridge → list → local import → detect job) | yes | yes | yes (mounted DMG) | — |
@@ -22,7 +23,7 @@ Last updated after the research-brain sprint.
 | Models admin page (Ollama/MLX inventory, pull, unload, memory) | yes | yes | yes (real bridge) | — |
 | Memory discipline (unload + idle watchdog) | yes | yes | yes (unit + bridge) | — |
 | Originality/commentary step | yes | yes | yes (API) | — |
-| Posting calendar + cadence guardrail | yes | yes | partial (no YouTube API) | YouTube API key |
+| Posting calendar + cadence guardrail | yes | yes | partial (no YouTube API posting) | YouTube API key (posting) |
 | Leading indicators + research-ranking score | yes | yes | yes (unit) | YouTube collector |
 | Long-form builder | yes | yes | partial (no real session clips) | real gameplay fixture |
 | Launch docs (README, licences, launch plan) | yes | yes | yes | history purge decision |
@@ -51,6 +52,8 @@ Last updated after the research-brain sprint.
 | Client error reporting + admin view | yes | yes | yes (unit) | — |
 | Database backup (`make backup`) | yes | yes | no | a real restore drill |
 | Desktop app (Tauri shell, builds a .dmg) | yes | yes (build + mount) | partial (no human launch) | a human at a Mac |
+| Windows installer (Tauri `.msi`/`.nsis`) | documented | no | no | a Windows machine + signing certificate |
+| Landing page with owner download slots (`/landing`) | yes | yes (build) | partial (slots unfilled) | real download URLs + demo clip |
 | Desktop capture (OBS path) | yes | yes | yes (OBS 33.0.1) | — |
 | Desktop capture (bundled FFmpeg recorder) | yes | yes (command) | no | a real recording |
 | Vision clip suggestions (sampled VLM) | yes | yes | yes (real run, 4-min trailer) | owner's gameplay footage |
@@ -73,12 +76,15 @@ Last updated after the research-brain sprint.
    to end (10 Shorts, 38.6 min, saved to `~/Desktop/clipdesk-review/last-gta-stream/`).
    What remains is the human call: are those Shorts worth posting? Until that
    verdict, clip quality is unproven.
-2. **Credit on the AI key.** The account returns 402/429, so every AI path runs
-   on the recorded provider. The client, schema validation, retry and fallback
-   are tested; the live call is not.
-3. **Research source keys.** `YOUTUBE_API_KEY` and the Reddit app (or RAWG for
-   live game search). Without them the brain runs on the saved sample feed and
-   flags the run as a fallback.
+2. **Credit on the AI key.** The hosted provider returns 403/402 from this
+   network, so cloud AI is unproven. A local Ollama model through the same
+   OpenAI-compatible client *did* prove a full live research run (10 YouTube
+   sources → 1 sourced idea), so idea writing is no longer blocked in
+   principle — only the cloud provider is.
+3. **Research source keys.** `YOUTUBE_API_KEY` now works and is read
+   (10 live sources fetched, proved). Reddit still has no app credentials, so
+   the brain runs on YouTube + news. RAWG works; all three games now have real
+   cover art.
 4. **A host and a domain for the cloud website.** `docs/deploy-web.md` reproduces
    the deployment; the owner must supply the VPS/domain and the managed database.
 5. **A git remote with a safe credential.** The token embedded in `origin` was

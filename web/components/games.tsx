@@ -98,6 +98,8 @@ function ResearchPanel({ gameId, onDone, compact = false }: { gameId: string; on
         source_counts: {},
         ideas_count: 0,
         fallback: false,
+        source_fallback: false,
+        ai_fallback: false,
         error: null,
         created_at: new Date().toISOString(),
         finished_at: null,
@@ -159,9 +161,13 @@ function ResearchPanel({ gameId, onDone, compact = false }: { gameId: string; on
         {busy ? "Starting…" : "Research now"}
       </Button>
       {run && run.status === "done" && (
-        <Notice tone="info">
-          Stored {run.ideas_count} sourced idea(s)
-          {run.fallback ? " from the sample feed" : ""}.
+        <Notice tone={run.source_fallback || run.ai_fallback ? "warn" : "info"}>
+          Stored {run.ideas_count} sourced idea(s).
+          {run.source_fallback &&
+            " Used the saved sample feed — no live research key was reachable."}
+          {!run.source_fallback && run.ai_fallback &&
+            ` Fetched ${Object.entries(run.source_counts).map(([k, n]) => `${n} ${k}`).join(", ") || "live sources"}, but the AI provider is not live — ideas need an AI key.`}
+          {!run.source_fallback && !run.ai_fallback && " Live sources, live AI."}
         </Notice>
       )}
       {run && run.status === "failed" && <Notice tone="warn">{run.error ?? "Research failed."}</Notice>}
@@ -270,7 +276,7 @@ export function AdminGames() {
                     <img
                       src={game.art_url}
                       alt=""
-                      loading="lazy"
+                      loading="eager"
                       className="h-full w-full object-cover"
                     />
                   ) : (
