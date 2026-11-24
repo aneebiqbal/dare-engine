@@ -51,7 +51,7 @@ def _clear_mlx() -> None:
         pass
 
 
-def transcribe(path: str) -> dict:
+def transcribe(path: str, language: str | None = None) -> dict:
     import mlx_whisper
 
     with _model_lock:  # one model resident at a time
@@ -60,7 +60,10 @@ def transcribe(path: str) -> dict:
             _state["transcribing"] = True
         started = time.time()
         try:
-            result = mlx_whisper.transcribe(path, path_or_hf_repo=MODEL, word_timestamps=True)
+            kwargs = {"word_timestamps": True}
+            if language:
+                kwargs["language"] = language
+            result = mlx_whisper.transcribe(path, path_or_hf_repo=MODEL, **kwargs)
         finally:
             with _state_lock:
                 _state["transcribing"] = False
@@ -372,7 +375,8 @@ class Handler(BaseHTTPRequestHandler):
                         break
                     handle.write(chunk)
                     remaining -= len(chunk)
-            self._send(200, transcribe(tmp))
+            lang = self.headers.get("X-Language") or None
+            self._send(200, transcribe(tmp, language=lang))
         except Exception as exc:
             self._send(500, {"error": f"{type(exc).__name__}: {exc}"})
         finally:

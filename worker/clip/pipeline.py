@@ -453,6 +453,9 @@ def _stage_regions(ctx: Ctx) -> None:
         ):
             done_regions.add(i)
     languages: dict[str, int] = {}
+    # Lock the spoken language after the first region so Whisper cannot drift
+    # into a wrong-script hallucination over a long video.
+    chosen_language = run.get("language")
     from worker_app import events
 
     events.log("model_load", f"whisper {device}/{compute}")
@@ -461,10 +464,12 @@ def _stage_regions(ctx: Ctx) -> None:
             continue
         wav = os.path.join(ctx.work, f"region_{i:04d}.wav")
         _cut_region_audio(path, wav, region.start, region.end)
-        words = transcribe(wav)
-        language = last_language()
-        if language:
-            languages[language] = languages.get(language, 0) + len(words)
+        words = transcribe(wav, chosen_language)
+        detected = last_language()
+        if detected:
+            languages[detected] = languages.get(detected, 0) + len(words)
+        if chosen_language is None and detected:
+            chosen_language = sane_language(detected, words_abs + list(words))
         for w in words:
             words_abs.append(Word(w.start + region.start, w.end + region.start, w.text))
         words_abs.sort(key=lambda w: w.start)
@@ -485,6 +490,7 @@ def _stage_regions(ctx: Ctx) -> None:
     unload()
     events.log("model_unload", "whisper")
     words_abs.sort(key=lambda w: w.start)
+    words_abs = _clean_words(words_abs, language)
     transcript = [{"start": w.start, "end": w.end, "text": w.text} for w in words_abs]
     base_language = run.get("language") or "en"
     language = max(languages, key=languages.get) if languages else base_language
@@ -887,6 +893,25 @@ NON_LATIN_SCRIPTS = {
     "el", "th", "ta", "te", "ml", "kn", "gu", "mr", "ne", "si", "km", "lo",
     "my", "ka", "hy", "am", "ka",
 }
+
+
+def _clean_words(words: list[Word], language: str) -> list[Word]:
+    """Drop non-Latin-script tokens from a Latin-language transcript.
+
+    Whisper hallucinates Urdu/Hindi lines inside quiet game audio when it
+    auto-detects per region; those words must never reach captions or hooks.
+    """
+    if language in NON_LATIN_SCRIPTS:
+        return words
+    kept: list[Word] = []
+    for w in words:
+        letters = [c for c in w.text if c.isalpha()]
+        if len(letters) >= 3:
+            ascii_letters = sum(1 for c in letters if c.isascii())
+            if ascii_letters / len(letters) < 0.5:
+                continue
+        kept.append(w)
+    return kept
 
 
 def sane_language(code: str | None, words: list[Word]) -> str:

@@ -63,7 +63,7 @@ def actual_compute() -> tuple[str, str] | None:
     return _last_compute
 
 
-def _mlx_bridge_words(path: str) -> tuple[list[Word], str | None]:
+def _mlx_bridge_words(path: str, language: str | None = None) -> tuple[list[Word], str | None]:
     """Stream the file to the host MLX bridge (the container's storage is not
     visible on the host, so a path would not resolve there). Returns words and
     the detected language."""
@@ -83,6 +83,8 @@ def _mlx_bridge_words(path: str) -> tuple[list[Word], str | None]:
     conn.putrequest("POST", parsed.path.rstrip("/") + "/transcribe")
     conn.putheader("Content-Type", "application/octet-stream")
     conn.putheader("X-Filename", target.name)
+    if language:
+        conn.putheader("X-Language", language)
     conn.putheader("Content-Length", str(target.stat().st_size))
     conn.endheaders()
     with open(target, "rb") as handle:
@@ -125,29 +127,31 @@ def unload() -> None:
         gc.collect()
 
 
-def transcribe(path: str) -> list[Word]:
+def transcribe(path: str, language: str | None = None) -> list[Word]:
     """Word-level timestamps, in seconds from the start of `path`.
 
     Uses the host MLX Whisper bridge when `MLX_WHISPER_URL` is set (Metal on the
-    Mac); otherwise faster-whisper in the container.
+    Mac); otherwise faster-whisper in the container. `language` pins the spoken
+    language so a long region cannot drift into a wrong-script hallucination.
     """
     from worker_app.config import settings
 
     global _last_compute, _last_language
     if settings.mlx_whisper_url:
         try:
-            words, language = _mlx_bridge_words(path)
+            words, detected = _mlx_bridge_words(path, language)
             _last_compute = ("mlx", "metal")
-            _last_language = language or _last_language
+            _last_language = language or detected or _last_language
             return words
         except Exception:
             pass  # bridge configured but unreachable: fall back cleanly to CPU
     _last_compute = _cpu_compute(settings)
     with _lock:
         segments, _info = _load(*_last_compute).transcribe(
-            path, word_timestamps=True, vad_filter=False, beam_size=1
+            path, word_timestamps=True, vad_filter=False, beam_size=1,
+            language=language or None,
         )
-    _last_language = getattr(_info, "language", None) or _last_language
+    _last_language = language or getattr(_info, "language", None) or _last_language
     words: list[Word] = []
     for seg in segments:
         for w in seg.words or []:

@@ -164,6 +164,18 @@ def test_sane_language_rejects_mislabelled_english():
     assert pipeline.sane_language("es", words) == "es"
 
 
+def test_clean_words_strips_wrong_script_hallucinations():
+    words = [
+        pipeline.Word(0.0, 0.3, "hello"),
+        pipeline.Word(0.4, 0.7, "دوسرا"),
+        pipeline.Word(0.8, 1.1, "world"),
+    ]
+    kept = pipeline._clean_words(words, "en")
+    assert [w.text for w in kept] == ["hello", "world"]
+    # A genuinely Urdu run keeps its words.
+    assert pipeline._clean_words(words, "ur") == words
+
+
 def test_skill_files_exist_and_are_the_tuning_surface():
     base = ROOT / "skills" / "clip-scoring"
     skill = (base / "SKILL.md").read_text()
