@@ -118,6 +118,20 @@ make create-admin   # creates the first administrator, prompts for a password
 
 Then open the site, sign in, and add a game.
 
+## 11. Landing page slots
+
+`/landing` reads four variables from the web environment. Empty values render
+an honest `NEXT_PUBLIC_*` placeholder, never a dead button:
+
+```sh
+NEXT_PUBLIC_DOWNLOAD_MAC=https://…/Clipdesk_0.1.0_aarch64.dmg
+NEXT_PUBLIC_DOWNLOAD_WINDOWS=https://…/Clipdesk_0.1.0_x64_en-US.msi
+NEXT_PUBLIC_WEB_PORTAL=https://clipdesk.example.com
+NEXT_PUBLIC_DEMO_CLIP=https://…/demo.mp4
+```
+
+See `docs/desktop-app.md` for producing the two installers.
+
 ## 7. Backups
 
 The managed database has its own point-in-time recovery (Neon: 7–30 days). For a
