@@ -58,6 +58,7 @@ def test_resume_runs_only_incomplete_stages(monkeypatch):
         "id": "r1", "state": "running", "top_n": 5,
         "stage_timings": {"ingest": 1.0, "scan": 2.0},
         "action": "Resuming", "timestamps": [],
+        "signals": {"energy": [], "scenes": [], "speech": []},
     }
     class FakeReporter:
         def __init__(self, *a, **k):
