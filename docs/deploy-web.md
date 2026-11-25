@@ -42,6 +42,43 @@ npm install -g pm2
 `ffmpeg`/`ffprobe` is required by the API for upload probing; without it the
 pages still load but recording uploads fail.
 
+### No root / managed VPS (no apt)
+
+If `apt` needs root you do not have, use user-space installs. Nothing below
+touches system paths.
+
+```sh
+# Python 3.12 + pip in $HOME (micromamba, single static binary)
+cd ~
+curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba
+~/bin/micromamba create -y -p ~/clipdesk-py python=3.12 pip
+~/clipdesk-py/bin/pip install -r ~/apps/dare-engine/api/requirements.txt
+
+# ecosystem.config.cjs points at .venv/bin/python — shim it to the user env
+cd ~/apps/dare-engine
+rm -rf .venv && mkdir -p .venv/bin
+ln -s ~/clipdesk-py/bin/python .venv/bin/python
+
+# Node 20 in $HOME (nvm)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"
+nvm install 20
+npm install -g pm2
+
+# ffmpeg static build (only needed for uploads)
+wget -q https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
+tar -xf ffmpeg-release-amd64-static.tar.xz
+echo 'export PATH="$HOME/ffmpeg-*-amd64-static:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Then continue at §5. `scripts/setup-pm2.sh` detects an existing working
+`.venv` and skips recreation, so the shim is safe.
+
+`pm2 startup` writes a system unit and needs root. Without it, run
+`pm2 save` and re-run `pm2 start ecosystem.config.cjs` after a reboot (or ask
+the host for a user-level systemd unit).
+
 ## 3. Minimal checkout
 
 Only the paths that build and run are needed:
