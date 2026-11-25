@@ -118,19 +118,69 @@ make create-admin   # creates the first administrator, prompts for a password
 
 Then open the site, sign in, and add a game.
 
-## 11. Landing page slots
+## 11. Landing page downloads
 
-`/landing` reads four variables from the web environment. Empty values render
-an honest `NEXT_PUBLIC_*` placeholder, never a dead button:
+`/landing` reads `web/releases/manifest.json` and serves binaries from
+`web/public/downloads/` at `/downloads/<file>`. A CDN URL can be put in the
+manifest instead. Nothing is hardcoded in the page.
+
+Prepare a release locally (binaries stay gitignored; only the manifest is
+committed):
 
 ```sh
-NEXT_PUBLIC_DOWNLOAD_MAC=https://…/Clipdesk_0.1.0_aarch64.dmg
-NEXT_PUBLIC_DOWNLOAD_WINDOWS=https://…/Clipdesk_0.1.0_x64_en-US.msi
-NEXT_PUBLIC_WEB_PORTAL=https://clipdesk.example.com
-NEXT_PUBLIC_DEMO_CLIP=https://…/demo.mp4
+scripts/prepare-release.sh 0.1.0 \
+  desktop/src-tauri/target/release/bundle/dmg/"Clipdesk Missions_0.1.0_aarch64.dmg" \
+  downloads/"Clipdesk Missions_0.1.0_x64_en-US.msi" \
+  demo.mp4          # optional
+git add web/releases/manifest.json && git commit -m "release 0.1.0"
 ```
 
-See `docs/desktop-app.md` for producing the two installers.
+On the server, or after cloning, drop/replace the files in
+`web/public/downloads/` and rebuild `web` if you did not ship them in the
+clone. A missing file shows an honest “Not uploaded yet” button, never a dead
+link.
+
+## 12. Minimal server checkout (nothing that does not run)
+
+The repository carries tests, screenshots, the desktop shell, the worker
+engine, local bridges and scratch. The server needs none of them. Clone only
+the runtime paths:
+
+```sh
+git clone --depth 1 --filter=blob:none --sparse \
+  https://github.com/aneebiqbal/dare-engine.git
+cd dare-engine
+git sparse-checkout set --no-cone \
+  /api/ /web/ /contracts/ /shared/ \
+  /docker-compose.yml /.env.example \
+  /worker/clip/templates.json /docs/deploy-web.md
+```
+
+Why each path: `api/` (FastAPI image), `web/` (Next.js image, including
+`web/releases/manifest.json` and any `web/public/downloads/` assets),
+`contracts/` (shared schemas), `shared/` (`llm.py`, `key_crypto.py`,
+`platforms.py`), `worker/clip/templates.json` (copied into the API image),
+`docker-compose.yml`, `.env.example`. Nothing else is required to build or run
+the cloud half.
+
+`.gitignore` keeps generated media, release binaries, databases, caches,
+screenshots-by-tooling, agent folders and scratch out of pushes; the server
+checkout above is the smallest set that still builds.
+
+## 13. Run web + API only (after clone)
+
+```sh
+cp .env.example .env
+# edit .env: DATABASE_URL (pooled), DATABASE_URL_DIRECT, SESSION_SECRET,
+#             APP_ENV=production, WEB_ORIGIN, LLM_* ; storage should be S3
+docker compose up -d --wait --build --no-deps api web
+curl -fsS http://localhost:3100/healthz        # web -> api
+curl -fsS http://localhost:3100/api/healthz/ready
+```
+
+`--no-deps` skips Postgres/worker/relay; the API runs its migrations against
+the managed database on startup. Stop everything with
+`docker compose stop api web` (or `docker compose down`).
 
 ## 7. Backups
 
