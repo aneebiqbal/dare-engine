@@ -1,5 +1,13 @@
 # Screenshots — before and after
 
+## `after/gamer/`
+
+The rebuilt gamer section on the real stack: 44 shots, phone/desktop ×
+dark/light. Every image is either a real frame from a rendered clip (six real
+renders seeded into local storage for this run) or the clean graphite
+`Thumb` fallback — no broken icons, no cropped frames. Captured with
+`scripts/capture_gamer.py`.
+
 ## `after/2026-11-25-editorial/`
 
 The Editorial Graphite + Burnt Coral re-theme, captured against the real Neon

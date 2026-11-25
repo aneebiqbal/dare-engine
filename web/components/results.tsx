@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api, type Results } from "@/lib/api";
 import { NextStep } from "./next-step";
+import { Thumb } from "./media";
 import {
   Badge,
   Button,
@@ -163,7 +164,7 @@ export function Results({ initial }: { initial: Results | null }) {
         <Card>
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <Badge tone="accent">AI summary</Badge>
+              <Badge tone="muted">AI summary</Badge>
               {fallback && <Badge tone="muted">fallback</Badge>}
             </div>
             <p className="text-sm leading-relaxed">{summary}</p>
@@ -183,14 +184,16 @@ export function Results({ initial }: { initial: Results | null }) {
             title="Clips"
             count={clips.length}
             action={
-              <div className="flex gap-1 rounded-md bg-surface-2 p-1 ring-surface">
+              <div className="flex gap-1 border-b border-border">
                 {(["views", "avg"] as const).map((key) => (
                   <button
                     key={key}
                     type="button"
                     onClick={() => setSort(key)}
-                    className={`rounded-md px-3 py-1 text-xs transition ${
-                      sort === key ? "bg-surface text-text shadow-float" : "text-muted hover:text-text"
+                    className={`-mb-px border-b px-3 py-1.5 text-xs transition ${
+                      sort === key
+                        ? "border-text text-text"
+                        : "border-transparent text-muted hover:text-text"
                     }`}
                   >
                     {key === "views" ? "By views" : "By retention"}
@@ -202,7 +205,16 @@ export function Results({ initial }: { initial: Results | null }) {
             <Table caption="Views and retention per clip" head={["Clip", "Views", "Avg. view %", "Record"]}>
               {clips.map((c) => (
                 <Tr key={c.clip_id}>
-                  <Td>{c.title}</Td>
+                  <Td>
+                    <div className="flex items-center gap-3">
+                      <Thumb
+                        src={api.thumbnailUrl(c.clip_id)}
+                        alt=""
+                        className="h-12 aspect-[9/16] w-auto shrink-0 rounded-sm object-contain ring-surface"
+                      />
+                      <span className="truncate">{c.title}</span>
+                    </div>
+                  </Td>
                   <Td>{c.views?.toLocaleString() ?? "—"}</Td>
                   <Td>{c.avg_view_percentage != null ? `${c.avg_view_percentage}%` : "—"}</Td>
                   <Td>
@@ -217,8 +229,8 @@ export function Results({ initial }: { initial: Results | null }) {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data?.by_type?.map((t) => (
               <Card key={t.mode}>
-                <div className="flex items-center justify-between">
-                  <Badge tone="accent">{t.mode}</Badge>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="folio">{t.mode}</span>
                   <span className="font-mono text-xs text-muted">
                     {t.clips} clips · {t.views?.toLocaleString() ?? "—"} views
                     {t.avg_view_percentage != null ? ` · ${t.avg_view_percentage}%` : ""}

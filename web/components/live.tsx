@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { api, type ObsStatus, type Stream } from "@/lib/api";
 import { NextStep } from "./next-step";
-import { Badge, Button, Card, Field, Input, PageState, Progress, StatusDot, useToast } from "@/components/ui";
+import { Button, Card, Field, Input, PageState, Progress, StatusDot, useToast } from "@/components/ui";
 import { StatusBadge, WorkHeader } from "./work";
 
 function masked(key: string | null) {
@@ -152,7 +152,7 @@ export function Live({ initial }: { initial: Stream | null }) {
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <div className="flex flex-col gap-4">
-                <Badge tone="accent">Stream address</Badge>
+                <span className="folio">Stream address</span>
                 <code className="break-all rounded-md bg-bg p-4 text-xs text-muted">
                   {stream.rtmp_url}
                 </code>
@@ -163,7 +163,7 @@ export function Live({ initial }: { initial: Stream | null }) {
             </Card>
             <Card>
               <div className="flex flex-col gap-4">
-                <Badge tone="accent">Stream key</Badge>
+                <span className="folio">Stream key</span>
                 <code className="break-all rounded-md bg-bg p-4 text-xs text-muted">
                   {revealed ? stream.stream_key : masked(stream.stream_key)}
                 </code>
@@ -236,7 +236,7 @@ export function Live({ initial }: { initial: Stream | null }) {
                   <img
                     src={`${api.obsSnapshotUrl()}?t=${snapTick}`}
                     alt="OBS program scene snapshot"
-                    className="w-full rounded-md bg-bg object-cover ring-surface"
+                    className="aspect-video w-full rounded-md bg-bg object-contain ring-surface"
                     onError={() => setSnapOk(false)}
                   />
                 ) : (

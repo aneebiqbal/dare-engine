@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api, type Clip, type ClipExport } from "@/lib/api";
 import { Badge, Button, Card, Field, Input, Notice, PageState, Textarea, useToast } from "@/components/ui";
 import { WorkHeader } from "./work";
+import { Thumb } from "./media";
 
 export function ExportPackage({ clip }: { clip: Clip }) {
   const [title, setTitle] = useState(clip.export_title ?? clip.title ?? "");
@@ -57,11 +58,10 @@ export function ExportPackage({ clip }: { clip: Clip }) {
         <div className="mx-auto w-full max-w-[24rem]">
           <div className="overflow-hidden rounded-lg bg-black ring-surface">
             {clip.thumb_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Thumb
                 src={api.thumbnailUrl(clip.id)}
                 alt={`Preview of ${clip.title ?? "this clip"}`}
-                className="aspect-[9/16] w-full object-cover"
+                className="aspect-[9/16] w-full object-contain"
               />
             ) : (
               <div className="flex aspect-[9/16] items-center justify-center bg-surface-2 p-6 text-center">
@@ -113,7 +113,7 @@ export function ExportPackage({ clip }: { clip: Clip }) {
 
           <Card>
             <div className="flex flex-col gap-4">
-              <Badge tone="accent">Includes video, thumbnail, title, description and tags</Badge>
+              <Badge tone="muted">Includes video, thumbnail, title, description and tags</Badge>
               <div className="flex flex-wrap gap-2">
                 <Button onClick={save} disabled={busy}>Save package</Button>
                 <a

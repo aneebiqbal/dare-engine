@@ -71,7 +71,7 @@ export function Settings({ user, initial, loadError }: { user: Me; initial: Sett
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <div className="flex flex-col gap-4">
-              <Badge tone="accent">{settings.plan} plan</Badge>
+              <Badge tone="muted">{settings.plan} plan</Badge>
               <div className="flex flex-col gap-1 text-sm">
                 <span className="text-muted">Signed in as</span>
                 <span className="font-medium">{user.email}</span>

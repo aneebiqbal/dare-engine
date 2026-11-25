@@ -53,7 +53,7 @@ export function Dashboard({ role }: { role: string }) {
     { id: "mission", label: "Accept a mission", href: "/today", done: Object.keys(today?.accepted ?? {}).length > 0 },
     { id: "upload", label: "Upload a recording", href: "/clips", done: clips.length > 0 },
     { id: "render", label: "Render your first Short", href: "/clips", done: ready.length > 0 },
-    { id: "voice", label: "Try a voice-over", href: "/clips", done: clips.some((c) => c.voice_over) },
+    { id: "voice", label: "Try a voice-over", href: "/settings", done: clips.some((c) => c.voice_over) },
   ];
   const doneCount = steps.filter((s) => s.done).length;
 
@@ -95,8 +95,8 @@ export function Dashboard({ role }: { role: string }) {
             emptyTitle="No dares today"
             emptyBody="The admin pool is empty. Dares appear here once one is approved."
           >
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-tour="dashboard-today">
-              {today?.daily && <MissionCard card={today.daily} />}
+            <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3" data-tour="dashboard-today">
+              {today?.daily && <MissionCard card={today.daily} highlight />}
               {today?.picks?.map((card) => (
                 <MissionCard key={card.id} card={card} />
               ))}
@@ -106,10 +106,13 @@ export function Dashboard({ role }: { role: string }) {
 
         <aside className="flex flex-col gap-4">
           <Card>
-            <div className="flex flex-col gap-3">
-              <Badge tone="accent">Next step</Badge>
-              <Link href={next.href}>
-                <Button className="w-full">{next.label}</Button>
+            <div className="flex flex-col gap-2">
+              <span className="folio">Next step</span>
+              <Link
+                href={next.href}
+                className="inline-flex items-center justify-center rounded-md bg-accent px-4 py-3 text-sm font-medium text-accent-ink transition hover:bg-accent/92"
+              >
+                {next.label}
               </Link>
             </div>
           </Card>
@@ -192,6 +195,6 @@ export function Dashboard({ role }: { role: string }) {
   );
 }
 
-function MissionCard({ card }: { card: NonNullable<Today["daily"]> }) {
-  return <DareCard card={card} highlight href={`/missions/${card.id}`} />;
+function MissionCard({ card, highlight = false }: { card: NonNullable<Today["daily"]>; highlight?: boolean }) {
+  return <DareCard card={card} highlight={highlight} href={`/missions/${card.id}`} />;
 }

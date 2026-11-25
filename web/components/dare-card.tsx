@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { api } from "@/lib/api";
 import { Badge, Card } from "./ui";
+import { Thumb } from "./media";
 
 export type DareCardData = {
   id: string;
@@ -41,11 +42,10 @@ export function DareCard({
           <span className="text-xs text-muted">{card.est_minutes} min</span>
         </div>
         {image && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Thumb
             src={api.cardImageUrl(card.id)}
             alt={`Card for ${card.hook_text}`}
-            className="w-full rounded-md bg-bg object-cover ring-surface"
+            className="aspect-[9/16] w-full rounded-md object-cover ring-surface"
           />
         )}
         <h3 className="text-2xl font-semibold leading-tight tracking-tight">{card.hook_text}</h3>
@@ -69,7 +69,7 @@ export function DareCard({
         )}
         {children}
         {href && (
-          <Link href={href} className="mt-auto pt-2 text-sm text-accent hover:underline">
+          <Link href={href} className="mt-auto pt-2 text-sm text-text underline decoration-border underline-offset-4 hover:text-accent">
             Edit dare
           </Link>
         )}

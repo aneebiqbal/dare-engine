@@ -301,6 +301,19 @@ decisions were preserved; the visual world was replaced.
 | Folio labels replace pill eyebrows | Tracked mono, muted; no coloured chips above headings. |
 | Real imagery checked first | RAWG covers and a real gameplay frame downloaded to `docs/design/imagery/` before implementation. |
 
+## 2026-11-25 — gamer section rebuild
+
+The admin section was approved and untouched; only gamer routes changed.
+
+| Choice | Reason |
+| --- | --- |
+| Clip list is a hairline row list, not tiles | The old tile used `h-32 object-cover` on 9:16 frames — every thumbnail was cropped to a horizontal strip. Rows now carry a full 9:16 frame (`aspect-[9/16]`, `object-contain`). |
+| `web/components/media.tsx` `Thumb` | Any missing/failed image degrades to a graphite plate with a quiet label; no broken-image icon, no grey void. Used by clips, clip review, export, results, dare/card art. |
+| Mission card SVG rebuilt in the new identity | It still shipped the rejected volt/citron palette (`#C8FF3D`, `#8B7CFF`, Verdana, #050505). Now graphite ground, ink type, one coral rule; the shared cache is invalidated per mission. |
+| All video-frame boxes use `object-contain` | Footage must be judged whole; a 9:16 box with contain loses nothing. |
+| Dead controls removed or fixed | Dashboard's next-step was a button nested inside a link; the empty-clips fallback sent creators to `/admin/studio`; voice-over step now points at `/settings`. |
+| Card-in-card panels flattened | Remote and clip cards had outer shell + inner well; now one flat sheet with a hairline, matching admin. |
+| Accent audited on gamer pages | Plan badges, "AI assist"/"Sources" chips, sort pills and section chips stopped using coral; accent is running state, primary action and focus. |
 
 
 

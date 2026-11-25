@@ -172,24 +172,22 @@ export function Today({ initial }: { initial: TodayResponse | null }) {
         />
       )}
 
+      {suggestions.length > 0 && (
       <section className="flex flex-col gap-3" aria-live="polite">
         <h2 className="text-xl font-semibold tracking-tight">More like this</h2>
-        {suggestions.length === 0 ? (
-          <p className="text-sm text-muted">Suggestions will appear here.</p>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-3">
-            {suggestions.map((card) => (
-              <Card key={card.id}>
-                <div className="flex h-full flex-col gap-2">
-                  <Badge tone="muted">{card.id}</Badge>
-                  <h3 className="text-base font-medium leading-snug">{card.question}</h3>
-                  <p className="text-sm text-muted">{card.hook_text}</p>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
+        <div className="grid gap-4 md:grid-cols-3">
+          {suggestions.map((card) => (
+            <Card key={card.id}>
+              <div className="flex h-full flex-col gap-2">
+                <Badge tone="muted">{card.id}</Badge>
+                <h3 className="text-base font-medium leading-snug">{card.question}</h3>
+                <p className="text-sm text-muted">{card.hook_text}</p>
+              </div>
+            </Card>
+          ))}
+        </div>
       </section>
+      )}
 
       <Dialog open={Boolean(swapFor)} onClose={() => setSwapFor(null)} title="Swap this dare">
         <p className="mb-4 text-sm text-muted">Pick a different dare for today.</p>

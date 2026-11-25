@@ -56,6 +56,9 @@ Last updated after the research-brain sprint.
 | Windows installer (Tauri `.msi`/`.nsis`) | documented | no | no | a Windows machine + signing certificate |
 | Landing page with owner download slots (`/landing`) | yes | yes (build) | partial (slots unfilled) | real download URLs + demo clip |
 | Editorial Graphite + Burnt Coral re-theme (both themes) | yes | yes (build + palette script) | partial (screenshots fresh; verdict pending) | a human looking at the shots |
+| Gamer section rebuild (dashboard, today, missions, live, remote, clips, export, history, results, settings) | yes | yes (build) | partial (visual verdict pending) | owner's own footage for full clip QA |
+| Mission card artwork rebuilt in the new identity (graphite/coral, 1080×1920) | yes | yes (render check) | yes (real cards on mission + admin pool) | — |
+| Full-frame clip thumbnails (`Thumb` fallback + `object-contain`) | yes | yes (screenshots) | yes (six real renders seeded locally) | owner's footage at scale |
 | Desktop capture (OBS path) | yes | yes | yes (OBS 33.0.1) | — |
 | Desktop capture (bundled FFmpeg recorder) | yes | yes (command) | no | a real recording |
 | Vision clip suggestions (sampled VLM) | yes | yes | yes (real run, 4-min trailer) | owner's gameplay footage |

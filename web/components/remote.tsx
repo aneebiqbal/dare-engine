@@ -129,15 +129,15 @@ export function Remote({ mission, next }: { mission: MissionCard; next?: Mission
   }
 
   return (
-    <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col gap-6 px-5 pb-10 pt-8">
+    <main className="mx-auto flex w-full max-w-md flex-col gap-6 px-5 pb-10 pt-8 sm:max-w-2xl">
       <header className="flex items-center justify-between">
         <Eyebrow>Remote</Eyebrow>
         <span
           data-testid="connection"
           role="status"
           aria-live="polite"
-          className={`folio inline-flex items-center gap-2 rounded-sm bg-surface-2 px-2 py-0.5 ${
-            online ? "bg-success/10 text-success" : "bg-danger/10 text-danger"
+          className={`inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wide ${
+            online ? "text-success" : "text-danger"
           }`}
         >
           <span className={`h-1.5 w-1.5 rounded-full ${online ? "bg-success" : "bg-danger"}`} />
@@ -153,18 +153,16 @@ export function Remote({ mission, next }: { mission: MissionCard; next?: Mission
         <p className="text-pretty text-sm text-muted">{mission.question}</p>
       </section>
 
-      <section className="flex flex-col gap-3 rounded-lg bg-surface p-1.5 ring-surface">
-        <div className="flex flex-col gap-4 rounded-md bg-surface-2 p-5">
-          <div className="flex items-center justify-between text-xs text-muted">
-            <span>Setup</span>
-            <span>{mission.est_minutes} min</span>
-          </div>
-          <p className="text-sm leading-relaxed">{mission.setup}</p>
-          <p className="text-sm text-muted">{mission.win_condition}</p>
+      <section className="rounded-md bg-surface p-4 ring-surface">
+        <div className="flex items-center justify-between text-xs text-muted">
+          <span>Setup</span>
+          <span>{mission.est_minutes} min</span>
         </div>
+        <p className="mt-2 text-sm leading-relaxed">{mission.setup}</p>
+        <p className="mt-1 text-sm text-muted">{mission.win_condition}</p>
       </section>
 
-      <section className="mt-auto flex flex-col gap-3 pt-6">
+      <section className="flex flex-col gap-3 pt-2">
         {pending.length > 0 && (
           <p className="text-center text-xs text-danger" data-testid="pending" role="status">
             {pending.length} tap{pending.length === 1 ? "" : "s"} queued — will send when back online
@@ -176,7 +174,7 @@ export function Remote({ mission, next }: { mission: MissionCard; next?: Mission
             data-testid="start"
             data-tour="remote-start"
             onClick={start}
-            className="w-full rounded-lg py-7 text-lg"
+            className="w-full rounded-md py-7 text-lg"
           >
             Start
           </Button>
@@ -187,7 +185,7 @@ export function Remote({ mission, next }: { mission: MissionCard; next?: Mission
             data-testid="done"
             data-tour="remote-done"
             onClick={finish}
-            className="w-full rounded-lg py-7 text-lg"
+            className="w-full rounded-md py-7 text-lg"
           >
             Done
           </Button>
@@ -195,7 +193,7 @@ export function Remote({ mission, next }: { mission: MissionCard; next?: Mission
           <div
             data-testid="done-state"
             role="status"
-            className="rounded-lg bg-success/10 py-7 text-center text-lg font-medium text-success"
+            className="rounded-md bg-success/10 py-7 text-center text-lg font-medium text-success"
           >
             Mission logged{result ? ` · ${result}` : ""}
           </div>
@@ -210,14 +208,12 @@ export function Remote({ mission, next }: { mission: MissionCard; next?: Mission
         )}
 
         {done && next && (
-          <div className="flex flex-col gap-2 rounded-lg bg-surface p-1.5 ring-surface" data-testid="next-dare">
-            <div className="flex flex-col gap-2 rounded-md bg-surface-2 p-5">
-              <span className="folio">Up next</span>
-              <p className="text-sm font-medium leading-snug">{next.question}</p>
-              <a href="/today" className="text-sm text-text underline decoration-border underline-offset-4 hover:text-accent">
-                Pick it on Today
-              </a>
-            </div>
+          <div className="rounded-md bg-surface p-4 ring-surface" data-testid="next-dare">
+            <span className="folio">Up next</span>
+            <p className="mt-1 text-sm font-medium leading-snug">{next.question}</p>
+            <a href="/today" className="mt-1 inline-block text-sm text-text underline decoration-border underline-offset-4 hover:text-accent">
+              Pick it on Today
+            </a>
           </div>
         )}
       </section>

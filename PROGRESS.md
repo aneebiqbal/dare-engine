@@ -1,5 +1,51 @@
 # Progress
 
+## 2026-11-25 — gamer section rebuild
+
+The admin section was left alone. Every gamer route was audited and rebuilt on
+the committed identity, with the image bugs treated as the primary defect.
+
+**Image bugs found and fixed**
+- The clips grid drew every thumbnail in an `h-32 object-cover` strip: a 9:16
+  frame cropped to a horizontal sliver. Clips are now hairline rows carrying
+  the whole frame (`aspect-[9/16]`, `object-contain`).
+- Missing thumbnails rendered the browser's broken-image icon because
+  `thumb_url` is always set even when storage has no file. New
+  `web/components/media.tsx` `Thumb` falls back to a graphite plate with a
+  quiet label; used by clips, clip review, export, results and card art.
+- The mission card SVG still shipped the rejected volt/citron artwork
+  (`#C8FF3D`, `#8B7CFF`, Verdana). Rebuilt in graphite + coral + ink for the
+  same 1080×1920 frame; no cropping at any usage.
+- OBS snapshot was `object-cover`; now `object-contain` in a 16:9 frame.
+- Clip preview video has a real poster frame so the full frame shows before
+  playback instead of a half-painted element.
+
+**Broken pages / dead controls**
+- Dashboard next-step was a button nested inside a link; now one primary link.
+- Empty-clips fallback sent creators to `/admin/studio` (redirects home);
+  it now points at `/clips`. Voice-over step points at `/settings`.
+- Remote's card-in-card panels flattened; its giant empty void replaced with
+  compact flow.
+- Accent noise removed from plan badges, AI/Sources chips, sort pills,
+  section chips; coral is running/primary/focus only.
+- Dashboard highlights only the actual daily dare, not every card.
+
+**QA**
+- 44 screenshots at `docs/screens/after/gamer/` (phone/desktop × dark/light),
+  captured against real Neon data; six real rendered clips were seeded into
+  local storage so full frames show (documented in `docs/screens/README.md`).
+- Admin routes re-checked on the same build; layout unchanged (only the shared
+  mission card artwork is new, which is the point).
+- Visual verdict pending a human; pipeline footage itself still needs the
+  owner's own recordings.
+
+### Next three tasks
+1. Human verdict on `docs/screens/after/gamer/`.
+2. Seed/cache cover and clip imagery at serving size (a 4 MB cover and 1080p
+   thumbnails load raw today).
+3. Run the full acceptance suite on Docker once available (local runs skip
+   worker/FFmpeg paths).
+
 ## 2026-11-25 — Editorial Graphite + Burnt Coral re-theme
 
 The owner approved the product brief but rejected the electric-citron/violet

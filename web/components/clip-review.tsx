@@ -26,6 +26,7 @@ import {
 } from "@/components/ui";
 import { Pipeline, Section, StatusBadge, WorkHeader } from "./work";
 import { PlatformSelect, usePlatforms } from "./platforms";
+import { Thumb } from "./media";
 
 const VOICES = [
   "en_US-amy-medium",
@@ -61,6 +62,7 @@ export function ClipReview({ clip }: { clip: Clip }) {
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
   const platforms = usePlatforms();
+  const [videoFailed, setVideoFailed] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -201,21 +203,22 @@ export function ClipReview({ clip }: { clip: Clip }) {
       <div className="flex flex-col gap-4">
         <div className="mx-auto w-full max-w-[24rem]">
           <div className="overflow-hidden rounded-lg bg-black ring-surface">
-            {current.download_url ? (
+            {current.download_url && !videoFailed ? (
               <video
                 controls
                 src={api.downloadClipUrl(clip.id)}
+                poster={api.thumbnailUrl(clip.id)}
+                preload="metadata"
+                onError={() => setVideoFailed(true)}
                 className="aspect-[9/16] w-full object-contain"
                 aria-label={`Preview of ${current.title ?? "this clip"}`}
                 data-testid="clip-preview"
               />
             ) : current.thumb_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Thumb
                 src={api.thumbnailUrl(clip.id)}
                 alt={`Preview of ${current.title ?? "this clip"}`}
-                className="aspect-[9/16] w-full object-cover"
-                data-testid="clip-preview"
+                className="aspect-[9/16] w-full object-contain"
               />
             ) : (
               <div className="flex aspect-[9/16] items-center justify-center bg-surface-2 p-6 text-center">

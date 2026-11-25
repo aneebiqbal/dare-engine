@@ -290,38 +290,41 @@ def _card_svg(card: dict, game_name: str) -> str:
     question_lines = _wrap(question, 26)
     win_lines = _wrap(win, 30)
 
+    # Editorial Graphite + Burnt Coral (docs/design-direction.md). The card is
+    # the one brand artefact: graphite ground, ink type, a single coral rule.
+    font = "system-ui, -apple-system, 'Segoe UI', sans-serif"
     parts = [
         '<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">',
-        '<rect width="1080" height="1920" fill="#050505"/>',
-        '<rect x="24" y="24" width="1032" height="1872" rx="48" fill="none" stroke="#C8FF3D" stroke-width="3"/>',
-        f'<text x="90" y="220" font-family="Verdana, sans-serif" font-size="30" letter-spacing="8" fill="#8B7CFF">{game.upper()[:30]}</text>',
+        '<rect width="1080" height="1920" fill="#1E1E1C"/>',
+        f'<text x="90" y="200" font-family="{font}" font-size="30" letter-spacing="8" fill="#A49F99">{game.upper()[:30]}</text>',
+        '<rect x="90" y="252" width="120" height="8" fill="#E98D72"/>',
     ]
-    y = 330
+    y = 372
     for line in hook_lines:
         parts.append(
-            f'<text x="90" y="{y}" font-family="Verdana, sans-serif" font-size="96" '
-            f'font-weight="bold" fill="#C8FF3D">{line}</text>'
+            f'<text x="90" y="{y}" font-family="{font}" font-size="104" '
+            f'font-weight="700" letter-spacing="-2" fill="#F2F0EB">{line}</text>'
         )
-        y += 104
-    y += 20
+        y += 116
+    y += 24
     parts.append(
-        f'<text x="90" y="{y}" font-family="Verdana, sans-serif" font-size="44" fill="#FAFAFA">{title[:60]}</text>'
+        f'<text x="90" y="{y}" font-family="{font}" font-size="44" fill="#F2F0EB">{title[:60]}</text>'
     )
-    y += 90
+    y += 92
     for line in question_lines:
         parts.append(
-            f'<text x="90" y="{y}" font-family="Verdana, sans-serif" font-size="42" fill="#FAFAFA">{line}</text>'
+            f'<text x="90" y="{y}" font-family="{font}" font-size="42" fill="#F2F0EB">{line}</text>'
         )
-        y += 52
+        y += 54
     y += 40
     for line in win_lines:
         parts.append(
-            f'<text x="90" y="{y}" font-family="Verdana, sans-serif" font-size="34" fill="#A3A3A3">{line}</text>'
+            f'<text x="90" y="{y}" font-family="{font}" font-size="34" fill="#A49F99">{line}</text>'
         )
-        y += 44
+        y += 46
     parts.append(
-        f'<text x="90" y="1740" font-family="Verdana, sans-serif" font-size="30" letter-spacing="4" '
-        f'fill="#737373">{mode.upper()} · {mission_id}</text>'
+        f'<text x="90" y="1760" font-family="{font}" font-size="28" letter-spacing="4" '
+        f'fill="#A49F99">{mode.upper()} · {mission_id}</text>'
     )
     parts.append("</svg>")
     return "".join(parts)

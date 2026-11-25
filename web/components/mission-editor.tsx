@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api, type EditorResult, type MissionCard, type PoolEntry } from "@/lib/api";
 import { Badge, Button, Card, Field, Input, Notice, PageState, Textarea, useToast } from "@/components/ui";
 import { StatusBadge, WorkHeader } from "./work";
+import { Thumb } from "./media";
 
 export function MissionEditor({ initial }: { initial: PoolEntry | null }) {
   const [card, setCard] = useState<MissionCard | null>(initial?.card ?? null);
@@ -118,17 +119,16 @@ export function MissionEditor({ initial }: { initial: PoolEntry | null }) {
         <Card>
           <div className="flex flex-col gap-3">
             <span className="folio">Card identity</span>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Thumb
               src={api.cardImageUrl(card.id)}
               alt={`Card for ${card.hook_text}`}
-              className="w-full rounded-md bg-bg object-cover ring-surface"
+              className="aspect-[9/16] w-full rounded-md object-cover ring-surface"
             />
           </div>
         </Card>
         <Card>
           <div className="flex flex-col gap-4">
-            <Badge tone="accent">AI assist</Badge>
+            <Badge tone="muted">AI assist</Badge>
             <p className="text-sm text-muted">
               Rewrite the hook, tighten the win condition, or check the title for spoilers.
             </p>
@@ -163,7 +163,7 @@ export function MissionEditor({ initial }: { initial: PoolEntry | null }) {
         {initial?.sources && initial.sources.length > 0 && (
           <Card>
             <div className="flex flex-col gap-2">
-              <Badge tone="accent">Sources</Badge>
+              <Badge tone="muted">Sources</Badge>
               <ul className="flex flex-col gap-1">
                 {initial.sources.map((s) => (
                   <li key={s.url} className="text-xs">
