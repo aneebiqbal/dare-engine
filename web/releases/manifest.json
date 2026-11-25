@@ -1,0 +1,27 @@
+{
+  "version": "0.1.0",
+  "web_portal_url": "",
+  "demo_clip": { "file": "", "url": "" },
+  "downloads": [
+    {
+      "id": "mac",
+      "title": "macOS",
+      "body": "The admin's local engine: capture, SSD import, MLX Whisper, models and rendering. Nothing heavy leaves the Mac.",
+      "requirements": "macOS 13+, Apple Silicon",
+      "file": "Clipdesk_0.1.0_aarch64.dmg",
+      "url": "",
+      "size": 2484674,
+      "sha256": "a8aad18ff50537fb44d2781e8df1dbf503825c50bad7c8d6469304a8bde612cc"
+    },
+    {
+      "id": "windows",
+      "title": "Windows",
+      "body": "The same shell on Windows, with the bundled FFmpeg recorder. See docs/desktop-app.md for the build and signing steps.",
+      "requirements": "Windows 10+, 64-bit",
+      "file": "Clipdesk_0.1.0_x64.exe",
+      "url": "",
+      "size": 0,
+      "sha256": ""
+    }
+  ]
+}

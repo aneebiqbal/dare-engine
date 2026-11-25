@@ -1,5 +1,12 @@
 # Screenshots — before and after
 
+## `after/release/`
+
+The production `/landing` download page with a real release manifest: the macOS
+`.dmg` button shows its size and sha256 and serves the actual file from
+`/downloads/`; Windows and the demo clip show honest “not uploaded yet” states.
+Captured from the running build.
+
 ## `after/gamer/`
 
 The rebuilt gamer section on the real stack: 44 shots, phone/desktop ×

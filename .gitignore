@@ -34,6 +34,18 @@ next-env.d.ts
 !tests/**/*.mp4
 !tests/**/*.wav
 
+# Release binaries and local media stores — never on the server or in git
+*.dmg
+*.exe
+*.msi
+*.iso
+*.tar.gz
+data/
+storage/
+recordings/
+web/public/downloads/*
+!web/public/downloads/.gitkeep
+
 # Test render output and scratch
 m1-render-*/
 render-*/
@@ -55,3 +67,9 @@ api/app/clip_templates.json
 *.log
 .idea/
 .vscode/
+
+# Agent/tool caches that never belong in the repo
+.opencode/
+.impeccable/
+.vercel/
+

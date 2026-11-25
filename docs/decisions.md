@@ -315,5 +315,15 @@ The admin section was approved and untouched; only gamer routes changed.
 | Card-in-card panels flattened | Remote and clip cards had outer shell + inner well; now one flat sheet with a hairline, matching admin. |
 | Accent audited on gamer pages | Plan badges, "AI assist"/"Sources" chips, sort pills and section chips stopped using coral; accent is running state, primary action and focus. |
 
+## 2026-11-26 — minimal server checkout + production landing
+
+| Choice | Reason |
+| --- | --- |
+| `.gitignore` tightened for generated media, release binaries, local stores and agent caches | The push stays small; the server clone carries only runtime paths. |
+| Sparse server checkout (`git sparse-checkout set --no-cone /api /web /contracts /shared ...`) | Tests, docs, screenshots, desktop shell, worker engine, relay and local bridges are not needed to run the cloud half; `docs/deploy-web.md §12` gives the exact command. |
+| Landing page is manifest-driven (`web/releases/manifest.json` + `web/public/downloads/`) | No hardcoded URLs or dead buttons: real files serve at `/downloads/<file>` with size + sha256; a missing file reads “Not uploaded yet”; a CDN can be used by putting a URL in the manifest. |
+| `scripts/prepare-release.sh` | One command copies the installers into `web/public/downloads/`, hashes them and writes the manifest; binaries stay gitignored, only the manifest is committed. |
+
+
 
 
