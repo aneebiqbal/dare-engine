@@ -1,50 +1,74 @@
-# Deploy the cloud web app
+# Deploy the cloud web app (PM2)
 
-This deploys the **light** half: the website every gamer and every admin-planning
-task uses. The heavy clip engine stays on the admin's Mac — see
-`docs/architecture.md` and `docs/desktop-app.md`.
+This deploys the **light** half on a plain VPS: the website every gamer and every
+admin-planning task uses, plus the FastAPI service behind it. The heavy clip
+engine stays on the admin's machine — see `docs/architecture.md` and
+`docs/desktop-app.md`.
 
-The result: `https://clipdesk.example.com` over TLS, backed by a managed
-Postgres, with a health check, rate limiting, error reporting and backups.
+The process manager is **PM2**. No Docker is required.
+
+Result: `https://clipdesk.example.com` over TLS, backed by managed Postgres,
+with health checks, rate limiting, error reporting and backups.
 
 ## What runs where
 
 | Service | Cloud | Desktop |
 | --- | --- | --- |
-| `web/` (Next.js) | yes | optional (the app loads the cloud URL) |
-| `api/` (FastAPI) | yes | talks to the cloud API |
+| `web/` (Next.js, standalone build) | yes | optional (loads the cloud URL) |
+| `api/` (FastAPI + uvicorn) | yes | talks to the cloud API |
 | PostgreSQL | managed (Neon) | — |
-| `worker/` (render, transcribe) | optional | **yes** |
+| `worker/` (render, transcribe) | no | **yes** |
 | `relay/` (RTMP ingest) | optional | — |
-| Local models, FFmpeg, OBS, SSD | — | **yes** |
-
-In the smallest deployment the cloud runs **only `api` and `web`**. The worker
-is what renders clips; run it on the machine that has the footage (the desktop
-app) or on a separate GPU host. It shares the same `DATABASE_URL`.
+| Local models, FFmpeg, OBS, SSD | no | **yes** |
 
 ## 1. Managed database
 
 Create a Neon project (or any Postgres 16+). You need two URLs:
 
 - **Pooled** — host contains `-pooler`. For the API (`DATABASE_URL`).
-- **Direct** — no `-pooler`. For migrations and the worker
-  (`DATABASE_URL_DIRECT`).
+- **Direct** — no `-pooler`. For migrations (`DATABASE_URL_DIRECT`).
 
-Neon's pooled endpoint is PgBouncer in transaction mode, which breaks DDL and
-the worker's row locks. That is why both exist.
+Neon's pooled endpoint is PgBouncer in transaction mode, which breaks DDL; the
+API runs its migrations against the direct URL on startup.
 
-## 2. Server
-
-A 2 GB VPS is enough for the web half. Install Docker and Caddy:
+## 2. Server packages
 
 ```sh
-curl -fsSL https://get.docker.com | sh
-# Caddy: https://caddyserver.com/docs/install
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -   # Node 20 LTS
+apt-get install -y nodejs python3.12 python3.12-venv ffmpeg
+npm install -g pm2
 ```
 
-## 3. Environment
+`ffmpeg`/`ffprobe` is required by the API for upload probing; without it the
+pages still load but recording uploads fail.
 
-Copy `.env.example` to `.env` on the server and fill in at least:
+## 3. Minimal checkout
+
+Only the paths that build and run are needed:
+
+```sh
+git clone --depth 1 --filter=blob:none --sparse \
+  https://github.com/aneebiqbal/dare-engine.git
+cd dare-engine
+git sparse-checkout set --no-cone \
+  /api/ /web/ /contracts/ /shared/ /ecosystem.config.cjs \
+  /.env.example /scripts/build-web-standalone.sh /scripts/setup-pm2.sh \
+  /scripts/prepare-release.sh /worker/clip/templates.json /docs/deploy-web.md
+```
+
+Why each path: `api/` (uvicorn app), `web/` (Next.js), `contracts/` (shared
+schemas), `shared/` (`llm.py`, `key_crypto.py`, `platforms.py`),
+`worker/clip/templates.json` (imported by the API), `ecosystem.config.cjs`,
+the two scripts, `.env.example`. Tests, screenshots, docs, desktop shell,
+worker engine, relay and local bridges stay off the server.
+
+## 4. Environment
+
+```sh
+cp .env.example .env
+```
+
+Minimum values:
 
 ```sh
 DATABASE_URL=postgresql://…-pooler…/…
@@ -54,7 +78,7 @@ APP_ENV=production
 WEB_ORIGIN=https://clipdesk.example.com
 INVITE_REQUIRED=true
 DEV_AUTH_ENABLED=false
-STORAGE_DRIVER=s3            # see the storage note below
+STORAGE_DRIVER=s3                 # shared bucket, or local volume for single host
 S3_ENDPOINT=…
 S3_BUCKET=…
 S3_ACCESS_KEY=…
@@ -65,17 +89,54 @@ LLM_API_KEY=…
 LLM_MODEL=…
 ```
 
-`APP_ENV=production` sets `Secure` cookies. `WEB_ORIGIN` must be the exact origin
-the browser uses (CORS). Never set `DEV_AUTH_ENABLED=true` in production — the
-API refuses to start.
+Anything in `.env` is read by the API at runtime; `NEXT_PUBLIC_*` values are
+baked into the web build, so set them before building.
 
-**Storage.** The default `STORAGE_DRIVER=local` writes to a container volume. In
-the cloud the API and the worker are different machines, so media must be shared:
-set `STORAGE_DRIVER=s3` and provide an S3-compatible bucket (Cloudflare R2 or
-AWS S3). The app talks to it through the `S3_*` variables only. The S3 path is
-implemented but was only exercised against a local mock; prove it before launch.
+## 5. Build and start under PM2
 
-## 4. TLS
+```sh
+# API dependencies and the shared-module shims (once, and after changes)
+scripts/setup-pm2.sh
+
+# Web build (standalone server + static assets)
+scripts/build-web-standalone.sh
+
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup          # follow the printed command to survive reboots
+```
+
+Local storage instead of S3 (single host) or a non-Docker check needs one
+extra variable so the API does not try to write `/data` (read-only on macOS):
+
+```sh
+STORAGE_LOCAL_DIR=$PWD/storage LLM_RECORDED_RESPONSE="$PWD/api/app/llm_recorded.json" \
+  API_PORT=8010 WEB_PORT=3200 pm2 start ecosystem.config.cjs
+```
+
+`ecosystem.config.cjs` runs exactly two processes:
+
+| Name | Command | Port |
+| --- | --- | --- |
+| `clipdesk-api` | `.venv/bin/python -m uvicorn app.main:app` | `127.0.0.1:8000` |
+| `clipdesk-web` | `node .next/standalone/server.js` | `127.0.0.1:3100` |
+
+Ports can be overridden for a local check:
+
+```sh
+API_PORT=8010 WEB_PORT=3200 pm2 start ecosystem.config.cjs
+```
+
+Useful commands:
+
+```sh
+pm2 status            # both apps green
+pm2 logs clipdesk-api --lines 50
+pm2 reload ecosystem.config.cjs   # zero-downtime restart after an update
+pm2 monit
+```
+
+## 6. TLS (Caddy)
 
 `/etc/caddy/Caddyfile`:
 
@@ -89,34 +150,59 @@ clipdesk.example.com {
 caddy reload --config /etc/caddy/Caddyfile
 ```
 
-The browser only ever talks to the web origin. The Next.js app proxies `/api/*`
-to the API container server-side, so the API port (8000) stays private.
+The browser only talks to the web origin. Next.js proxies `/api/*` to
+`127.0.0.1:8000` server-side, so the API port stays private.
 
-DNS: an `A` record for `clipdesk.example.com` to the server.
-
-## 5. Start
-
-From the repo root on the server:
+## 7. Verify
 
 ```sh
-git clone <repo> && cd clipdesk
-docker compose up -d --wait --build --no-deps api web
+curl -fsS http://127.0.0.1:3100/healthz          # {"status":"ok"}
+curl -fsS http://127.0.0.1:3100/api/healthz/ready # checks the DB
+pm2 status
 ```
 
-`--no-deps` skips the compose `db` service because the database is managed. The
-API runs its migrations on startup (`app.db.migrate()`), so an empty database
-becomes a working one.
-
-## 6. Verify
+Then open the site, sign in, add a game. The first admin is created with:
 
 ```sh
-curl -fsS https://clipdesk.example.com/healthz        # {"status":"ok"}
-curl -fsS https://clipdesk.example.com/healthz/ready  # {"status":"ready"} (checks the DB)
-docker compose logs --tail=50 api
-make create-admin   # creates the first administrator, prompts for a password
+.venv/bin/python -m app.create_admin
 ```
 
-Then open the site, sign in, and add a game.
+(run from the repo root; prompts for email and password.)
+
+## 8. Update and roll back
+
+```sh
+git pull
+.venv/bin/pip install -r api/requirements.txt     # if requirements changed
+scripts/build-web-standalone.sh                    # if web changed
+pm2 reload ecosystem.config.cjs
+```
+
+Roll back: check out the previous commit, rebuild the web bundle, and
+`pm2 reload`. Migrations are forward-only, so take a backup first:
+
+```sh
+gunzip -c backups/clipdesk-<ts>.sql.gz | psql "$DATABASE_URL_DIRECT"
+```
+
+## 9. Backups
+
+Managed Postgres has point-in-time recovery. For a self-managed instance or an
+extra copy:
+
+```sh
+pg_dump "$DATABASE_URL_DIRECT" | gzip > backups/clipdesk-$(date -u +%Y%m%dT%H%M%SZ).sql.gz
+```
+
+Schedule it (systemd timer or cron) and keep at least 7 days.
+
+## 10. Hardening already on
+
+- Per-IP rate limits; stricter budgets on `/auth/*` and `/admin/*`.
+- Argon2id passwords, HMAC-sha256 sessions, HttpOnly + Secure + SameSite=Lax
+  cookies, double-submit CSRF, login lockout.
+- Browser errors posted to `/client-error` and surfaced on the admin overview.
+- Validated bodies, storage-key traversal guards, SSD bridge mount guard.
 
 ## 11. Landing page downloads
 
@@ -135,98 +221,17 @@ scripts/prepare-release.sh 0.1.0 \
 git add web/releases/manifest.json && git commit -m "release 0.1.0"
 ```
 
-On the server, or after cloning, drop/replace the files in
-`web/public/downloads/` and rebuild `web` if you did not ship them in the
-clone. A missing file shows an honest “Not uploaded yet” button, never a dead
-link.
+On the server, or after cloning, place the files in `web/public/downloads/` and
+rebuild the web bundle. A missing file shows an honest “Not uploaded yet”
+button, never a dead link.
 
-## 12. Minimal server checkout (nothing that does not run)
+## 12. Optional: Docker instead of PM2
 
-The repository carries tests, screenshots, the desktop shell, the worker
-engine, local bridges and scratch. The server needs none of them. Clone only
-the runtime paths:
+The container path still works for hosts that prefer it:
 
 ```sh
-git clone --depth 1 --filter=blob:none --sparse \
-  https://github.com/aneebiqbal/dare-engine.git
-cd dare-engine
-git sparse-checkout set --no-cone \
-  /api/ /web/ /contracts/ /shared/ \
-  /docker-compose.yml /.env.example \
-  /worker/clip/templates.json /docs/deploy-web.md
-```
-
-Why each path: `api/` (FastAPI image), `web/` (Next.js image, including
-`web/releases/manifest.json` and any `web/public/downloads/` assets),
-`contracts/` (shared schemas), `shared/` (`llm.py`, `key_crypto.py`,
-`platforms.py`), `worker/clip/templates.json` (copied into the API image),
-`docker-compose.yml`, `.env.example`. Nothing else is required to build or run
-the cloud half.
-
-`.gitignore` keeps generated media, release binaries, databases, caches,
-screenshots-by-tooling, agent folders and scratch out of pushes; the server
-checkout above is the smallest set that still builds.
-
-## 13. Run web + API only (after clone)
-
-```sh
-cp .env.example .env
-# edit .env: DATABASE_URL (pooled), DATABASE_URL_DIRECT, SESSION_SECRET,
-#             APP_ENV=production, WEB_ORIGIN, LLM_* ; storage should be S3
 docker compose up -d --wait --build --no-deps api web
-curl -fsS http://localhost:3100/healthz        # web -> api
-curl -fsS http://localhost:3100/api/healthz/ready
 ```
 
-`--no-deps` skips Postgres/worker/relay; the API runs its migrations against
-the managed database on startup. Stop everything with
-`docker compose stop api web` (or `docker compose down`).
-
-## 7. Backups
-
-The managed database has its own point-in-time recovery (Neon: 7–30 days). For a
-self-managed Postgres, or for an extra copy:
-
-```sh
-make backup   # pg_dump → backups/clipdesk-<utc-timestamp>.sql.gz
-```
-
-Schedule it (systemd timer or cron) and keep at least 7 days. Restore with:
-
-```sh
-gunzip -c backups/clipdesk-<ts>.sql.gz | psql "$DATABASE_URL_DIRECT"
-```
-
-`backups/` is gitignored.
-
-## 8. Hardening that is already on
-
-- **Rate limiting.** `RATE_LIMIT_REQUESTS` per IP per `RATE_LIMIT_WINDOW`;
-  `/auth/*` and `/admin/*` get `RATE_LIMIT_AUTH`. Returns `429` with
-  `Retry-After`. The health check is never throttled.
-- **Sessions.** Argon2id passwords, HMAC-sha256 session tokens in Postgres,
-  HttpOnly + Secure + SameSite=Lax cookies, double-submit CSRF on every
-  state-changing route, login lockout after 10 failures.
-- **Error reporting.** The browser posts uncaught errors to `/client-error`;
-  an admin reads them on the admin overview. No external service required.
-- **Validation.** Every body is a Pydantic model; storage keys reject path
-  traversal; the SSD bridge refuses paths outside the mount.
-
-## 9. Update and roll back
-
-```sh
-git pull
-docker compose up -d --wait --build --no-deps api web
-docker image prune -f
-```
-
-Roll back by checking out the previous commit and rebuilding; migrations are
-forward-only, so take `make backup` first.
-
-## 10. What this deployment does not do
-
-- It does not render clips, transcribe, or download models. That is the desktop
-  app (`docs/desktop-app.md`).
-- It does not post to YouTube/TikTok. Export is a zip.
-- Live AI and live research need key credit; the fallbacks are flagged, never
-  presented as live.
+See `docker-compose.yml`; the same `.env` drives both paths. Use one or the
+other, not both on the same ports.

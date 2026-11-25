@@ -72,4 +72,5 @@ api/app/clip_templates.json
 .opencode/
 .impeccable/
 .vercel/
+.pm2/
 

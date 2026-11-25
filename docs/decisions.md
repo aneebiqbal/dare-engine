@@ -324,6 +324,16 @@ The admin section was approved and untouched; only gamer routes changed.
 | Landing page is manifest-driven (`web/releases/manifest.json` + `web/public/downloads/`) | No hardcoded URLs or dead buttons: real files serve at `/downloads/<file>` with size + sha256; a missing file reads “Not uploaded yet”; a CDN can be used by putting a URL in the manifest. |
 | `scripts/prepare-release.sh` | One command copies the installers into `web/public/downloads/`, hashes them and writes the manifest; binaries stay gitignored, only the manifest is committed. |
 
+## 2026-11-26 — PM2 deployment
+
+| Choice | Reason |
+| --- | --- |
+| PM2, not Docker Compose, on the cloud host | The owner asked to bring the app up with PM2: two long-running processes (`clipdesk-api`, `clipdesk-web`) with autorestart, logs and `pm2 save`/`startup`. |
+| `ecosystem.config.cjs` at the repo root | One file defines both apps; API interpreter is the repo venv, web runs Next's standalone `server.js`; ports overridable via `API_PORT`/`WEB_PORT`. |
+| Web built by `scripts/build-web-standalone.sh` | Next's `output: standalone` needs `.next/static` and `public/` copied beside `server.js`; the script does build + copy in one step. |
+| API needs host `ffmpeg` | Upload probing calls `ffprobe`; without it the pages load but recording uploads fail. Documented in `docs/deploy-web.md §2`. |
+
+
 
 
 
