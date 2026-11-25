@@ -286,5 +286,21 @@ model is one signal, never the primary picker.
 | `/landing` reads owner slots from env | No dead buttons and no committed URLs: `NEXT_PUBLIC_DOWNLOAD_MAC`, `NEXT_PUBLIC_DOWNLOAD_WINDOWS`, `NEXT_PUBLIC_WEB_PORTAL`, `NEXT_PUBLIC_DEMO_CLIP`. | — |
 | Setup is invited, never forced | The admin overview shows a dismissible wizard invitation when a check fails; basic use is never blocked. | — |
 
+## 2026-11-25 — Editorial Graphite + Burnt Coral (re-theme)
+
+The owner rejected the electric-citron/violet direction. Product truth,
+research, Geist typography, the work-kit architecture and all functional
+decisions were preserved; the visual world was replaced.
+
+| Choice | Reason |
+| --- | --- |
+| Brief-pinned palette, validated before code | Dark `#171717`/`#1E1E1C`/`#292825`, borders `#36332F`, accent `#E98D72`, ink `#F2F0EB`, muted `#A49F99`; light warm paper with `#AD4B35`. Every text pair measured ≥ 4.5:1 (`docs/design-direction.md`). |
+| Accent means live / primary action only | Status is a closed vocabulary: coral = running, ochre = needs-you, sage = done, brick = failed. No decorative coral. |
+| Panels instead of rounded tiles | Surfaces are separated by hairlines and space; radius scale 2/4/6/8 px; one shadow token reserved for floating layers. |
+| Artwork leads, chrome recedes | Full-width cover plates, no duotone; editing/review surfaces stay neutral so footage colour is judged accurately. |
+| Folio labels replace pill eyebrows | Tracked mono, muted; no coloured chips above headings. |
+| Real imagery checked first | RAWG covers and a real gameplay frame downloaded to `docs/design/imagery/` before implementation. |
+
+
 
 

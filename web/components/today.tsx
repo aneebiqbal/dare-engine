@@ -145,7 +145,7 @@ export function Today({ initial }: { initial: TodayResponse | null }) {
                   <button
                     type="button"
                     onClick={() => suggest(card.id)}
-                    className="text-sm text-accent hover:underline"
+                    className="text-sm text-text underline decoration-border underline-offset-4 hover:text-accent"
                   >
                     More like this
                   </button>
@@ -199,7 +199,7 @@ export function Today({ initial }: { initial: TodayResponse | null }) {
               key={card.id}
               type="button"
               onClick={() => void swap(card)}
-              className="rounded-xl bg-surface p-3 text-left text-sm ring-surface transition hover:bg-surface-2"
+              className="rounded-md bg-surface p-3 text-left text-sm ring-surface transition hover:bg-surface-2"
             >
               <span className="text-xs text-muted">{card.id}</span>
               <span className="block">{card.question}</span>

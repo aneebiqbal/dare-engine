@@ -215,7 +215,7 @@ export function PipelinePanel({ runId, name }: { runId: string; name?: string })
     <div className="flex flex-col gap-4" data-testid="pipeline-panel" data-runid={runId}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
+          <span className="folio">
             {name ?? "Automatic pipeline"}
           </span>
           <p className="text-sm font-medium" data-testid="pipeline-action">
@@ -237,22 +237,22 @@ export function PipelinePanel({ runId, name }: { runId: string; name?: string })
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 rounded-xl bg-surface-2 p-3 text-center ring-surface sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 rounded-md bg-surface-2 p-3 text-center ring-surface sm:grid-cols-4">
         <div>
           <div className="font-mono text-base font-semibold">{run.progress}%</div>
-          <div className="text-[10px] uppercase tracking-[0.14em] text-muted">progress</div>
+          <div className="folio">progress</div>
         </div>
         <div>
           <div className="font-mono text-base font-semibold">{clock(run.remaining_seconds)}</div>
-          <div className="text-[10px] uppercase tracking-[0.14em] text-muted">remaining</div>
+          <div className="folio">remaining</div>
         </div>
         <div>
           <div className="font-mono text-base font-semibold">{clock(run.eta_seconds)}</div>
-          <div className="text-[10px] uppercase tracking-[0.14em] text-muted">estimated total</div>
+          <div className="folio">estimated total</div>
         </div>
         <div>
           <div className="font-mono text-base font-semibold">{clips.length}</div>
-          <div className="text-[10px] uppercase tracking-[0.14em] text-muted">shorts ready</div>
+          <div className="folio">shorts ready</div>
         </div>
       </div>
 
@@ -294,7 +294,7 @@ export function PipelinePanel({ runId, name }: { runId: string; name?: string })
 
       {clips.length > 0 && (
         <div className="flex flex-col gap-2">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
+          <span className="folio">
             Finished Shorts · appear as they render
           </span>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -304,7 +304,7 @@ export function PipelinePanel({ runId, name }: { runId: string; name?: string })
                 href={`/clips/${clip.id}`}
                 className="group overflow-hidden rounded-lg bg-surface p-1.5 bezel"
               >
-                <div className="relative aspect-[9/16] w-full overflow-hidden rounded-[calc(2rem-0.375rem)] bg-surface-2">
+                <div className="relative aspect-[9/16] w-full overflow-hidden rounded-md bg-surface-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={clip.thumb_url}
@@ -326,7 +326,7 @@ export function PipelinePanel({ runId, name }: { runId: string; name?: string })
 
       <Card>
         <div className="flex flex-col gap-3">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
+          <span className="folio">
             Add an exact moment (optional)
           </span>
           <div className="flex flex-wrap items-end gap-2">
@@ -361,7 +361,7 @@ export function PipelinePanel({ runId, name }: { runId: string; name?: string })
       </Card>
 
       <div className="flex flex-col gap-1">
-        <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
+        <span className="folio">
           Ranked candidates · {candidates.length}
         </span>
         <ul className="flex flex-col divide-y divide-border rounded-lg bg-surface p-1.5 bezel">

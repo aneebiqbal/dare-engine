@@ -18,7 +18,7 @@ export function ThemeToggle() {
       type="button"
       onClick={() => setDark((v) => !v)}
       aria-label={dark ? "☀ Switch to light theme" : "☾ Switch to dark theme"}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-sm text-muted ring-surface transition duration-300 ease-out hover:text-text active:scale-[0.98]"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-surface-2 text-sm text-muted ring-surface transition duration-200 ease-out hover:text-text active:scale-[0.98]"
     >
       {dark ? "☀" : "☾"}
     </button>

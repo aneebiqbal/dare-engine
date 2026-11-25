@@ -62,7 +62,7 @@ export function History({ initial }: { initial: HistoryEntry[] }) {
               <Td>{r.result_value ?? "—"}</Td>
               <Td>
                 {r.clip_id ? (
-                  <a href={`/clips/${r.clip_id}`} className="text-accent hover:underline">
+                  <a href={`/clips/${r.clip_id}`} className="text-text underline decoration-border underline-offset-4 hover:text-accent">
                     {r.clip_state ?? "view"}
                   </a>
                 ) : (

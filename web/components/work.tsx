@@ -61,11 +61,9 @@ export function WorkHeader({
 }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-4">
-      <div className="flex flex-col gap-3">
-        <span className="w-fit rounded-full bg-surface-2 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-muted ring-surface">
-          {eyebrow}
-        </span>
-        <h1 className="text-balance text-3xl font-semibold leading-[1.1] tracking-tight sm:text-4xl">
+      <div className="flex flex-col gap-2">
+        <span className="folio">{eyebrow}</span>
+        <h1 className="text-balance text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1.05] tracking-[-0.02em]">
           {title}
         </h1>
       </div>
@@ -95,7 +93,7 @@ export function Section({
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.14em] text-muted">
+        <h2 className="flex items-center gap-2 text-base font-semibold">
           {live && <LiveDot tone="accent" label="live" />}
           {title}
           {count != null && <span className="font-mono text-xs text-muted">({count})</span>}
@@ -200,9 +198,7 @@ export function ProgressCard({
     </div>
   );
   return (
-    <div className="rounded-lg bg-surface p-1.5 bezel">
-      <div className="h-full rounded-[calc(2rem-0.375rem)] bg-surface-2 p-4">{body}</div>
-    </div>
+    <div className="h-full rounded-md bg-surface p-4 ring-surface">{body}</div>
   );
 }
 
@@ -237,9 +233,9 @@ export function WorkQueue({ items, empty }: { items: WorkItem[]; empty?: ReactNo
           </div>
         );
         return (
-          <li key={item.id} className="rounded-[calc(2rem-0.375rem)] transition hover:bg-surface-2">
+          <li key={item.id} className="border-b border-border last:border-0">
             {item.href ? (
-              <Link href={item.href} className="block">
+              <Link href={item.href} className="block transition hover:bg-surface-2/60">
                 {row}
               </Link>
             ) : (
@@ -267,7 +263,7 @@ export function ActivityFeed({
           <span className="shrink-0 font-mono text-[11px] text-muted">
             {e.created_at ? new Date(e.created_at).toLocaleTimeString() : ""}
           </span>
-          <span className="shrink-0 font-mono text-[11px] uppercase tracking-wide text-accent">{e.kind}</span>
+          <span className="shrink-0 font-mono text-[11px] uppercase tracking-wide text-muted">{e.kind}</span>
           <span className="min-w-0 truncate text-xs text-muted" title={e.detail ?? ""}>
             {e.detail ?? "—"}
           </span>
@@ -282,7 +278,7 @@ export function ActivityFeed({
 export function Metric({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-[0.18em] text-muted">{label}</span>
+      <span className="folio">{label}</span>
       <span className="font-mono text-lg font-semibold tracking-tight">{value}</span>
       {hint && <span className="text-xs text-muted">{hint}</span>}
     </div>
@@ -293,12 +289,10 @@ export function Metric({ label, value, hint }: { label: string; value: ReactNode
 
 export function WorkEmpty({ title, body, action }: { title: string; body?: string; action?: ReactNode }) {
   return (
-    <div className="rounded-lg bg-surface p-1.5 bezel">
-      <div className="flex w-full flex-col items-start gap-3 rounded-[calc(2rem-0.375rem)] bg-surface-2 px-6 py-10">
-        <h3 className="text-base font-medium">{title}</h3>
-        {body && <p className="max-w-md text-sm text-muted">{body}</p>}
-        {action}
-      </div>
+    <div className="flex w-full flex-col items-start gap-3 rounded-md bg-surface px-6 py-10 ring-surface">
+      <h3 className="text-base font-medium">{title}</h3>
+      {body && <p className="max-w-md text-sm text-muted">{body}</p>}
+      {action}
     </div>
   );
 }
@@ -366,7 +360,7 @@ export function LiveStrip({ overview }: { overview: AdminOverview }) {
     },
   ];
   return (
-    <div className="overflow-x-auto rounded-lg bg-surface p-1.5 bezel">
+    <div className="overflow-x-auto rounded-md bg-surface ring-surface">
       <div className="grid grid-cols-2 divide-x divide-border sm:grid-cols-3 lg:grid-cols-6">
         {cells.map((cell) => (
           <Link
@@ -374,7 +368,7 @@ export function LiveStrip({ overview }: { overview: AdminOverview }) {
             href={cell.href}
             className="flex min-w-0 flex-col gap-1 px-4 py-3 transition hover:bg-surface-2"
           >
-            <span className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted">
+            <span className="flex items-center gap-2 folio">
               {cell.live && <LiveDot tone="accent" label="running" />}
               {cell.alert && <LiveDot tone="danger" label="attention" />}
               {cell.label}
@@ -394,7 +388,7 @@ export function LiveStrip({ overview }: { overview: AdminOverview }) {
 
 export function FilterBar({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg bg-surface p-1.5 bezel">
+    <div className="flex flex-wrap items-center gap-3 rounded-md bg-surface ring-surface">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{children}</div>
       {aside && <div className="ml-auto flex flex-wrap items-center gap-2">{aside}</div>}
     </div>
@@ -441,7 +435,7 @@ export function DataTable<T>({
   const allSelected = Boolean(selected && rows.length > 0 && selected.size === rows.length);
   const extra = (onSelect ? 1 : 0) + (detail ? 1 : 0);
   return (
-    <div className="overflow-x-auto rounded-lg bg-surface p-1.5 bezel">
+    <div className="overflow-x-auto rounded-md bg-surface ring-surface">
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-border">
@@ -461,7 +455,7 @@ export function DataTable<T>({
               <th
                 key={c.key}
                 scope="col"
-                className={`px-4 py-3 text-[10px] uppercase tracking-[0.18em] text-muted ${
+                className={`folio px-4 py-3 ${
                   c.sortable && onSort ? "cursor-pointer select-none" : ""
                 }`}
                 onClick={c.sortable && onSort ? () => onSort(c.key) : undefined}
@@ -488,7 +482,7 @@ export function DataTable<T>({
             const open = expanded?.has(key) ?? false;
             return (
               <Fragment key={key}>
-                <tr className={`border-b border-border last:border-0 ${checked ? "bg-accent-soft/40" : ""}`}>
+                <tr className={`border-b border-border last:border-0 ${checked ? "bg-surface-2/60" : ""}`}>
                   {detail && (
                     <td className="px-4 py-3 align-middle">
                       <button
@@ -496,7 +490,7 @@ export function DataTable<T>({
                         aria-label={`Expand ${key}`}
                         aria-expanded={open}
                         onClick={() => onToggleExpand?.(key)}
-                        className="rounded-full p-1 font-mono text-xs text-muted transition hover:bg-surface-2 hover:text-text"
+                        className="rounded-md p-1 font-mono text-xs text-muted transition hover:bg-surface-2 hover:text-text"
                       >
                         {open ? "▾" : "▸"}
                       </button>

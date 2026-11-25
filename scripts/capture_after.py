@@ -74,38 +74,55 @@ def main() -> None:
         pages.append(("admin-game", f"/admin/games/{game_id}"))
     if clip_id:
         pages.extend([("clip", f"/clips/{clip_id}"), ("export", f"/export/{clip_id}")])
+    def sign_in(context, page):
+        page.goto(f"{BASE}/signin", wait_until="networkidle")
+        page.fill('[data-testid="email"]', EMAIL)
+        page.fill('[data-testid="password"]', PASSWORD)
+        page.wait_for_timeout(400)
+        page.wait_for_selector('[data-testid="signin-submit"]:not([disabled])', timeout=15000)
+        page.click('[data-testid="signin-submit"]')
+        for _ in range(40):
+            if any(c["name"] == "clipdesk_session" for c in context.cookies()):
+                return True
+            page.wait_for_timeout(500)
+        return False
+
     with sync_playwright() as p:
         browser = p.chromium.launch()
         for size_name, width, height in [("phone", 390, 844), ("desktop", 1280, 900)]:
             for theme in ("dark", "light"):
+                # One session per viewport/theme: signing in per page trips the
+                # auth rate limit and captures fall back to the sign-in screen.
+                context = browser.new_context(viewport={"width": width, "height": height})
+                page = context.new_page()
+                if not sign_in(context, page):
+                    print("sign-in failed; aborting this pass")
+                    context.close()
+                    continue
                 for name, path in pages:
                     target = OUT / f"{size_name}-{theme}-{name}.png"
                     if target.exists():
                         print(f"skip {target.name}")
                         continue
-                    # A fresh context per page: repeated heavy pages otherwise
-                    # exhaust headless Chromium and the run stalls.
-                    context = browser.new_context(viewport={"width": width, "height": height})
-                    page = context.new_page()
-                    page.goto(f"{BASE}/signin", wait_until="networkidle")
-                    page.fill('[data-testid="email"]', EMAIL)
-                    page.fill('[data-testid="password"]', PASSWORD)
-                    page.wait_for_timeout(500)
-                    page.wait_for_selector('[data-testid="signin-submit"]:not([disabled])', timeout=15000)
-                    page.click('[data-testid="signin-submit"]')
-                    # Do not depend on where the app redirects: wait for the
-                    # session cookie, then go home explicitly.
-                    for _ in range(40):
-                        if any(c["name"] == "clipdesk_session" for c in context.cookies()):
-                            break
-                        page.wait_for_timeout(500)
-                    page.goto(f"{BASE}/", wait_until="domcontentloaded")
                     url = f"{BASE}{path}?theme={theme}"
                     page.goto(url, wait_until="domcontentloaded", timeout=20000)
-                    page.wait_for_timeout(6000)
+                    if "/signin" in page.url:
+                        # A lost session mid-run: re-authenticate once, then retry.
+                        if sign_in(context, page):
+                            page.goto(url, wait_until="domcontentloaded", timeout=20000)
+                    # First-visit tour overlays are dismissed so the page itself is captured.
+                    try:
+                        page.get_by_text("Skip tour", exact=True).first.click(timeout=1500)
+                    except Exception:
+                        pass
+                    page.wait_for_timeout(6000 if name == "admin" else 5000)
+                    if name == "admin":
+                        # The overview batches many reads and can take ~10-20 s
+                        # against a cold Neon pool; give the real state time.
+                        page.wait_for_timeout(18000)
                     page.screenshot(path=str(target), full_page=True)
-                    print(target.relative_to(ROOT))
-                    context.close()
+                    print(target.name)
+                context.close()
         browser.close()
 
 

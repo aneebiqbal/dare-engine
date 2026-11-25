@@ -143,11 +143,11 @@ export function AdminCalendar() {
                       const id = e.dataTransfer.getData("text/clip-id");
                       if (id) void scheduleClip(id, key);
                     }}
-                    className={`flex min-h-[6rem] flex-col items-center gap-1 rounded-xl px-2 py-3 ring-surface transition ${
+                    className={`flex min-h-[6rem] flex-col items-center gap-1 rounded-md px-2 py-3 ring-surface transition ${
                       over ? "bg-danger-soft ring-danger/40" : isToday ? "bg-accent-soft" : "bg-surface-2"
                     }`}
                   >
-                    <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
+                    <span className="folio">
                       {d.toLocaleDateString(undefined, { weekday: "short" })}
                     </span>
                     <span className="text-base font-semibold">{d.getDate()}</span>
@@ -155,7 +155,7 @@ export function AdminCalendar() {
                       {count}/{limit}
                     </span>
                     {over && <Badge tone="danger">over</Badge>}
-                    {isToday && <span className="text-[10px] uppercase tracking-[0.14em] text-accent">today</span>}
+                    {isToday && <span className="folio text-accent">today</span>}
                   </div>
                 );
               })}
@@ -195,7 +195,7 @@ export function AdminCalendar() {
                     key={c.id}
                     draggable
                     onDragStart={(e) => e.dataTransfer.setData("text/clip-id", c.id)}
-                    className="flex cursor-grab items-center justify-between gap-3 rounded-xl bg-surface px-4 py-3 ring-surface transition hover:bg-surface-2"
+                    className="flex cursor-grab items-center justify-between gap-3 rounded-md bg-surface px-4 py-3 ring-surface transition hover:bg-surface-2"
                   >
                     <span className="truncate text-sm">{c.title ?? c.id}</span>
                     <Button

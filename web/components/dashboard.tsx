@@ -84,7 +84,7 @@ export function Dashboard({ role }: { role: string }) {
         <section className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold tracking-tight">Today&apos;s dares</h2>
-            <Link href="/today" className="text-sm text-accent hover:underline">
+            <Link href="/today" className="text-sm text-text underline decoration-border underline-offset-4 hover:text-accent">
               Open Today
             </Link>
           </div>

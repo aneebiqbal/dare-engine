@@ -1,5 +1,14 @@
 # Screenshots — before and after
 
+## `after/2026-11-25-editorial/`
+
+The Editorial Graphite + Burnt Coral re-theme, captured against the real Neon
+database on the locally running stack: 68 shots, phone/desktop × dark/light.
+Cover art leads, panels are flat sheets with hairlines, coral marks running
+state and primary actions only. Capture script: `scripts/capture_after.py`
+(shared session per viewport/theme; the QA admin used for these runs must be
+deleted before launch).
+
 ## `before/`
 
 The pre-redesign build, captured with the screenshot mock layer on so every page

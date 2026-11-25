@@ -60,7 +60,7 @@ function SignUpForm() {
           </Button>
           <p className="text-xs text-muted">
             Already have an account?{" "}
-            <Link href="/signin" className="text-accent hover:underline">
+            <Link href="/signin" className="text-text underline decoration-border underline-offset-4 hover:text-accent">
               Sign in
             </Link>
           </p>

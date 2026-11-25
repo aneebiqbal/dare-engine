@@ -37,14 +37,14 @@ export function Button({
     lg: "px-7 py-4 text-base",
   }[size];
   const variants = {
-    primary: "bg-accent text-accent-contrast hover:opacity-90",
+    primary: "bg-accent text-accent-ink hover:bg-accent/92",
     outline: "ring-surface bg-surface hover:bg-surface-2 text-text",
     ghost: "bg-transparent hover:bg-surface-2 text-muted hover:text-text",
-    danger: "bg-danger/10 text-danger hover:bg-danger/15",
+    danger: "bg-danger/10 text-danger hover:bg-danger/15 ring-1 ring-danger/25",
   }[variant];
   return (
     <button
-      className={`inline-flex items-center justify-center gap-3 rounded-full font-medium transition duration-300 ease-out active:scale-[0.98] disabled:opacity-45 disabled:pointer-events-none ${sizes} ${variants} ${className}`}
+      className={`inline-flex items-center justify-center gap-3 rounded-md border border-transparent font-medium transition duration-200 ease-out active:scale-[0.98] disabled:opacity-45 disabled:pointer-events-none ${sizes} ${variants} ${className}`}
       {...props}
     />
   );
@@ -57,7 +57,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
     return (
       <input
         ref={ref}
-        className={`w-full rounded-xl bg-surface px-4 py-3 text-sm text-text ring-surface outline-none transition duration-300 ease-out placeholder:text-muted focus:bg-surface-2 ${className}`}
+        className={`w-full rounded bg-surface px-4 py-3 text-sm text-text ring-surface outline-none transition duration-200 ease-out placeholder:text-muted focus:bg-surface-2 ${className}`}
         {...props}
       />
     );
@@ -67,7 +67,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
 export function Textarea({ className = "", ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
-      className={`w-full rounded-xl bg-surface px-4 py-3 text-sm text-text ring-surface outline-none transition duration-300 ease-out placeholder:text-muted focus:bg-surface-2 ${className}`}
+      className={`w-full rounded bg-surface px-4 py-3 text-sm text-text ring-surface outline-none transition duration-200 ease-out placeholder:text-muted focus:bg-surface-2 ${className}`}
       {...props}
     />
   );
@@ -86,7 +86,7 @@ export function Field({
 }) {
   return (
     <label className="flex flex-col gap-2">
-      <span className="text-xs uppercase tracking-[0.2em] text-muted">{label}</span>
+      <span className="folio">{label}</span>
       {children}
       {error ? (
         <span className="text-xs text-danger" role="alert">
@@ -111,8 +111,8 @@ export function Card({
   as?: "div" | "article" | "section" | "li";
 }) {
   return (
-    <div className={`rounded-lg bg-surface p-1.5 ring-surface ${className}`}>
-      <Tag className="h-full rounded-[calc(2rem-0.375rem)] bg-surface-2 p-5">{children}</Tag>
+    <div className={`rounded-md bg-surface p-5 ring-surface ${className}`}>
+      <Tag className="h-full">{children}</Tag>
     </div>
   );
 }
@@ -138,7 +138,7 @@ export function Badge({
   }[tone];
   return (
     <span
-      className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-[10px] font-medium uppercase tracking-[0.2em] ${tones} ${className}`}
+      className={`inline-flex items-center gap-2 self-start rounded-sm px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.14em] ${tones} ${className}`}
       {...props}
     >
       {children}
@@ -147,11 +147,7 @@ export function Badge({
 }
 
 export function Eyebrow({ children }: { children: ReactNode }) {
-  return (
-    <span className="w-fit rounded-full bg-surface-2 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-muted ring-surface">
-      {children}
-    </span>
-  );
+  return <span className="folio block">{children}</span>;
 }
 
 /* -------------------------------------------------------------------- tabs */
@@ -166,15 +162,17 @@ export function Tabs({
   onChange: (id: string) => void;
 }) {
   return (
-    <div role="tablist" className="inline-flex gap-1 rounded-full bg-surface-2 p-1 ring-surface">
+    <div role="tablist" className="flex gap-1 border-b border-border">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           role="tab"
           aria-selected={active === tab.id}
           onClick={() => onChange(tab.id)}
-          className={`rounded-full px-4 py-2 text-sm transition duration-300 ease-out ${
-            active === tab.id ? "bg-surface text-text shadow-ambient" : "text-muted hover:text-text"
+          className={`-mb-px rounded-sm border-b px-4 py-2.5 text-sm transition duration-200 ease-out ${
+            active === tab.id
+              ? "border-text text-text"
+              : "border-transparent text-muted hover:text-text"
           }`}
         >
           {tab.label}
@@ -248,18 +246,16 @@ export function Dialog({
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="w-full max-w-md rounded-lg bg-surface p-1.5 ring-surface outline-none"
+        className="w-full max-w-md rounded-md bg-surface p-6 shadow-float ring-surface outline-none"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
       >
-        <div className="rounded-[calc(2rem-0.375rem)] bg-surface-2 p-6">
-          <h2 id={titleId} className="mb-4 text-lg font-semibold">
-            {title}
-          </h2>
-          {children}
-        </div>
+        <h2 id={titleId} className="mb-4 text-lg font-semibold">
+          {title}
+        </h2>
+        {children}
       </div>
     </div>
   );
@@ -290,7 +286,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             role="status"
-            className="rounded-xl bg-surface px-4 py-3 text-sm text-text shadow-ambient ring-surface"
+            className="rounded-md bg-surface px-4 py-3 text-sm text-text shadow-float ring-surface"
           >
             {t.message}
           </div>
@@ -312,7 +308,7 @@ export function Table({
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg bg-surface p-1.5 ring-surface" tabIndex={0}>
+    <div className="overflow-x-auto rounded-md bg-surface ring-surface" tabIndex={0}>
       <table className="w-full text-left text-sm">
         {caption && <caption className="sr-only">{caption}</caption>}
         <thead>
@@ -321,7 +317,7 @@ export function Table({
               <th
                 key={i}
                 scope="col"
-                className="px-4 py-3 text-xs uppercase tracking-[0.2em] text-muted"
+                className="folio px-4 py-3"
               >
                 {h}
               </th>
@@ -371,7 +367,7 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-lg bg-surface p-1.5 ring-surface">
-      <div className="flex w-full flex-col items-center gap-3 rounded-[calc(2rem-0.375rem)] bg-surface-2 px-6 py-16 text-center">
+      <div className="flex w-full flex-col items-center gap-3 rounded-md bg-surface-2 px-6 py-16 text-center">
         <span aria-hidden className="text-2xl text-muted">
           {icon}
         </span>
@@ -394,7 +390,7 @@ export function Select({
 }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
-      className={`w-full appearance-none rounded-xl bg-surface px-4 py-3 text-sm text-text ring-surface outline-none transition duration-300 ease-out focus:bg-surface-2 ${className}`}
+      className={`w-full appearance-none rounded bg-surface px-4 py-3 text-sm text-text ring-surface outline-none transition duration-200 ease-out focus:bg-surface-2 ${className}`}
       {...props}
     >
       {children}
@@ -413,7 +409,7 @@ export function Progress({
 }) {
   return (
     <div
-      className={`h-1.5 w-full overflow-hidden rounded-full bg-surface-2 ${className}`}
+      className={`h-1 w-full overflow-hidden bg-surface-2 ${className}`}
       role="progressbar"
       aria-label={label}
       aria-valuenow={Math.round(value)}
@@ -421,12 +417,8 @@ export function Progress({
       aria-valuemax={100}
     >
       <div
-        className="h-full rounded-full transition-[width] duration-500 ease-out"
-        style={{
-          width: `${Math.max(0, Math.min(100, value))}%`,
-          background: "linear-gradient(90deg, var(--accent), var(--accent-2))",
-          boxShadow: "0 0 12px var(--accent-soft)",
-        }}
+        className="h-full bg-accent transition-[width] duration-500 ease-out"
+        style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
       />
     </div>
   );
@@ -435,10 +427,10 @@ export function Progress({
 export function Notice({ children, tone = "info" }: { children: ReactNode; tone?: "info" | "warn" }) {
   const styles =
     tone === "warn"
-      ? "bg-danger/10 text-danger ring-danger/20"
-      : "bg-accent-soft text-accent ring-accent/20";
+      ? "bg-danger-soft text-danger ring-danger/20"
+      : "bg-surface-2 text-text ring-border";
   return (
-    <p className={`rounded-xl px-4 py-3 text-xs leading-relaxed ring-1 ${styles}`} role="status">
+    <p className={`rounded-md px-4 py-3 text-xs leading-relaxed ring-1 ${styles}`} role="status">
       {children}
     </p>
   );
@@ -455,7 +447,7 @@ export function Stat({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-[0.2em] text-muted">{label}</span>
+      <span className="folio">{label}</span>
       <span className="text-2xl font-semibold tracking-tight">{value}</span>
       {hint && <span className="text-xs text-muted">{hint}</span>}
     </div>

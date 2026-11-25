@@ -27,7 +27,7 @@ export function platformLabel(items: Platform[], id: string | null | undefined):
 export function PlatformBadge({ platform, items }: { platform?: string; items: Platform[] }) {
   const label = platformLabel(items, platform);
   return (
-    <span className="rounded-full bg-surface-2 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted ring-surface">
+    <span className="folio inline-flex rounded-sm bg-surface-2 px-2 py-0.5 text-muted ring-surface">
       {label}
     </span>
   );
@@ -49,7 +49,7 @@ export function PlatformSelect({
       aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="rounded-full bg-surface-2 px-3 py-2 text-xs ring-surface focus-visible:outline-none"
+      className="rounded-md bg-surface-2 px-3 py-2 text-xs ring-surface focus-visible:outline-none"
     >
       {items.map((p) => (
         <option key={p.id} value={p.id}>

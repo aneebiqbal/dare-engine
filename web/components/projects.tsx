@@ -183,7 +183,7 @@ export function Projects() {
 
       <Card>
         <div className="flex flex-col gap-3">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted">New project</span>
+          <span className="folio">New project</span>
           <div className="flex flex-wrap gap-2">
             <Input
               value={name}
@@ -210,7 +210,7 @@ export function Projects() {
 
       <Card>
         <div className="flex flex-col gap-3">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
+          <span className="folio">
             Automatic upload to Shorts
           </span>
           <div className="flex flex-wrap items-center gap-3">
@@ -222,7 +222,7 @@ export function Projects() {
                 const file = e.target.files?.[0];
                 if (file) void uploadVideo(file);
               }}
-              className="text-sm text-muted file:mr-3 file:rounded-full file:border-0 file:bg-accent file:px-4 file:py-2 file:text-xs file:font-medium file:text-white"
+              className="text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-accent file:px-4 file:py-2 file:text-xs file:font-medium file:text-accent-ink"
               aria-label="Upload a video to clip automatically"
               data-testid="pipeline-upload"
             />
@@ -246,7 +246,7 @@ export function Projects() {
         {counts.map((c) => (
           <span
             key={c.stage}
-            className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.14em] ring-surface ${
+            className={`folio rounded-sm bg-surface-2 px-2 py-0.5 ring-surface ${
               c.count ? "bg-accent-soft text-accent" : "bg-surface-2 text-muted"
             }`}
           >
@@ -296,22 +296,22 @@ export function Projects() {
                   {p.stage_note ?? "Waiting for the next step."}
                 </p>
 
-                <div className="grid grid-cols-3 gap-2 rounded-xl bg-surface-2 p-2 text-center ring-surface">
+                <div className="grid grid-cols-3 gap-2 rounded-md bg-surface-2 p-2 text-center ring-surface">
                   <div>
                     <div className="font-mono text-base font-semibold">{p.candidates}</div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted">candidates</div>
+                    <div className="folio">candidates</div>
                   </div>
                   <div>
                     <div className="font-mono text-base font-semibold">
                       {p.clips.ready}/{p.clips.total}
                     </div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted">clips ready</div>
+                    <div className="folio">clips ready</div>
                   </div>
                   <div>
                     <div className="font-mono text-base font-semibold">
                       {p.clips.reviewed}/{p.clips.total}
                     </div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted">reviewed</div>
+                    <div className="folio">reviewed</div>
                   </div>
                 </div>
 
@@ -387,7 +387,7 @@ export function Projects() {
 
       {runs.length > 0 && (
         <div className="flex flex-col gap-4">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
+          <span className="folio">
             Automatic pipelines · {runs.length}
           </span>
           {runs.map((run) => (

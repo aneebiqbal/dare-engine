@@ -1,5 +1,37 @@
 # Progress
 
+## 2026-11-25 — Editorial Graphite + Burnt Coral re-theme
+
+The owner approved the product brief but rejected the electric-citron/violet
+direction. The visual world was replaced; research, Geist typography, the
+work-kit architecture and every functional decision were preserved.
+
+- `docs/design-direction.md` — the committed identity: pinned palette,
+  typographic scale, editorial layout grammar, component language, imagery
+  findings, explicit refusals. `docs/design-execution-prompt.md` is the build
+  order derived from it.
+- Palette validated before code: `scripts/validate_palette.py`, all 20 text
+  pairs pass ≥ 4.5:1 in both themes.
+- Real imagery checked first: RAWG covers + a real gameplay frame downloaded
+  to `docs/design/imagery/`; artwork is presented without duotone and editing
+  surfaces stay neutral for colour judgment.
+- Tokens replaced across `globals.css`; radius scale reduced to 2/4/6/8 px;
+  panels are flat sheets with hairlines; one shadow token for floating layers;
+  purple mesh gradients, volt edges and glows removed; pill buttons/badges
+  replaced by squared controls and folio labels; accent reserved for running
+  state, primary action and focus.
+- `next build` and `tsc --noEmit` green; screenshots refreshed into
+  `docs/screens/after/2026-11-25-editorial/` (phone/desktop × dark/light).
+- Visual verdict remains pending a human looking at those shots.
+
+### Next three tasks
+
+1. Human verdict on the new renders; fix what feels generic.
+2. Downscale/cache game cover art at card size (a 4 MB cover currently loads
+   in the grid); `scripts/cache_game_art.py`.
+3. Run the mechanical Impeccable detector over the changed UI targets once the
+   theme is stable.
+
 ## 2026-11-24 — audit, live research fix, platform targeting, showcase
 
 ### Audit first

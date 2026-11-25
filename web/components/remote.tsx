@@ -136,7 +136,7 @@ export function Remote({ mission, next }: { mission: MissionCard; next?: Mission
           data-testid="connection"
           role="status"
           aria-live="polite"
-          className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${
+          className={`folio inline-flex items-center gap-2 rounded-sm bg-surface-2 px-2 py-0.5 ${
             online ? "bg-success/10 text-success" : "bg-danger/10 text-danger"
           }`}
         >
@@ -154,7 +154,7 @@ export function Remote({ mission, next }: { mission: MissionCard; next?: Mission
       </section>
 
       <section className="flex flex-col gap-3 rounded-lg bg-surface p-1.5 ring-surface">
-        <div className="flex flex-col gap-4 rounded-[calc(2rem-0.375rem)] bg-surface-2 p-5">
+        <div className="flex flex-col gap-4 rounded-md bg-surface-2 p-5">
           <div className="flex items-center justify-between text-xs text-muted">
             <span>Setup</span>
             <span>{mission.est_minutes} min</span>
@@ -176,7 +176,7 @@ export function Remote({ mission, next }: { mission: MissionCard; next?: Mission
             data-testid="start"
             data-tour="remote-start"
             onClick={start}
-            className="w-full rounded-2xl py-7 text-lg"
+            className="w-full rounded-lg py-7 text-lg"
           >
             Start
           </Button>
@@ -187,7 +187,7 @@ export function Remote({ mission, next }: { mission: MissionCard; next?: Mission
             data-testid="done"
             data-tour="remote-done"
             onClick={finish}
-            className="w-full rounded-2xl py-7 text-lg"
+            className="w-full rounded-lg py-7 text-lg"
           >
             Done
           </Button>
@@ -195,7 +195,7 @@ export function Remote({ mission, next }: { mission: MissionCard; next?: Mission
           <div
             data-testid="done-state"
             role="status"
-            className="rounded-2xl bg-success/10 py-7 text-center text-lg font-medium text-success"
+            className="rounded-lg bg-success/10 py-7 text-center text-lg font-medium text-success"
           >
             Mission logged{result ? ` · ${result}` : ""}
           </div>
@@ -210,11 +210,11 @@ export function Remote({ mission, next }: { mission: MissionCard; next?: Mission
         )}
 
         {done && next && (
-          <div className="flex flex-col gap-2 rounded-2xl bg-surface p-1.5 ring-surface" data-testid="next-dare">
-            <div className="flex flex-col gap-2 rounded-[calc(2rem-0.375rem)] bg-surface-2 p-5">
-              <span className="text-[10px] uppercase tracking-[0.2em] text-muted">Up next</span>
+          <div className="flex flex-col gap-2 rounded-lg bg-surface p-1.5 ring-surface" data-testid="next-dare">
+            <div className="flex flex-col gap-2 rounded-md bg-surface-2 p-5">
+              <span className="folio">Up next</span>
               <p className="text-sm font-medium leading-snug">{next.question}</p>
-              <a href="/today" className="text-sm text-accent hover:underline">
+              <a href="/today" className="text-sm text-text underline decoration-border underline-offset-4 hover:text-accent">
                 Pick it on Today
               </a>
             </div>

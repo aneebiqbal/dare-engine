@@ -94,7 +94,7 @@ function SetupInvite({ overview }: { overview: AdminOverview }) {
     <Card>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Get set up</span>
+          <span className="folio">Get set up</span>
           <h2 className="mt-1 text-base font-medium">
             Run the setup wizard — optional, five verified steps
           </h2>
@@ -105,13 +105,13 @@ function SetupInvite({ overview }: { overview: AdminOverview }) {
           <div className="mt-3 flex flex-wrap gap-2">
             <Link
               href="/admin/wizard"
-              className="inline-flex items-center rounded-full bg-accent px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+              className="inline-flex items-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition hover:opacity-90"
             >
               Open the setup wizard
             </Link>
             <Link
               href="/admin/setup"
-              className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2"
+              className="inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2"
             >
               See check status
             </Link>
@@ -123,7 +123,7 @@ function SetupInvite({ overview }: { overview: AdminOverview }) {
             localStorage.setItem(SETUP_INVITE_KEY, "1");
             setHidden(true);
           }}
-          className="rounded-full px-3 py-1 text-xs text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
+          className="rounded-md px-3 py-1 text-xs text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
           aria-label="Dismiss the setup invitation"
         >
           Dismiss
@@ -290,7 +290,7 @@ export function AdminOverview() {
                           action={
                             <Link
                               href="/admin/projects"
-                              className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
+                              className="inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
                             >
                               Open
                             </Link>
@@ -322,7 +322,7 @@ export function AdminOverview() {
               <Rail>
                 <Card>
                   <div className="flex flex-col gap-3">
-                    <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">
+                    <h2 className="text-base font-semibold">
                       Engine activity
                     </h2>
                     <ActivityFeed items={data.activity} />
@@ -331,14 +331,14 @@ export function AdminOverview() {
 
                 <Card>
                   <div className="flex flex-col gap-3">
-                    <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">
+                    <h2 className="text-base font-semibold">
                       Results
                     </h2>
                     {data.results.best || data.results.worst ? (
                       <div className="flex flex-col gap-3">
                         {data.results.best && (
                           <div className="flex flex-col gap-1">
-                            <span className="text-[10px] uppercase tracking-[0.18em] text-success">Best</span>
+                            <span className="folio text-success">Best</span>
                             <span className="truncate text-sm font-medium">{data.results.best.title ?? data.results.best.clip_id}</span>
                             <span className="font-mono text-xs text-muted">
                               {data.results.best.views.toLocaleString()} views
@@ -347,7 +347,7 @@ export function AdminOverview() {
                         )}
                         {data.results.worst && (
                           <div className="flex flex-col gap-1">
-                            <span className="text-[10px] uppercase tracking-[0.18em] text-danger">Worst retention</span>
+                            <span className="folio text-danger">Worst retention</span>
                             <span className="truncate text-sm font-medium">{data.results.worst.title ?? data.results.worst.clip_id}</span>
                             <span className="font-mono text-xs text-muted">
                               {data.results.worst.avg_view_percentage ?? "—"}% avg view
@@ -366,7 +366,7 @@ export function AdminOverview() {
 
                 <Card>
                   <div className="flex flex-col gap-3">
-                    <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">Keys</h2>
+                    <h2 className="text-base font-semibold">Keys</h2>
                     <div className="flex flex-col gap-2">
                       {data.keys.integrations.map((k) => (
                         <div key={k.name} className="flex items-center justify-between gap-2 text-sm">
@@ -539,7 +539,7 @@ export function AdminInvites() {
                 <button
                   type="button"
                   onClick={() => void copy(i.code)}
-                  className="text-accent hover:underline"
+                  className="text-text underline decoration-border underline-offset-4 hover:text-accent"
                   title="Copy code"
                 >
                   <code>{i.code}</code>
@@ -976,7 +976,7 @@ export function AdminPool() {
                 )}
                 {e.card?.title_options?.length ? (
                   <div className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Title options</span>
+                    <span className="folio">Title options</span>
                     {e.card.title_options.map((t, i) => (
                       <span key={i} className="text-sm">{t}</span>
                     ))}
@@ -1123,28 +1123,28 @@ export function AdminAi() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Provider</span>
+              <span className="folio">Provider</span>
               <span className="font-mono text-sm font-semibold">{config?.provider ?? "—"}</span>
               <span className="text-xs text-muted">{config?.base_url || "no base URL"}</span>
             </div>
           </Card>
           <Card>
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Model</span>
+              <span className="folio">Model</span>
               <span className="font-mono text-sm font-semibold">{config?.model || "—"}</span>
               <span className="text-xs text-muted">{config?.key_present ? "key present" : "no key"}</span>
             </div>
           </Card>
           <Card>
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Configured</span>
+              <span className="folio">Configured</span>
               <StatusBadge status={config?.configured ? "done" : "needs"} label={config?.configured ? "yes" : "no"} />
               <span className="text-xs text-muted">provider · base URL · model · key</span>
             </div>
           </Card>
           <Card>
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Live vs fallback</span>
+              <span className="folio">Live vs fallback</span>
               <span className="font-mono text-sm font-semibold">
                 {items.filter((u) => !u.fallback).length} / {items.length}
               </span>
@@ -1274,21 +1274,21 @@ export function AdminSetup() {
         <div className="grid gap-4 sm:grid-cols-3">
           <Card>
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Provider</span>
+              <span className="folio">Provider</span>
               <span className="font-mono text-sm font-semibold">{config?.provider ?? "—"}</span>
               <span className="text-xs text-muted">{config?.model || "no model"}</span>
             </div>
           </Card>
           <Card>
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] uppercase tracking-[0.18em] text-muted">AI key</span>
+              <span className="folio">AI key</span>
               <StatusBadge status={config?.key_present ? "done" : "needs"} label={config?.key_present ? "present" : "missing"} />
               <span className="text-xs text-muted">{config?.configured ? "configured" : "not configured"}</span>
             </div>
           </Card>
           <Card>
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Storage</span>
+              <span className="folio">Storage</span>
               <span className="font-mono text-sm font-semibold">
                 {storage ? `${(storage.bytes / 1_000_000).toFixed(1)} MB` : "—"}
               </span>
@@ -1302,7 +1302,7 @@ export function AdminSetup() {
             <Card key={group.name}>
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase tracking-[0.18em] text-muted">{group.name}</span>
+                  <span className="folio">{group.name}</span>
                   <span className="font-mono text-xs text-muted">
                     {group.items.filter((c) => c.ok).length}/{group.items.length}
                   </span>

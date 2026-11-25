@@ -32,7 +32,7 @@ export function DareCard({
   children?: ReactNode;
 }) {
   return (
-    <Card className={highlight ? "signature glow" : ""}>
+    <Card className={highlight ? "signature" : ""}>
       <div className="flex h-full flex-col gap-3">
         <div className="flex items-center justify-between">
           <Badge tone={highlight ? "accent" : "muted"}>
@@ -45,7 +45,7 @@ export function DareCard({
           <img
             src={api.cardImageUrl(card.id)}
             alt={`Card for ${card.hook_text}`}
-            className="w-full rounded-xl bg-bg object-cover ring-surface"
+            className="w-full rounded-md bg-bg object-cover ring-surface"
           />
         )}
         <h3 className="text-2xl font-semibold leading-tight tracking-tight">{card.hook_text}</h3>

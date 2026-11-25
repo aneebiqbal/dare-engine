@@ -507,7 +507,7 @@ export function Studio() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <div className="flex flex-col gap-3">
-            <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Compute path</span>
+            <span className="folio">Compute path</span>
             <div data-testid="studio-compute" className="flex flex-wrap gap-2">
               <Badge tone={recording?.compute.gpu ? "success" : "muted"}>
                 {recording?.compute.gpu ? "GPU" : "CPU"}
@@ -519,7 +519,7 @@ export function Studio() {
         </Card>
         <Card>
           <div className="flex flex-col gap-3">
-            <span className="text-[10px] uppercase tracking-[0.18em] text-muted">System load</span>
+            <span className="folio">System load</span>
             <div className="grid grid-cols-3 gap-3">
               <Metric label="CPU" value={load?.cpu_percent != null ? `${Math.round(load.cpu_percent)}%` : "—"} />
               <Metric

@@ -2,36 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
-/* One token file for colour, type, spacing, radius and motion.
-   Identity: "Control room" — a working tool. Accent means running, the other
-   status colours mean needs-you / done / failed. Light is the default theme. */
+/* Editorial Graphite + Burnt Coral.
+   Dark is the working scene (editing under calibrated light); light is warm
+   paper for reading and planning. Accent means live / primary action only.
+   See docs/design-direction.md — this file is its token contract. */
 :root {
-  --bg: #f3f4f6;
-  --surface: #ffffff;
-  --surface-2: #eef0f3;
-  --surface-3: #e3e6ea;
-  --border: rgb(20 24 29 / 0.09);
-  --text: #14181d;
-  --muted: rgb(20 24 29 / 0.62);
+  --bg: #f6f2ea;
+  --surface: #fdfaf3;
+  --surface-2: #efe8dc;
+  --surface-3: #e5dccb;
+  --border: #dcd2c2;
+  --text: #221f1c;
+  --muted: #6e675f;
 
-  --accent: #2158e0;
-  --accent-2: #7c6cff;
-  --accent-soft: rgb(33 88 224 / 0.1);
-  --accent-contrast: #ffffff;
+  --accent: #ad4b35;
+  --accent-ink: #fff6ef;
+  --accent-soft: #f7ebe2;
 
-  --needs: #92400a;
-  --needs-soft: rgb(146 64 10 / 0.12);
-  --success: #065f46;
-  --success-soft: rgb(6 95 70 / 0.1);
-  --danger: #b91c1c;
-  --danger-soft: rgb(185 28 28 / 0.1);
+  --needs: #8a5a1f;
+  --needs-soft: #f0e4cc;
+  --success: #3f6b4f;
+  --success-soft: #e3eae0;
+  --danger: #a83a2c;
+  --danger-soft: #f2ded9;
 
-  /* Brand / signature moments only (the dare card). */
-  --signature: #4f46e5;
-
-  --radius-sm: 0.75rem;
-  --radius: 1.25rem;
-  --radius-lg: 2rem;
+  --radius-sm: 2px;
+  --radius: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-sheet: 10px;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -43,36 +42,42 @@
   --space-16: 4rem;
   --space-24: 6rem;
 
+  /* Display → mono. Tracking tight on display, looser on body. */
+  --step-display: clamp(2.75rem, 6vw, 4.5rem);
+  --step-h1: clamp(2rem, 4vw, 3rem);
+  --step-h2: 1.25rem;
+  --step-body: 0.9375rem;
+  --step-label: 0.6875rem;
+  --step-mono: 0.8125rem;
+
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 12px 32px -12px rgb(16 24 40 / 0.14);
-  --shadow-bar: 0 1px 2px rgb(16 24 40 / 0.06), 0 8px 24px -12px rgb(16 24 40 / 0.18);
+  /* Floating layers only: dialogs, menus, toasts. Panels use surface+hairline. */
+  --shadow-float: 0 1px 0 rgb(0 0 0 / 0.24), 0 12px 32px -16px rgb(0 0 0 / 0.55);
+  --shadow-bar: 0 1px 0 rgb(20 16 12 / 0.16);
 }
 
 .dark {
-  --bg: #0a0c0f;
-  --surface: #12151a;
-  --surface-2: #1a1f26;
-  --surface-3: #232932;
-  --border: rgb(255 255 255 / 0.1);
-  --text: #e8ecf1;
-  --muted: rgb(232 236 241 / 0.72);
+  --bg: #171717;
+  --surface: #1e1e1c;
+  --surface-2: #292825;
+  --surface-3: #33312d;
+  --border: #36332f;
+  --text: #f2f0eb;
+  --muted: #a49f99;
 
-  --accent: #8fb4ff;
-  --accent-2: #a89cff;
-  --accent-soft: rgb(143 180 255 / 0.16);
-  --accent-contrast: #0a0c0f;
+  --accent: #e98d72;
+  --accent-ink: #221512;
+  --accent-soft: #2a211d;
 
-  --needs: #f59e0b;
-  --needs-soft: rgb(245 158 11 / 0.14);
-  --success: #34d399;
-  --success-soft: rgb(52 211 153 / 0.12);
-  --danger: #f87171;
-  --danger-soft: rgb(248 113 113 / 0.13);
+  --needs: #d9a441;
+  --needs-soft: #2e2718;
+  --success: #8fb09c;
+  --success-soft: #1f2a22;
+  --danger: #d3776a;
+  --danger-soft: #2e1e1c;
 
-  --signature: #c8ff3d;
-
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 20px 48px -20px rgb(0 0 0 / 0.8);
-  --shadow-bar: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 12px 32px -16px rgb(0 0 0 / 0.8);
+  --shadow-float: 0 1px 0 rgb(0 0 0 / 0.4), 0 16px 40px -20px rgb(0 0 0 / 0.8);
+  --shadow-bar: 0 1px 0 rgb(255 255 255 / 0.05);
 }
 
 @layer base {
@@ -80,14 +85,6 @@
     background: var(--bg);
     color: var(--text);
     transition: background-color 400ms var(--ease), color 400ms var(--ease);
-  }
-
-  .dark body {
-    background:
-      radial-gradient(1100px 560px at 85% -10%, rgb(91 140 255 / 0.07), transparent 62%),
-      radial-gradient(900px 520px at -12% 8%, rgb(124 108 255 / 0.05), transparent 58%),
-      var(--bg);
-    background-attachment: fixed;
   }
 
   :focus-visible {
@@ -98,7 +95,29 @@
 
   ::selection {
     background: var(--accent);
-    color: var(--accent-contrast);
+    color: var(--accent-ink);
+  }
+
+  input,
+  textarea,
+  select {
+    caret-color: var(--accent);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border: 3px solid var(--bg);
+    border-radius: var(--radius);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--muted);
   }
 }
 
@@ -113,47 +132,43 @@
     box-shadow: inset 0 0 0 1px var(--border);
   }
 
-  /* Dark cards get a top highlight instead of a glow. */
-  .dark .bezel {
-    box-shadow: inset 0 0 0 1px var(--border), inset 0 1px 0 rgb(255 255 255 / 0.04);
-  }
-
+  /* A panel is a sheet: surface + hairline, no ambient shadow. */
   .bezel {
-    box-shadow: var(--shadow), inset 0 0 0 1px var(--border);
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+  .dark .bezel {
+    box-shadow: inset 0 0 0 1px var(--border), inset 0 1px 0 rgb(255 255 255 / 0.03);
   }
 
-  /* Signature moments: the dare card keeps the brand edge. */
+  /* The one brand artefact: a coral rule, not a volt edge. */
   .signature {
     position: relative;
-    overflow: hidden;
   }
   .signature::before {
     content: "";
     position: absolute;
     inset: 0 auto 0 0;
-    width: 3px;
-    background: linear-gradient(180deg, var(--signature), var(--accent-2));
+    width: 2px;
+    background: var(--accent);
   }
-  .glow {
-    box-shadow:
-      inset 0 0 0 1px var(--border),
-      0 0 0 1px var(--accent-soft),
-      0 12px 40px -16px var(--accent-soft);
-  }
-  .text-gradient {
-    background: linear-gradient(92deg, var(--accent), var(--accent-2));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+
+  /* Folio label: tracked mono, muted. No coloured pill. */
+  .folio {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-size: var(--step-label);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
   }
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .animate-entry {
-    animation: entry 520ms var(--ease) both;
+    animation: entry 480ms var(--ease) both;
   }
   .animate-pop {
-    animation: pop 420ms var(--ease) both;
+    animation: pop 380ms var(--ease) both;
   }
   /* The one live pulse. Only rendered while work is actually running. */
   .animate-live {
@@ -169,7 +184,7 @@
 @keyframes entry {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -180,7 +195,7 @@
 @keyframes pop {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.98);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;

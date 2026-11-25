@@ -95,7 +95,7 @@ export function CaptionEditor({ clipId }: { clipId: string }) {
     <Card>
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Captions</span>
+          <span className="folio">Captions</span>
           <div className="flex items-center gap-2">
             {rendering && <StatusBadge status="running" label="Re-rendering" />}
             {source && !rendering && (

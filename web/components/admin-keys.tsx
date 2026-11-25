@@ -81,7 +81,7 @@ function KeyRow({ integration, onChanged }: { integration: IntegrationKey; onCha
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-[calc(2rem-0.375rem)] bg-surface p-4 ring-surface">
+    <div className="flex flex-col gap-3 rounded-md bg-surface p-4 ring-surface">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <StatusDot tone={STATUS_TONE[integration.status]} label={STATUS_LABEL[integration.status]} />
         <span className="text-sm font-medium">{integration.label}</span>
@@ -99,7 +99,7 @@ function KeyRow({ integration, onChanged }: { integration: IntegrationKey; onCha
           href={integration.docs}
           target="_blank"
           rel="noreferrer"
-          className="text-accent hover:underline"
+          className="text-text underline decoration-border underline-offset-4 hover:text-accent"
         >
           Where to get this
         </a>
@@ -191,7 +191,7 @@ export function AdminKeys() {
           <div className="grid gap-5">
             {groups.map(({ group, items }) => (
               <div key={group} className="flex flex-col gap-2">
-                <span className="text-[10px] uppercase tracking-[0.2em] text-muted">{group}</span>
+                <span className="folio">{group}</span>
                 <div className="grid gap-3">
                   {items.map((integration) => (
                     <KeyRow key={integration.name} integration={integration} onChanged={load} />

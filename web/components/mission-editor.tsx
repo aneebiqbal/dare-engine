@@ -117,12 +117,12 @@ export function MissionEditor({ initial }: { initial: PoolEntry | null }) {
       <aside className="flex flex-col gap-4">
         <Card>
           <div className="flex flex-col gap-3">
-            <span className="text-[10px] uppercase tracking-[0.2em] text-muted">Card identity</span>
+            <span className="folio">Card identity</span>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={api.cardImageUrl(card.id)}
               alt={`Card for ${card.hook_text}`}
-              className="w-full rounded-xl bg-bg object-cover ring-surface"
+              className="w-full rounded-md bg-bg object-cover ring-surface"
             />
           </div>
         </Card>
@@ -172,7 +172,7 @@ export function MissionEditor({ initial }: { initial: PoolEntry | null }) {
                       href={s.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-accent hover:underline"
+                      className="text-text underline decoration-border underline-offset-4 hover:text-accent"
                     >
                       {s.title}
                     </a>

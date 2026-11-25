@@ -44,7 +44,7 @@ export function Sources({ sources }: { sources?: PoolEntry["sources"] }) {
             href={s.url}
             target="_blank"
             rel="noreferrer"
-            className="text-accent hover:underline"
+            className="text-text underline decoration-border underline-offset-4 hover:text-accent"
           >
             {s.title}
           </a>
@@ -151,7 +151,7 @@ function ResearchPanel({ gameId, onDone, compact = false }: { gameId: string; on
         <p className="text-xs text-muted">{run.detail ?? "Waiting for the first source…"}</p>
       </div>
     );
-    if (compact) return <div className="rounded-xl bg-surface-2 p-3 ring-surface">{body}</div>;
+    if (compact) return <div className="rounded-md bg-surface-2 p-3 ring-surface">{body}</div>;
     return <Card>{body}</Card>;
   }
 
@@ -266,11 +266,16 @@ export function AdminGames() {
         emptyTitle="No games yet"
         emptyBody="Add a game to start daily research."
       >
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {items.map((game) => (
-            <Card key={game.id} className={game.enabled ? "" : "ring-border"}>
+        <div className="grid gap-5 md:grid-cols-2">
+          {items.map((game, i) => (
+            <Card
+              key={game.id}
+              className={`${i === 0 ? "md:col-span-2" : ""} ${
+                game.enabled ? "" : "ring-border"
+              }`}
+            >
               <div className="flex h-full flex-col gap-3">
-                <div className="relative -mx-5 -mt-5 mb-1 h-36 overflow-hidden rounded-t-[calc(2rem-0.375rem)] bg-surface-3">
+                <div className="relative -mx-5 -mt-5 mb-1 h-36 overflow-hidden rounded-t-md bg-surface-3 lg:h-44">
                   {game.art_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -280,11 +285,11 @@ export function AdminGames() {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(600px_200px_at_70%_0%,var(--accent-soft),transparent)] text-2xl font-semibold text-muted">
+                    <div className="flex h-full w-full items-center justify-center bg-surface-3 text-2xl font-semibold tracking-[-0.04em] text-muted">
                       {game.name.slice(0, 2).toUpperCase()}
                     </div>
                   )}
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-3 pt-8">
+                  <div className="absolute inset-x-0 bottom-0 bg-[linear-gradient(to_top,rgb(0_0_0/0.78),transparent)] p-3 pt-10">
                     <span className="block truncate text-sm font-medium text-white">
                       {game.name}
                     </span>
@@ -301,23 +306,23 @@ export function AdminGames() {
 
                 <Link
                   href={`/admin/games/${game.id}`}
-                  className="text-xs font-medium text-accent hover:underline"
+                  className="text-xs font-medium text-text underline decoration-border underline-offset-4 hover:text-accent"
                 >
                   Open research workspace →
                 </Link>
 
-                <div className="grid grid-cols-3 gap-2 rounded-xl bg-surface p-3 text-center ring-surface">
+                <div className="grid grid-cols-3 gap-2 rounded-md bg-surface p-3 text-center ring-surface">
                   <div>
                     <div className="font-mono text-base font-semibold">{game.candidates ?? 0}</div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted">ideas</div>
+                    <div className="folio">ideas</div>
                   </div>
                   <div>
                     <div className="font-mono text-base font-semibold">{game.approved ?? 0}</div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted">approved</div>
+                    <div className="folio">approved</div>
                   </div>
                   <div>
                     <div className="font-mono text-base font-semibold">{game.gamers ?? 0}</div>
-                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted">gamers</div>
+                    <div className="folio">gamers</div>
                   </div>
                 </div>
 
@@ -351,7 +356,7 @@ export function AdminGames() {
                     </Button>
                     <Link
                       href={`/admin/games/${game.id}`}
-                      className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface hover:text-text"
+                      className="inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface hover:text-text"
                     >
                       Open
                     </Link>
@@ -656,7 +661,7 @@ export function AdminGameProfile({ gameId }: { gameId: string }) {
               <Tr key={a.assignment_id}>
                 <Td>{a.display_name}</Td>
                 <Td>
-                  <Link href={`/missions/${a.mission_id}`} className="text-accent hover:underline">
+                  <Link href={`/missions/${a.mission_id}`} className="text-text underline decoration-border underline-offset-4 hover:text-accent">
                     {a.mission_id}
                   </Link>
                 </Td>

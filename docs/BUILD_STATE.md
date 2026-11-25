@@ -55,6 +55,7 @@ Last updated after the research-brain sprint.
 | Desktop .dmg rebuilt from this tree (2026-11-24) | yes | yes (`tauri build`) | partial (unsigned; no human launch) | Apple signing/notarisation |
 | Windows installer (Tauri `.msi`/`.nsis`) | documented | no | no | a Windows machine + signing certificate |
 | Landing page with owner download slots (`/landing`) | yes | yes (build) | partial (slots unfilled) | real download URLs + demo clip |
+| Editorial Graphite + Burnt Coral re-theme (both themes) | yes | yes (build + palette script) | partial (screenshots fresh; verdict pending) | a human looking at the shots |
 | Desktop capture (OBS path) | yes | yes | yes (OBS 33.0.1) | — |
 | Desktop capture (bundled FFmpeg recorder) | yes | yes (command) | no | a real recording |
 | Vision clip suggestions (sampled VLM) | yes | yes | yes (real run, 4-min trailer) | owner's gameplay footage |

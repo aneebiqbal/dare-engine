@@ -208,7 +208,7 @@ export function AdminModels() {
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-[0.2em] text-muted">Provider picker</span>
+            <span className="folio">Provider picker</span>
             <Badge tone={provider?.effective.configured ? "success" : "muted"}>
               {provider?.env.configured ? "configured" : "not configured"}
             </Badge>
@@ -263,7 +263,7 @@ export function AdminModels() {
 
         <Card className="sm:col-span-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-[0.2em] text-muted">Engine</span>
+            <span className="folio">Engine</span>
             <StatusDot tone={engine ? "success" : "muted"} label={engine ? "live" : "offline"} />
           </div>
           <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -299,7 +299,7 @@ export function AdminModels() {
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <span className="text-xs uppercase tracking-[0.2em] text-muted">Suggested engine</span>
+            <span className="folio">Suggested engine</span>
             <p className="mt-1 text-sm text-muted">
               The three models the engine needs.{" "}
               {missingGb > 0
@@ -335,7 +335,7 @@ export function AdminModels() {
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <span className="text-xs uppercase tracking-[0.2em] text-muted">Local models</span>
+            <span className="folio">Local models</span>
             <p className="mt-1 text-sm text-muted">
               Ollama models on this Mac. Pulled and unloaded here; nothing leaves the machine.
             </p>

@@ -37,13 +37,13 @@ function DownloadCard({
         {url ? (
           <a
             href={url}
-            className="mt-auto inline-flex items-center justify-center rounded-full bg-accent px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+            className="mt-auto inline-flex items-center justify-center rounded-md bg-accent px-5 py-3 text-sm font-medium text-accent-ink transition hover:opacity-90"
           >
             Download
           </a>
         ) : (
           <div className="mt-auto flex flex-col gap-1">
-            <span className="inline-flex items-center justify-center rounded-full bg-surface-3 px-5 py-3 font-mono text-xs text-muted ring-surface">
+            <span className="inline-flex items-center justify-center rounded-md bg-surface-3 px-5 py-3 font-mono text-xs text-muted ring-surface">
               {slot}
             </span>
             <span className="text-center text-[11px] text-muted">
@@ -61,7 +61,7 @@ export default function Landing() {
     <main className="relative flex min-h-[100dvh] flex-col overflow-hidden px-6 py-10 sm:px-10">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(120,119,198,0.16),transparent_70%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-accent"
       />
       <header className="relative flex items-center justify-between">
         <Link href="/welcome" className="text-sm font-medium tracking-tight text-text">
@@ -71,18 +71,18 @@ export default function Landing() {
           {WEB_PORTAL_URL ? (
             <a
               href={WEB_PORTAL_URL}
-              className="rounded-full px-4 py-2 text-sm text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
+              className="rounded-md px-4 py-2 text-sm text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
             >
               Open the web portal
             </a>
           ) : (
-            <span className="rounded-full px-4 py-2 font-mono text-[11px] text-muted ring-surface">
+            <span className="rounded-md px-4 py-2 font-mono text-[11px] text-muted ring-surface">
               NEXT_PUBLIC_WEB_PORTAL
             </span>
           )}
           <Link
             href="/signin"
-            className="rounded-full px-4 py-2 text-sm text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
+            className="rounded-md px-4 py-2 text-sm text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
           >
             Sign in
           </Link>
@@ -129,13 +129,13 @@ export default function Landing() {
             {WEB_PORTAL_URL ? (
               <a
                 href={WEB_PORTAL_URL}
-                className="mt-auto inline-flex items-center justify-center rounded-full bg-accent px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                className="mt-auto inline-flex items-center justify-center rounded-md bg-accent px-5 py-3 text-sm font-medium text-accent-ink transition hover:opacity-90"
               >
                 Open the web portal
               </a>
             ) : (
               <div className="mt-auto flex flex-col gap-1">
-                <span className="inline-flex items-center justify-center rounded-full bg-surface-3 px-5 py-3 font-mono text-xs text-muted ring-surface">
+                <span className="inline-flex items-center justify-center rounded-md bg-surface-3 px-5 py-3 font-mono text-xs text-muted ring-surface">
                   NEXT_PUBLIC_WEB_PORTAL
                 </span>
                 <span className="text-center text-[11px] text-muted">
@@ -151,7 +151,7 @@ export default function Landing() {
         <Card>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="min-w-0 flex-1">
-              <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
+              <span className="folio">
                 See it work
               </span>
               <h2 className="mt-1 text-base font-medium">Demo clip</h2>

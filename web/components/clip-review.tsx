@@ -189,7 +189,7 @@ export function ClipReview({ clip }: { clip: Clip }) {
           current.download_url ? (
             <a
               href={api.downloadClipUrl(clip.id)}
-              className="inline-flex items-center rounded-full px-5 py-2.5 text-sm font-medium text-accent ring-surface transition hover:bg-surface-2"
+              className="inline-flex items-center rounded-md px-5 py-2.5 text-sm font-medium text-text ring-surface transition hover:bg-surface-2"
             >
               Download video
             </a>
@@ -245,7 +245,7 @@ export function ClipReview({ clip }: { clip: Clip }) {
           {current.download_url && (
             <a
               href={api.downloadClipUrl(clip.id)}
-              className="mt-4 block rounded-full py-3 text-center text-sm font-medium text-accent ring-surface transition hover:bg-surface-2"
+              className="mt-4 block rounded-md py-3 text-center text-sm font-medium text-text ring-surface transition hover:bg-surface-2"
             >
               Download video
             </a>
@@ -453,13 +453,13 @@ export function ClipReview({ clip }: { clip: Clip }) {
                 <Button onClick={saveExport} disabled={busy}>Save package</Button>
                 <Link
                   href={`/export/${clip.id}`}
-                  className="inline-flex items-center rounded-full px-5 py-2.5 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
+                  className="inline-flex items-center rounded-md px-5 py-2.5 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
                 >
                   Open export page
                 </Link>
                 <a
                   href={api.downloadExportUrl(clip.id)}
-                  className="inline-flex items-center rounded-full px-5 py-2.5 text-sm font-medium text-accent ring-surface transition hover:bg-surface-2"
+                  className="inline-flex items-center rounded-md px-5 py-2.5 text-sm font-medium text-text ring-surface transition hover:bg-surface-2"
                   data-tour="export-button"
                 >
                   Download package

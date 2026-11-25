@@ -97,7 +97,7 @@ export function AdminLongForm() {
       <Card>
         <div className="flex flex-col gap-4">
           <div>
-            <span className="text-xs uppercase tracking-[0.2em] text-muted">Build a long-form video</span>
+            <span className="folio">Build a long-form video</span>
             <p className="mt-1 text-sm text-muted">
               Pick a session&apos;s finished Shorts and assemble them into one video. The build
               runs in the background like any other job.
@@ -184,7 +184,7 @@ export function AdminLongForm() {
                   </Td>
                   <Td>
                     {l.download_url ? (
-                      <a href={api.adminLongFormUrl(l.id)} className="text-accent hover:underline">
+                      <a href={api.adminLongFormUrl(l.id)} className="text-text underline decoration-border underline-offset-4 hover:text-accent">
                         Download
                       </a>
                     ) : (

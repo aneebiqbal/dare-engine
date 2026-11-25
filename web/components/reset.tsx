@@ -45,7 +45,7 @@ function ResetForm() {
             {busy ? "Resetting…" : "Reset password"}
           </Button>
           <p className="text-xs text-muted">
-            <Link href="/signin" className="text-accent hover:underline">
+            <Link href="/signin" className="text-text underline decoration-border underline-offset-4 hover:text-accent">
               Back to sign in
             </Link>
           </p>

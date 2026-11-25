@@ -109,7 +109,7 @@ export function SetupWizard() {
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-xs uppercase tracking-[0.2em] text-muted">Setup</span>
+              <span className="folio">Setup</span>
               <h2 className="mt-1 text-base font-medium">
                 {ready ? "You're ready." : "Four steps, each verified before the next unlocks."}
               </h2>

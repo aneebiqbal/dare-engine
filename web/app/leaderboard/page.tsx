@@ -46,7 +46,7 @@ export default async function LeaderboardPage() {
                 <span
                   className={
                     r.rank <= 3
-                      ? "text-2xl font-semibold tracking-tight text-gradient"
+                      ? "text-2xl font-semibold tracking-tight text-accent"
                       : "text-2xl font-semibold tracking-tight text-muted"
                   }
                 >

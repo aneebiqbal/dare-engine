@@ -96,7 +96,7 @@ export function Results({ initial }: { initial: Results | null }) {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <div className="flex flex-col gap-3">
-            <span className="text-[10px] uppercase tracking-[0.18em] text-muted">
+            <span className="folio">
               Leading indicators
             </span>
             <div className="grid grid-cols-3 gap-3">
@@ -126,7 +126,7 @@ export function Results({ initial }: { initial: Results | null }) {
         </Card>
         <Card>
           <div className="flex flex-col gap-2">
-            <span className="text-[10px] uppercase tracking-[0.18em] text-success">Best clip</span>
+            <span className="folio text-success">Best clip</span>
             {best ? (
               <>
                 <span className="truncate text-sm font-medium">{best.title ?? best.clip_id}</span>
@@ -142,7 +142,7 @@ export function Results({ initial }: { initial: Results | null }) {
         </Card>
         <Card>
           <div className="flex flex-col gap-2">
-            <span className="text-[10px] uppercase tracking-[0.18em] text-danger">
+            <span className="folio text-danger">
               Weakest retention
             </span>
             {worst && clips.length > 1 ? (
@@ -183,14 +183,14 @@ export function Results({ initial }: { initial: Results | null }) {
             title="Clips"
             count={clips.length}
             action={
-              <div className="flex gap-1 rounded-full bg-surface-2 p-1 ring-surface">
+              <div className="flex gap-1 rounded-md bg-surface-2 p-1 ring-surface">
                 {(["views", "avg"] as const).map((key) => (
                   <button
                     key={key}
                     type="button"
                     onClick={() => setSort(key)}
-                    className={`rounded-full px-3 py-1 text-xs transition ${
-                      sort === key ? "bg-surface text-text shadow-ambient" : "text-muted hover:text-text"
+                    className={`rounded-md px-3 py-1 text-xs transition ${
+                      sort === key ? "bg-surface text-text shadow-float" : "text-muted hover:text-text"
                     }`}
                   >
                     {key === "views" ? "By views" : "By retention"}

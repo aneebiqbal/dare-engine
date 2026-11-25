@@ -72,7 +72,7 @@ export function ExportPackage({ clip }: { clip: Clip }) {
           {clip.download_url && (
             <a
               href={api.downloadClipUrl(clip.id)}
-              className="mt-4 block rounded-full py-3 text-center text-sm font-medium text-accent ring-surface transition hover:bg-surface-2"
+              className="mt-4 block rounded-md py-3 text-center text-sm font-medium text-text ring-surface transition hover:bg-surface-2"
             >
               Download video only
             </a>
@@ -118,7 +118,7 @@ export function ExportPackage({ clip }: { clip: Clip }) {
                 <Button onClick={save} disabled={busy}>Save package</Button>
                 <a
                   href={api.downloadExportUrl(clip.id)}
-                  className="inline-flex items-center rounded-full px-5 py-2.5 text-sm font-medium text-accent ring-surface transition hover:bg-surface-2"
+                  className="inline-flex items-center rounded-md px-5 py-2.5 text-sm font-medium text-text ring-surface transition hover:bg-surface-2"
                 >
                   Download package
                 </a>

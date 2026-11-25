@@ -258,7 +258,7 @@ export function Clips({ initial }: { initial: Clip[] }) {
                     src={api.thumbnailUrl(clip.id)}
                     alt=""
                     loading="lazy"
-                    className="h-32 w-full rounded-xl object-cover"
+                    className="h-32 w-full rounded-md object-cover"
                   />
                 )}
                 <h3 className="text-base font-medium leading-snug">{clip.title ?? "Untitled"}</h3>
@@ -274,14 +274,14 @@ export function Clips({ initial }: { initial: Clip[] }) {
                 <div className="mt-auto flex flex-wrap gap-2 pt-2">
                   <a
                     href={`/clips/${clip.id}`}
-                    className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
+                    className="inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
                   >
                     Review
                   </a>
                   {clip.download_url && (
                     <a
                       href={api.downloadClipUrl(clip.id)}
-                      className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
+                      className="inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
                     >
                       Download
                     </a>

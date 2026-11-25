@@ -14,12 +14,12 @@ const LINKS: [string, string][] = [
 
 export function Nav() {
   return (
-    <nav className="flex flex-wrap items-center gap-1 rounded-full bg-surface p-1 ring-surface">
+    <nav className="flex flex-wrap items-center gap-1 rounded-md bg-surface p-1 ring-surface">
       {LINKS.map(([href, label]) => (
         <Link
           key={href}
           href={href}
-          className="rounded-full px-3 py-1.5 text-xs text-muted transition duration-300 ease-out hover:bg-surface-2 hover:text-text"
+          className="rounded-md px-3 py-1.5 text-xs text-muted transition duration-300 ease-out hover:bg-surface-2 hover:text-text"
         >
           {label}
         </Link>

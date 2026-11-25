@@ -153,7 +153,7 @@ export function Live({ initial }: { initial: Stream | null }) {
             <Card>
               <div className="flex flex-col gap-4">
                 <Badge tone="accent">Stream address</Badge>
-                <code className="break-all rounded-xl bg-bg p-4 text-xs text-muted">
+                <code className="break-all rounded-md bg-bg p-4 text-xs text-muted">
                   {stream.rtmp_url}
                 </code>
                 <Button variant="outline" size="sm" onClick={() => copy(stream.rtmp_url, "url")}>
@@ -164,7 +164,7 @@ export function Live({ initial }: { initial: Stream | null }) {
             <Card>
               <div className="flex flex-col gap-4">
                 <Badge tone="accent">Stream key</Badge>
-                <code className="break-all rounded-xl bg-bg p-4 text-xs text-muted">
+                <code className="break-all rounded-md bg-bg p-4 text-xs text-muted">
                   {revealed ? stream.stream_key : masked(stream.stream_key)}
                 </code>
                 <div className="flex gap-2">
@@ -236,11 +236,11 @@ export function Live({ initial }: { initial: Stream | null }) {
                   <img
                     src={`${api.obsSnapshotUrl()}?t=${snapTick}`}
                     alt="OBS program scene snapshot"
-                    className="w-full rounded-xl bg-bg object-cover ring-surface"
+                    className="w-full rounded-md bg-bg object-cover ring-surface"
                     onError={() => setSnapOk(false)}
                   />
                 ) : (
-                  <div className="flex h-40 items-center justify-center rounded-xl bg-bg text-xs text-muted ring-surface">
+                  <div className="flex h-40 items-center justify-center rounded-md bg-bg text-xs text-muted ring-surface">
                     Snapshot unavailable — OBS is connected but the scene screenshot failed.
                   </div>
                 )}
