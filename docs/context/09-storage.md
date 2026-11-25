@@ -1,6 +1,6 @@
 # 09 — Storage
 
-Two drivers behind one interface (`api/app/storage.py`, `worker/app/storage.py`):
+Two drivers behind one interface (`api/app/storage.py`, `worker/worker_app/storage.py`):
 `local` (default) and `s3`. Keys are the same for both. The default run mounts
 the `storage-data` volume at `/data/storage` in the api and worker.
 
@@ -10,15 +10,15 @@ the `storage-data` volume at `/data/storage` in the api and worker.
 | --- | --- | --- | --- |
 | `recordings/{user_id}/{upload_id}{suffix}` | the uploaded recording | `api/app/clips.py:_finalize_upload` | until account deletion |
 | `recordings/{user_id}/studio-{id}{suffix}` | studio source recording | `api/app/studio.py:upload` | until account deletion / retention sweep |
-| `clips/{clip_id}/short.mp4` | rendered 1080×1920 H.264 Short | `worker/app/handlers.py` | until account deletion |
+| `clips/{clip_id}/short.mp4` | rendered 1080×1920 H.264 Short | `worker/worker_app/handlers.py` | until account deletion |
 | `clips/{clip_id}/thumb.jpg` | thumbnail | same | same |
 | `clips/{clip_id}/captions.srt` | caption sidecar | same | same |
 | `clips/{clip_id}/metadata.json` | title/description/tags/layout/flags | same | same |
-| `voice-overs/{voice_over_id}/preview.wav` | Piper preview | `worker/app/handlers.py:preview_voice` | never deleted |
+| `voice-overs/{voice_over_id}/preview.wav` | Piper preview | `worker/worker_app/handlers.py:preview_voice` | never deleted |
 | `/recordings/{stream_path}/{timestamp}.m4s` (volume `relayrecordings`) | relay fMP4 segments | MediaMTX | `recordDeleteAfter: 0s` — never deleted |
 | `/tmp/clipdesk-uploads/{upload_id}/*.part` + `assembled{suffix}` | upload staging | `api/app/clips.py` | never deleted |
 | `/tmp/clipdesk-*` (api container) | download/export temp copies | `api/app/clips.py`, `account.py` | never deleted |
-| `/tmp/render-*` (worker container) | render workspace | `worker/app/handlers.py` | auto-deleted (`TemporaryDirectory`) |
+| `/tmp/render-*` (worker container) | render workspace | `worker/worker_app/handlers.py` | auto-deleted (`TemporaryDirectory`) |
 | `/data/voices/{voice}.onnx{,.json}` | Piper voice model | `make voice` | until the volume is removed |
 
 S3 driver: bucket `S3_BUCKET`, path-style addressing, keys identical. The API

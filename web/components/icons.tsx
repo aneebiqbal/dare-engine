@@ -98,12 +98,26 @@ const PATHS: Record<string, React.ReactNode> = {
     </>
   ),
   check: <path d="m5 13 4 4L19 7" />,
+  chip: (
+    <>
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+      <path d="M9 6V3M15 6V3M9 21v-3M15 21v-3M6 9H3M6 15H3M21 9h-3M21 15h-3" />
+    </>
+  ),
+  gamepad: (
+    <>
+      <path d="M6.5 8h11a3.5 3.5 0 0 1 3.4 4.3l-.6 3.2a2.6 2.6 0 0 1-4.9 1L14 14h-4l-1.4 2.5a2.6 2.6 0 0 1-4.9-1l-.6-3.2A3.5 3.5 0 0 1 6.5 8Z" />
+      <path d="M8 10.5v3M6.5 12h3" />
+      <path d="M15.5 11h.01M17.5 12.5h.01" />
+    </>
+  ),
   search: (
     <>
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-3.5-3.5" />
     </>
   ),
+  arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
   download: (
     <>
       <path d="M12 4v11M8 11l4 4 4-4" />

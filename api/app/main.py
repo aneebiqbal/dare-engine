@@ -10,14 +10,29 @@ from .account import router as account_router
 from .admin import router as admin_router
 from .ai import router as ai_router
 from .auth import router as auth_router
+from .calendar import router as calendar_router
 from .clips import router as clips_router
 from .community import router as community_router
 from .config import settings
+from .errors import router as errors_router
+from .engine import router as engine_router
+from .games import router as games_router
 from .hooks import router as hooks_router
+from .keys import router as keys_router
+from .longform import router as longform_router
 from .missions import router as missions_router
+from .models import router as models_router
+from .obs import router as obs_router
+from .overview import router as overview_router
+from .pipeline import router as pipeline_router
+from .projects import router as projects_router
+from .provider import router as provider_router
+from .ratelimit import RateLimitMiddleware
+from .ssd import router as ssd_router
 from .studio import router as studio_router
 from .tours import router as tours_router
 from .users import csrf_protect
+from .wizard import router as wizard_router
 
 
 @asynccontextmanager
@@ -32,6 +47,10 @@ async def lifespan(app: FastAPI):
         sweep()
     except Exception:
         pass  # retention must never block startup
+    if settings.research_enabled:
+        from .research import start_scheduler
+
+        start_scheduler()
     yield
 
 
@@ -42,6 +61,12 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+app.add_middleware(
+    RateLimitMiddleware,
+    limit=settings.rate_limit_requests,
+    window_seconds=settings.rate_limit_window,
+    auth_limit=settings.rate_limit_auth,
 )
 
 
@@ -56,14 +81,28 @@ async def http_error_handler(request: Request, exc: HTTPException):
 
 for router in (
     auth_router,
+    calendar_router,
+    longform_router,
     missions_router,
+    models_router,
     clips_router,
+    projects_router,
     community_router,
     account_router,
     admin_router,
     ai_router,
+    errors_router,
+    engine_router,
+    games_router,
+    obs_router,
+    keys_router,
+    overview_router,
+    pipeline_router,
+    provider_router,
+    ssd_router,
     studio_router,
     tours_router,
+    wizard_router,
 ):
     app.include_router(router, dependencies=[Depends(csrf_protect)])
 app.include_router(hooks_router)

@@ -78,7 +78,7 @@ export function SignIn() {
             </Button>
             <p className="text-xs text-muted">
               New here?{" "}
-              <Link href="/signup" className="text-accent hover:underline">
+              <Link href="/signup" className="text-text underline decoration-border underline-offset-4 hover:text-accent">
                 Sign up with an invite code
               </Link>
             </p>
@@ -97,6 +97,8 @@ export function SignIn() {
                 {DEV_USERS.map((name) => (
                   <Button
                     key={name}
+                    variant="outline"
+                    size="sm"
                     data-testid={`signin-${name.toLowerCase()}`}
                     disabled={busy}
                     onClick={() => devSignIn(name)}

@@ -269,7 +269,7 @@ def test_admin_assign_flow(browser):
         page.goto(f"{WEB}/admin/pool", wait_until="networkidle")
         page.click("text=Assign")
         page.wait_for_selector('[role="dialog"][aria-modal="true"]', timeout=15000)
-        page.select_option("select", label="Assignee")
+        page.select_option('[role="dialog"] select', label="Assignee")
         page.click("text=Assign dare")
         page.wait_for_selector("text=Dare assigned", timeout=15000)
 

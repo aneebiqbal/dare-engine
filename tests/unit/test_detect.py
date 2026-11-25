@@ -6,7 +6,13 @@ import types
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "worker"))
 
-from clip.detect import detect_compute_path, detect_moments, _marker_seconds  # noqa: E402
+from clip.detect import (  # noqa: E402
+    _frame_stats,
+    _marker_seconds,
+    _strike,
+    detect_compute_path,
+    detect_moments,
+)
 from clip.transcribe import Word, whisper_compute  # noqa: E402
 
 FIXTURE = ROOT / "tests" / "fixtures" / "standin_speech_45s.mp4"
@@ -14,13 +20,13 @@ FIXTURE = ROOT / "tests" / "fixtures" / "standin_speech_45s.mp4"
 
 def test_compute_path_is_explicit():
     cp = detect_compute_path()
-    assert cp.whisper_device in ("cpu", "cuda")
+    assert cp.whisper_device in ("cpu", "cuda", "mlx")
     assert cp.whisper_compute_type
     assert cp.encoder
 
 
 def test_whisper_compute_uses_cuda_when_a_gpu_is_present(monkeypatch):
-    from app.config import settings
+    from worker_app.config import settings
 
     monkeypatch.setattr(settings, "whisper_device", "cpu")
     monkeypatch.setattr(settings, "whisper_compute_type", "int8")
@@ -30,7 +36,7 @@ def test_whisper_compute_uses_cuda_when_a_gpu_is_present(monkeypatch):
 
 
 def test_whisper_compute_falls_back_to_cpu_int8(monkeypatch):
-    from app.config import settings
+    from worker_app.config import settings
 
     monkeypatch.setattr(settings, "whisper_device", "cpu")
     monkeypatch.setattr(settings, "whisper_compute_type", "int8")
@@ -40,7 +46,7 @@ def test_whisper_compute_falls_back_to_cpu_int8(monkeypatch):
 
 
 def test_compute_path_agrees_with_the_whisper_path(monkeypatch):
-    from app.config import settings
+    from worker_app.config import settings
 
     monkeypatch.setattr(settings, "whisper_device", "cpu")
     monkeypatch.setattr(settings, "whisper_compute_type", "int8")
@@ -48,6 +54,18 @@ def test_compute_path_agrees_with_the_whisper_path(monkeypatch):
     monkeypatch.setitem(sys.modules, "ctranslate2", fake)
     cp = detect_compute_path()
     assert (cp.whisper_device, cp.whisper_compute_type) == whisper_compute()
+
+
+def test_strike_rejects_dark_and_blown_out_frames():
+    assert _strike(5, 30) == 0.0       # too dark
+    assert _strike(250, 30) == 0.0     # blown out
+    assert 0.0 < _strike(120, 40) <= 1.0  # visible and contrasty
+
+
+def test_frame_stats_are_per_second():
+    frames = _frame_stats(str(FIXTURE))
+    assert len(frames) >= 40
+    assert all(0.0 <= mean <= 255.0 for mean, _ in frames)
 
 
 def test_marker_seconds():

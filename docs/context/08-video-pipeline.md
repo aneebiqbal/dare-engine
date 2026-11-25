@@ -19,9 +19,9 @@
    row (`state='queued'`, `stage='queued'`, `recording_key`, `source_start`,
    `source_end`), an `attempts` row, and a `render_clip` job with an
    idempotency key (`_enqueue_render`).
-6. **Claim** — `worker/app/jobs.py:claim` takes a queued job with
+6. **Claim** — `worker/worker_app/jobs.py:claim` takes a queued job with
    `FOR UPDATE SKIP LOCKED`.
-7. **Fetch** — `worker/app/handlers.py:render_clip` sets stage `fetch` (10%),
+7. **Fetch** — `worker/worker_app/handlers.py:render_clip` sets stage `fetch` (10%),
    then `storage.get_file(recording_key, tmp/recording.mp4)` (whole file).
 8. **Transcribe** — if the clip has a cached transcript covering this window it
    is reused; otherwise `render_short` cuts the window and calls
@@ -64,7 +64,7 @@
 
 ## Stages and progress
 
-`worker/app/handlers.py:STAGES` — `fetch` 10, `transcribe` 30, `select` 50,
+`worker/worker_app/handlers.py:STAGES` — `fetch` 10, `transcribe` 30, `select` 50,
 `render` 90, `store` 100. The Clips page polls `GET /clips` every 3 s while a
 clip is not ready.
 
@@ -73,8 +73,8 @@ clip is not ready.
 | Step | Tool | Entry point |
 | --- | --- | --- |
 | chunk assembly | Python file IO | `api/app/clips.py:upload_complete` |
-| storage | boto3 / `shutil` | `api/app/storage.py`, `worker/app/storage.py` |
-| concatenate | FFmpeg | `worker/app/handlers.py:_run_ffmpeg` |
+| storage | boto3 / `shutil` | `api/app/storage.py`, `worker/worker_app/storage.py` |
+| concatenate | FFmpeg | `worker/worker_app/handlers.py:_run_ffmpeg` |
 | cut / normalise | FFmpeg | `worker/clip/engine.py:_cut` |
 | transcribe | faster-whisper 1.2.1 | `worker/clip/transcribe.py:transcribe` |
 | beats | LLM / word density | `worker/clip/beats.py:select_setup` |
@@ -95,8 +95,9 @@ software H.264, synthetic stand-in):
 | 3 clips, 4-way pool | 119.8 s |
 | 3 clips, 4-way pool, warm | 70.9 s |
 
-`test_m4_relay.py` asserts Done → finished file < 180 s. Web performance budgets
-in `docs/performance.md` are **not measured** ("to be measured in D3").
+`test_m4_relay.py` asserts Done → finished file < 180 s. Web performance
+budgets in `docs/performance.md` are measured by `make budgets` and recorded
+in `docs/screens/budgets.json`.
 
 ## Largest file actually processed
 

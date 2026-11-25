@@ -17,7 +17,7 @@ from .caption import write_ass, write_srt
 from .grammar import Beat, Template, build_beats, get_template, load_templates, pick_template
 from .layout import filtergraph
 from .policy import detect_letterbox, guard_window, title_flags
-from .transcribe import Word, transcribe
+from .transcribe import Word, transcribe, unload
 
 WINDOW_BEFORE = 10.0
 WINDOW_AFTER = 5.0
@@ -164,67 +164,60 @@ def _resolve_template(
     return chosen
 
 
-def render_short(
-    input_path: str,
+def _render_window(
+    src: str,
     card: dict,
-    start: float,
-    end: float,
+    win_start: float,
+    win_end: float,
+    payoff_end: float,
+    words: list["Word"],
     out_dir: str,
-    result_value: str = "",
-    template: str | None = None,
-    llm=None,
-    words_abs: list["Word"] | None = None,
-    caption_style: str = "word",
-    template_id: str | None = None,
+    result_value: str,
+    template: str | None,
+    llm,
+    caption_style: str,
+    template_id: str | None,
+    caption_override: list[dict] | None,
+    file_duration: float,
+    allow_silent: bool = False,
+    preserve_story: bool = False,
 ) -> Result:
-    src = str(input_path)
+    """Build the Short from an already-selected source window.
+
+    `words` are window-relative. `src` is cut at beat boundaries, so a cached
+    transcript stays exact and the whole file is never re-read. When
+    `preserve_story` is set (the automatic pipeline), the window IS the story
+    the scorer picked, so it is rendered whole — no content is dropped to fit a
+    template.
+    """
     out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    file_duration = _duration(src)
-    win_start = max(0.0, start - WINDOW_BEFORE)
-    win_end = min(file_duration, end + WINDOW_AFTER)
-    if win_end - win_start < 5:
-        raise ValueError(f"window {win_start:.1f}-{win_end:.1f}s is too short")
-
-    payoff_end = min(win_end, end)
     payoff_start = max(win_start, payoff_end - PAYOFF_SECONDS)
 
     with tempfile.TemporaryDirectory(prefix="clipdesk-") as tmp:
         tmp = Path(tmp)
 
-        window = tmp / "window.mp4"
-        _cut(src, str(window), win_start, win_end - win_start)
-        if words_abs is None:
-            words = transcribe(str(window))
-            words_abs = [Word(w.start + win_start, w.end + win_start, w.text) for w in words]
-        else:
-            # Cached transcript is in source-recording time; re-window it.
-            words = [
-                Word(w.start - win_start, w.end - win_start, w.text)
-                for w in words_abs
-                if win_start <= (w.start + w.end) / 2 < win_end
-            ]
-
-        guard_window(words, payoff_start - win_start, payoff_end - win_start)
-        letterbox = detect_letterbox(str(window), *_dimensions(str(window)))
+        if not allow_silent:
+            guard_window(words, payoff_start - win_start, payoff_end - win_start)
+        letterbox = detect_letterbox(str(src), *_dimensions(str(src)))
 
         rel_payoff_lo = payoff_start - win_start
         rel_payoff_hi = payoff_end - win_start
         peak = win_start + _strongest_second(words, rel_payoff_lo, rel_payoff_hi)
 
-        seed = f"{card.get('id', '')}:{start:.0f}:{end:.0f}"
+        seed = f"{card.get('id', '')}:{win_start:.0f}:{win_end:.0f}"
         tpl = _resolve_template(template, template_id, seed)
         layout = tpl.layout
         captions = caption_style or tpl.captions
 
-        setup = select_setup(words, 0.0, max(0.0, rel_payoff_lo), llm)
-        context_range = None
-        if setup:
-            s, e = setup[0]
-            context_range = (win_start + s, win_start + e)
-
-        beats = build_beats(tpl, peak, payoff_start, payoff_end, context_range)
+        if preserve_story:
+            beats = [Beat(0.0, file_duration, "story")]
+        else:
+            setup = select_setup(words, 0.0, max(0.0, rel_payoff_lo), llm)
+            context_range = None
+            if setup:
+                s, e = setup[0]
+                context_range = (win_start + s, win_start + e)
+            beats = build_beats(tpl, peak, payoff_start, payoff_end, context_range)
         for beat in beats:
             beat.src_start = max(0.0, min(beat.src_start, file_duration - 0.2))
             beat.length = max(0.4, min(beat.length, file_duration - beat.src_start))
@@ -269,21 +262,36 @@ def render_short(
                     break
         mapped.sort(key=lambda w: w.start)
 
+        # An editor's caption text/timing override replaces the transcript-derived
+        # captions on the output timeline. The transcript itself is never re-run.
+        caption_words = mapped
+        if caption_override is not None:
+            caption_words = sorted(
+                (
+                    Word(float(c["start"]), float(c["end"]), str(c.get("text", "")))
+                    for c in caption_override
+                ),
+                key=lambda w: w.start,
+            )
+
         mission_num = str(card.get("id", "")).replace("m_", "")
-        end_lines = [f"MISSION {mission_num}" if mission_num else "MISSION"]
+        end_lines = card.get("end_lines")
+        if end_lines is None:
+            # No internal branding is burned into the output.
+            end_lines = []
         if result_value:
-            end_lines.append(str(result_value))
+            end_lines = [*end_lines, str(result_value)]
         end_start = max(0.0, total - tpl.button_seconds)
 
         ass_path = tmp / "burn.ass"
         hook_dur = min(tpl.hook_seconds, beats[-1].length) if beats else 2.0
         write_ass(
             str(ass_path), card.get("hook_text", ""), hook_dur,
-            mapped if captions != "none" else [], end_lines, end_start, total,
+            caption_words if captions != "none" else [], end_lines, end_start, total,
             caption_style=captions,
         )
         srt_path = out_dir / "captions.srt"
-        write_srt(str(srt_path), mapped, caption_style=captions)
+        write_srt(str(srt_path), caption_words, caption_style=captions)
 
         out_path = out_dir / "short.mp4"
         vf = f"{filtergraph(layout)};[v]subtitles=filename={ass_path}[outv]"
@@ -308,12 +316,17 @@ def render_short(
 
         duration = _duration(str(out_path))
         flags = title_flags(card.get("title_options", [""])[0])
+        if card.get("end_lines") == []:
+            # Automatic pipeline output ships clean, content-only metadata.
+            tags = [card["label"]] if card.get("label") else []
+        else:
+            tags = ["clipdesk", "missions", card.get("mode", "")]
         metadata = {
             "mission_id": card.get("id"),
             "question": card.get("question"),
             "title": card.get("title_options", [""])[0],
-            "description": f"{card.get('question', '')}\n\nMission {mission_num}.",
-            "tags": ["clipdesk", "missions", card.get("mode", "")],
+            "description": card.get("question") or card.get("hook_text") or "",
+            "tags": tags,
             "layout": layout,
             "template": tpl.id,
             "caption_style": captions,
@@ -338,5 +351,85 @@ def render_short(
             flags=letterbox,
             template=tpl.id,
             beats=beats,
-            words_abs=words_abs,
+            words_abs=words,
         )
+
+
+def render_short(
+    input_path: str,
+    card: dict,
+    start: float,
+    end: float,
+    out_dir: str,
+    result_value: str = "",
+    template: str | None = None,
+    llm=None,
+    words_abs: list["Word"] | None = None,
+    caption_style: str = "word",
+    template_id: str | None = None,
+    caption_override: list[dict] | None = None,
+) -> Result:
+    """Render a window of a recording into a finished 9:16 Short."""
+    src = str(input_path)
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    file_duration = _duration(src)
+    win_start = max(0.0, start - WINDOW_BEFORE)
+    win_end = min(file_duration, end + WINDOW_AFTER)
+    if win_end - win_start < 5:
+        raise ValueError(f"window {win_start:.1f}-{win_end:.1f}s is too short")
+
+    payoff_end = min(win_end, end)
+    with tempfile.TemporaryDirectory(prefix="clipdesk-") as tmp:
+        tmp = Path(tmp)
+        window = tmp / "window.mp4"
+        _cut(src, str(window), win_start, win_end - win_start)
+        if words_abs is None:
+            words = transcribe(str(window))
+            words_source = [Word(w.start + win_start, w.end + win_start, w.text) for w in words]
+            unload()
+        else:
+            words_source = list(words_abs)
+        words = [
+            Word(w.start - win_start, w.end - win_start, w.text)
+            for w in words_source
+            if win_start <= (w.start + w.end) / 2 < win_end
+        ]
+        return _render_window(
+            src, card, win_start, win_end, payoff_end, words, str(out_dir),
+            result_value, template, llm, caption_style, template_id,
+            caption_override, file_duration,
+        )
+
+
+def render_cut(
+    cut_path: str,
+    words_rel: list["Word"],
+    card: dict,
+    out_dir: str,
+    result_value: str = "",
+    template: str | None = None,
+    llm=None,
+    caption_style: str = "word",
+    template_id: str | None = None,
+    caption_override: list[dict] | None = None,
+) -> Result:
+    """Render an already-cut clip with its cached transcript.
+
+    The pipeline cuts once, transcribes once, then renders from the cut: a
+    re-render recomputes nothing. Silent clips are allowed (a music-only or
+    cutscene window still gets a hook and an end card).
+    """
+    src = str(cut_path)
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    file_duration = _duration(src)
+    if file_duration < 1.0:
+        raise ValueError(f"cut is too short ({file_duration:.1f}s)")
+    return _render_window(
+        src, card, 0.0, file_duration, file_duration,
+        [Word(float(w.start), float(w.end), w.text) for w in words_rel],
+        str(out_dir), result_value, template, llm, caption_style, template_id,
+        caption_override, file_duration, allow_silent=True, preserve_story=True,
+    )

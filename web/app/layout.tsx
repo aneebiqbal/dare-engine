@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { GeistSans } from "geist/font/sans";
+import { GeistMono, GeistSans } from "geist/font";
 import { ToastProvider } from "@/components/ui";
 import { ThemeScript } from "@/components/theme-script";
+import { ErrorReporter } from "@/components/error-reporter";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,8 +17,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className={`${GeistSans.className} bg-bg text-text antialiased`}>
+      <body className={`${GeistSans.className} ${GeistMono.variable} bg-bg text-text antialiased`}>
         <ThemeScript />
+        <ErrorReporter />
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>

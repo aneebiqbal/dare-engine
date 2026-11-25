@@ -2,7 +2,7 @@
 
 One row per major feature. "Proven on real inputs" means it ran against the
 managed Neon database and a real recording, not only the synthetic stand-in.
-Last updated after the completion sprint.
+Last updated after the research-brain sprint.
 
 | Feature | Built | Tested locally | Proven on real inputs | Blocked on user |
 | --- | --- | --- | --- | --- |
@@ -10,7 +10,28 @@ Last updated after the completion sprint.
 | Managed PostgreSQL (Neon, pooled + direct) | yes | yes | yes | — |
 | Migrations on an empty database | yes | yes | yes | — |
 | Job queue, backoff, errors, stale recovery | yes | yes | yes | — |
-| Mission cards from questions (AI) | yes | yes (recorded provider) | no | AI key credit |
+| Games: admin grid, RAWG search, profile, enable/disable | yes | yes | yes (real RAWG art backfilled) | — |
+| Research brain: YouTube + Reddit + news → sourced ideas | yes | yes | **yes** (live YouTube + local AI: 10 sources → 1 sourced idea) | — |
+| Idea accuracy: citations stored and shown, schema-validated | yes | yes | yes (live run, no fallback) | — |
+| Platform targeting: Shorts / Reels / TikTok length + caption style | yes | yes (unit) | partial (no rendered non-default platform yet) | real footage through a non-default target |
+| Local open-weight models (Ollama: Qwen / Kimi, Metal) | yes | yes | yes (host, no cloud) | — |
+| OBS live view (obs-websocket 5.x: connection, stream, record, scene, mic) | yes | yes | yes (real OBS 33.0.1) | — |
+| SSD import (host bridge → list → local import → detect job) | yes | yes | yes (mounted DMG) | — |
+| MLX Whisper transcription (host bridge, Metal) | yes | yes | yes (host, 30.17 s / 4.9 min) | — |
+| Visual-strikingness cold-open check | yes | yes | yes (trailer) | real gameplay fixture |
+| Karaoke word-by-word captions | yes | yes | yes (unit + render) | — |
+| Models admin page (Ollama/MLX inventory, pull, unload, memory) | yes | yes | yes (real bridge) | — |
+| Memory discipline (unload + idle watchdog) | yes | yes | yes (unit + bridge) | — |
+| Originality/commentary step | yes | yes | yes (API) | — |
+| Posting calendar + cadence guardrail | yes | yes | partial (no YouTube API posting) | YouTube API key (posting) |
+| Leading indicators + research-ranking score | yes | yes | yes (unit) | YouTube collector |
+| Long-form builder | yes | yes | partial (no real session clips) | real gameplay fixture |
+| Launch docs (README, licences, launch plan) | yes | yes | yes | history purge decision |
+| START_HERE run guide | yes | yes | yes | — |
+| Grouped admin/gamer nav (core flow only) | yes | yes | yes | — |
+| Admin approval gate + assign + gamer Today | yes | yes | yes (real accounts) | — |
+| Generated idea card image (SVG, no remote image) | yes | yes | yes | — |
+| Mission cards from typed questions (AI) | yes | yes (recorded provider) | no | AI key credit |
 | Live AI on every page | yes (one client) | stub/recorded only | no | AI key credit |
 | Upload → render → 9:16 Short | yes | yes (stand-in) | partial (trailer, not gameplay) | real gameplay fixture |
 | Automatic moment detection + clip grammar | yes | yes (stand-in + trailer) | partial (trailer) | real gameplay fixture |
@@ -26,13 +47,56 @@ Last updated after the completion sprint.
 | Publishing to YouTube/TikTok/Instagram | stub only | no | no | out of scope |
 | Google sign-in | no | no | no | OAuth client |
 | Billing | no | no | no | payment keys |
+| Cloud web deploy (`docs/deploy-web.md`) | yes | yes (compose + Caddy) | no | a host + domain |
+| Rate limiting (per-IP, stricter auth/admin) | yes | yes | yes (unit) | — |
+| Client error reporting + admin view | yes | yes | yes (unit) | — |
+| Database backup (`make backup`) | yes | yes | no | a real restore drill |
+| Desktop app (Tauri shell, builds a .dmg) | yes | yes (build + mount) | partial (no human launch) | a human at a Mac |
+| Desktop .dmg rebuilt from this tree (2026-11-24) | yes | yes (`tauri build`) | partial (unsigned; no human launch) | Apple signing/notarisation |
+| Windows installer (Tauri `.msi`/`.nsis`) | documented | no | no | a Windows machine + signing certificate |
+| Landing page with owner download slots (`/landing`) | yes | yes (build) | partial (slots unfilled) | real download URLs + demo clip |
+| Editorial Graphite + Burnt Coral re-theme (both themes) | yes | yes (build + palette script) | partial (screenshots fresh; verdict pending) | a human looking at the shots |
+| Gamer section rebuild (dashboard, today, missions, live, remote, clips, export, history, results, settings) | yes | yes (build) | partial (visual verdict pending) | owner's own footage for full clip QA |
+| Mission card artwork rebuilt in the new identity (graphite/coral, 1080×1920) | yes | yes (render check) | yes (real cards on mission + admin pool) | — |
+| Full-frame clip thumbnails (`Thumb` fallback + `object-contain`) | yes | yes (screenshots) | yes (six real renders seeded locally) | owner's footage at scale |
+| Desktop capture (OBS path) | yes | yes | yes (OBS 33.0.1) | — |
+| Desktop capture (bundled FFmpeg recorder) | yes | yes (command) | no | a real recording |
+| Vision clip suggestions (sampled VLM) | yes | yes | yes (real run, 4-min trailer) | owner's gameplay footage |
+| Models & Setup suggested engine + one-click install | yes | yes | yes (real bridge) | — |
+| Projects: derived stages, dashboard, sequential analysis queue | yes | yes | yes (acceptance, real stack) | — |
+| First-run setup wizard (persisted, verified steps) | yes | yes | yes (acceptance, real endpoints) | — |
+| In-window caption editor (text/timing, no re-transcribe; opens pipeline clips) | yes | yes | partial (trailer; ownership bug fixed 2026-11-24) | owner watch |
+| Engine activity log (model load/unload, cleanup) on the dashboard | yes | yes | yes (acceptance, real worker) | — |
+| Automatic upload-to-Shorts pipeline (scan→regions→detect→signals→score→cut→render) | yes | yes | partial (45 s stand-in, 4.9 min trailer with the new engine; owner stream still on the old picker) | owner's footage through the new engine |
+| Transcript-first LLM moment scoring (skill-file rubric + head-to-head rerank) | yes | yes | yes (trailer: scores 74.5–71 kept, 68/58.5 dropped, mixed labels) | owner verdict on virality |
+| Clips ≥14 s, self-contained, whole-window render, no internal branding | yes | yes | yes (unit regression + trailer re-render) | owner watch |
+| Converging ETA + live per-stage progress + clips appearing one by one | yes | yes | yes (acceptance, real API; 2 h run estimate 1181 s vs 1181.9 s actual) | — |
+| One model resident at a time (shared lane lease, unload verified) | yes | yes | yes (unit + real bridge memory readout) | — |
+| Resume from the last completed stage after a kill/pause | yes | yes | yes (acceptance) | — |
+| User timestamps added without replacing AI suggestions | yes | yes | yes (acceptance) | — |
 
 ## Blocked on the user (cannot be closed by code)
 
-1. **The user's own gameplay recording with commentary.** The only thing that
-   makes the clip-quality verdict meetable. Until then the detector and grammar
-   are validated on a publisher trailer and a synthetic stand-in.
-2. **Credit on the AI key.** The account returns 402/429, so every AI path runs
-   on the recorded provider. The client, schema validation, retry and fallback
-   are tested; the live call is not.
-3. **A git remote.** Commits are local only; there is nothing to push or review.
+1. **The owner's verdict on their own GTA stream.** The 2 h 21 m stream ran end
+   to end (10 Shorts, 38.6 min, saved to `~/Desktop/clipdesk-review/last-gta-stream/`).
+   What remains is the human call: are those Shorts worth posting? Until that
+   verdict, clip quality is unproven.
+2. **Credit on the AI key.** The hosted provider returns 403/402 from this
+   network, so cloud AI is unproven. A local Ollama model through the same
+   OpenAI-compatible client *did* prove a full live research run (10 YouTube
+   sources → 1 sourced idea), so idea writing is no longer blocked in
+   principle — only the cloud provider is.
+3. **Research source keys.** `YOUTUBE_API_KEY` now works and is read
+   (10 live sources fetched, proved). Reddit still has no app credentials, so
+   the brain runs on YouTube + news. RAWG works; all three games now have real
+   cover art.
+4. **A host and a domain for the cloud website.** `docs/deploy-web.md` reproduces
+   the deployment; the owner must supply the VPS/domain and the managed database.
+5. **A git remote with a safe credential.** The token embedded in `origin` was
+   removed from the remote URL; revoke it on GitHub and choose the real remote
+   (the current one points at `dare-engine`). See `docs/launch.md`.
+6. **A human verdict.** The new picker ran on the owner's real 2 h 21 m GTA
+   stream: 11 Shorts in ~51 min, English hooks only, saved to
+   `~/Desktop/clipdesk-review/last-gta-stream-transcript-first/`. Whether they
+   are actually viral is the human call. Scan/transcription speed still depends
+   on CPU allocation and Whisper region throughput.

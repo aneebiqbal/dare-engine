@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     session_cookie: str = "clipdesk_session"
     csrf_cookie: str = "clipdesk_csrf"
 
+    # --- Rate limiting ------------------------------------------------------
+    # Per-IP sliding window. `/auth/` and `/admin/` get the smaller budget.
+    rate_limit_requests: int = 60
+    rate_limit_window: int = 60
+    rate_limit_auth: int = 10
+
     app_env: str = "development"
     web_origin: str = "http://localhost:3100"
 
@@ -55,6 +61,40 @@ class Settings(BaseSettings):
     upload_tmp_dir: str = "/tmp/clipdesk-uploads"
     # Days to keep a raw recording after its clips were made.
     recording_retention_days: int = 7
+
+    # --- SSD import -------------------------------------------------------
+    # A host bridge (local/ssd_bridge.py) sees /Volumes; the container cannot.
+    ssd_bridge_url: str = "http://host.docker.internal:8799"
+    ssd_inbox_dir: str = "/ssd-inbox"
+    ssd_mount_dir: str = "/Volumes"
+
+    # --- OBS live view ----------------------------------------------------
+    # OBS WebSocket 5.x. In the container the host is host.docker.internal.
+    obs_ws_url: str = "ws://host.docker.internal:4455"
+    obs_ws_password: str = ""
+    obs_snapshot_width: int = 640
+
+    # --- Local engine bridge -----------------------------------------------
+    # Host-side bridge (local/mlx_bridge.py) for MLX transcription and the
+    # Ollama model manager. Empty = no local engine.
+    model_bridge_url: str = "http://host.docker.internal:8798"
+    mlx_whisper_url: str = ""
+    mlx_whisper_model: str = "mlx-community/whisper-large-v3-mlx"
+    vision_model: str = "qwen2.5vl:7b"
+
+    # --- Research brain ---------------------------------------------------
+    # All optional: with no keys the brain runs on the recorded sample feed and
+    # marks its output as a fallback. Never a secret in a log or response.
+    rawg_api_key: str = ""
+    youtube_api_key: str = ""
+    reddit_client_id: str = ""
+    reddit_client_secret: str = ""
+    reddit_username: str = ""
+    reddit_password: str = ""
+    reddit_user_agent: str = "clipdesk-research/0.1"
+    research_enabled: bool = True
+    research_hour: int = 5
+    research_timezone: str = "UTC"
 
     # --- Relay -----------------------------------------------------------
     # Optional shared secret for relay hooks; the stream key is always checked.

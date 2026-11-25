@@ -2,7 +2,8 @@
   "caption_styles": {
     "word": { "style": "Word", "fontsize": 84, "margin_v": 260, "per": "word" },
     "line": { "style": "Line", "fontsize": 64, "margin_v": 320, "per": "phrase" },
-    "pop": { "style": "Pop", "fontsize": 96, "margin_v": 200, "per": "word" }
+    "pop": { "style": "Pop", "fontsize": 96, "margin_v": 200, "per": "word" },
+    "karaoke": { "style": "Karaoke", "fontsize": 84, "margin_v": 260, "per": "karaoke" }
   },
   "templates": [
     {

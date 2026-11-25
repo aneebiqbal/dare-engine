@@ -2,23 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
-/* One token file for colour, type, spacing, radius and motion. */
+/* Editorial Graphite + Burnt Coral.
+   Dark is the working scene (editing under calibrated light); light is warm
+   paper for reading and planning. Accent means live / primary action only.
+   See docs/design-direction.md — this file is its token contract. */
 :root {
-  --bg: #fdfbf7;
-  --surface: #ffffff;
-  --surface-2: #f4f1ea;
-  --border: rgb(20 19 17 / 0.08);
-  --text: #141311;
-  --muted: rgb(20 19 17 / 0.58);
-  --accent: #4f46e5;
-  --accent-soft: rgb(79 70 229 / 0.1);
-  --accent-contrast: #ffffff;
-  --danger: #c2410c;
-  --success: #047857;
+  --bg: #f6f2ea;
+  --surface: #fdfaf3;
+  --surface-2: #efe8dc;
+  --surface-3: #e5dccb;
+  --border: #dcd2c2;
+  --text: #221f1c;
+  --muted: #6e675f;
 
-  --radius-sm: 0.75rem;
-  --radius: 1.25rem;
-  --radius-lg: 2rem;
+  --accent: #ad4b35;
+  --accent-ink: #fff6ef;
+  --accent-soft: #f7ebe2;
+
+  --needs: #8a5a1f;
+  --needs-soft: #f0e4cc;
+  --success: #3f6b4f;
+  --success-soft: #e3eae0;
+  --danger: #a83a2c;
+  --danger-soft: #f2ded9;
+
+  --radius-sm: 2px;
+  --radius: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-sheet: 10px;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -30,23 +42,42 @@
   --space-16: 4rem;
   --space-24: 6rem;
 
+  /* Display → mono. Tracking tight on display, looser on body. */
+  --step-display: clamp(2.75rem, 6vw, 4.5rem);
+  --step-h1: clamp(2rem, 4vw, 3rem);
+  --step-h2: 1.25rem;
+  --step-body: 0.9375rem;
+  --step-label: 0.6875rem;
+  --step-mono: 0.8125rem;
+
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --shadow: 0 1px 2px rgb(20 19 17 / 0.04), 0 12px 32px -12px rgb(20 19 17 / 0.12);
+  /* Floating layers only: dialogs, menus, toasts. Panels use surface+hairline. */
+  --shadow-float: 0 1px 0 rgb(0 0 0 / 0.24), 0 12px 32px -16px rgb(0 0 0 / 0.55);
+  --shadow-bar: 0 1px 0 rgb(20 16 12 / 0.16);
 }
 
 .dark {
-  --bg: #050505;
-  --surface: #0e0e0e;
-  --surface-2: rgb(255 255 255 / 0.04);
-  --border: rgb(255 255 255 / 0.09);
-  --text: #fafafa;
-  --muted: rgb(250 250 250 / 0.58);
-  --accent: #818cf8;
-  --accent-soft: rgb(129 140 248 / 0.14);
-  --accent-contrast: #050505;
-  --danger: #fb923c;
-  --success: #34d399;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 16px 40px -16px rgb(0 0 0 / 0.7);
+  --bg: #171717;
+  --surface: #1e1e1c;
+  --surface-2: #292825;
+  --surface-3: #33312d;
+  --border: #36332f;
+  --text: #f2f0eb;
+  --muted: #a49f99;
+
+  --accent: #e98d72;
+  --accent-ink: #221512;
+  --accent-soft: #2a211d;
+
+  --needs: #d9a441;
+  --needs-soft: #2e2718;
+  --success: #8fb09c;
+  --success-soft: #1f2a22;
+  --danger: #d3776a;
+  --danger-soft: #2e1e1c;
+
+  --shadow-float: 0 1px 0 rgb(0 0 0 / 0.4), 0 16px 40px -20px rgb(0 0 0 / 0.8);
+  --shadow-bar: 0 1px 0 rgb(255 255 255 / 0.05);
 }
 
 @layer base {
@@ -61,10 +92,142 @@
     outline-offset: 2px;
     border-radius: var(--radius-sm);
   }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  input,
+  textarea,
+  select {
+    caret-color: var(--accent);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border: 3px solid var(--bg);
+    border-radius: var(--radius);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--muted);
+  }
 }
 
 @layer components {
   .ring-surface {
     box-shadow: inset 0 0 0 1px var(--border);
+  }
+
+  /* A raised control: the surface-3 tone, used for inputs and filters. */
+  .raised {
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+
+  /* A panel is a sheet: surface + hairline, no ambient shadow. */
+  .bezel {
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+  .dark .bezel {
+    box-shadow: inset 0 0 0 1px var(--border), inset 0 1px 0 rgb(255 255 255 / 0.03);
+  }
+
+  /* The one brand artefact: a coral rule, not a volt edge. */
+  .signature {
+    position: relative;
+  }
+  .signature::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 2px;
+    background: var(--accent);
+  }
+
+  /* Folio label: tracked mono, muted. No coloured pill. */
+  .folio {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-size: var(--step-label);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-entry {
+    animation: entry 480ms var(--ease) both;
+  }
+  .animate-pop {
+    animation: pop 380ms var(--ease) both;
+  }
+  /* The one live pulse. Only rendered while work is actually running. */
+  .animate-live {
+    animation: live 1.6s var(--ease) infinite;
+  }
+  /* A thin progress bar fills; transform-only, GPU safe. */
+  .progress-fill {
+    transform-origin: left center;
+    animation: fill 520ms var(--ease) both;
+  }
+}
+
+@keyframes entry {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes live {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

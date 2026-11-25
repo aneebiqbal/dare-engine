@@ -15,10 +15,13 @@ import time
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
 from . import db, storage
+from .config import settings
 from .clips import _create_clips
+from .projects import create_for_recording
 from .users import current_user, require_admin
 
 router = APIRouter(dependencies=[Depends(require_admin)])
@@ -27,33 +30,49 @@ CHUNK_SIZE = 1024 * 1024
 
 
 def _probe(path: str) -> dict:
-    out = subprocess.run(
-        [
-            "ffprobe", "-v", "error",
-            "-show_entries", "format=duration",
-            "-show_entries", "stream=codec_type,width,height",
-            "-of", "json", path,
-        ],
-        capture_output=True, text=True, check=True,
-    ).stdout
-    data = json.loads(out)
+    """ffprobe a recording, or a clear 422 — never an opaque 500."""
+    try:
+        out = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-show_entries", "stream=codec_type,width,height",
+                "-of", "json", path,
+            ],
+            capture_output=True, text=True, check=True, timeout=60,
+        ).stdout
+        data = json.loads(out)
+        duration = float(data["format"]["duration"])
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, KeyError, ValueError, json.JSONDecodeError) as exc:
+        raise HTTPException(422, f"that file is not a readable video ({type(exc).__name__})")
+    if duration < 1.0:
+        raise HTTPException(422, f"that recording is too short ({duration:.1f}s) to clip")
     width = height = 0
     for stream in data.get("streams", []):
         if stream.get("codec_type") == "video":
             width, height = stream.get("width", 0), stream.get("height", 0)
             break
     return {
-        "duration_seconds": round(float(data["format"]["duration"]), 3),
+        "duration_seconds": round(duration, 3),
         "width": width,
         "height": height,
     }
+
+
+def require_disk(path: str, needed_mb: int = 500) -> None:
+    """Fail with a clear message before a long upload or render fills the disk."""
+    free = shutil.disk_usage(path).free
+    if free < needed_mb * 1_000_000:
+        raise HTTPException(
+            507, f"not enough free disk space ({free / 1_000_000:.0f} MB free, need {needed_mb} MB)"
+        )
 
 
 def _owned_recording(cur, request, recording_id: str):
     user = current_user(request)
     cur.execute(
         "SELECT id, user_id, filename, storage_key, duration_seconds, width, height, "
-        "whisper_device, whisper_compute_type, encoder "
+        "whisper_device, whisper_compute_type, encoder, vision_model, vision_seconds "
         "FROM studio_recordings WHERE id = %s",
         (recording_id,),
     )
@@ -70,6 +89,7 @@ async def upload(request: Request, file: UploadFile = File(...)):
     recording_id = str(uuid.uuid4())
     key = f"recordings/{user['id']}/studio-{recording_id}{suffix}"
     with tempfile.TemporaryDirectory(prefix="studio-") as tmp:
+        require_disk(tmp)
         local = pathlib.Path(tmp) / f"recording{suffix}"
         with open(local, "wb") as out:
             while chunk := await file.read(CHUNK_SIZE):
@@ -85,6 +105,7 @@ async def upload(request: Request, file: UploadFile = File(...)):
                 (recording_id, user["id"], file.filename, key,
                  specs["duration_seconds"], specs["width"], specs["height"]),
             )
+            create_for_recording(cur, user["id"], recording_id, file.filename or "Recording")
     return {"recording_id": recording_id, "filename": file.filename, **specs}
 
 
@@ -115,6 +136,90 @@ def detect(request: Request, payload: dict):
     return {"state": "queued"}
 
 
+@router.post("/studio/vision")
+def vision_suggest(request: Request, payload: dict):
+    """Optional: enqueue the sampled VLM pass. Off unless the admin asks."""
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            row = _owned_recording(cur, request, payload["recording_id"])
+            recording_id, key = str(row[0]), row[3]
+            cur.execute(
+                "DELETE FROM jobs WHERE kind = 'suggest_clips' "
+                "AND payload->>'recording_id' = %s AND state IN ('queued', 'running')",
+                (recording_id,),
+            )
+            cur.execute(
+                "INSERT INTO jobs (kind, payload, idempotency_key) "
+                "VALUES ('suggest_clips', %s, %s)",
+                (
+                    json.dumps({
+                        "recording_id": recording_id,
+                        "storage_key": key,
+                        "top_n": int(payload.get("top_n", 5)),
+                    }),
+                    f"vision:{recording_id}:{uuid.uuid4().hex}",
+                ),
+            )
+    return {"state": "queued"}
+
+
+@router.get("/studio/candidates/{candidate_id}/thumb")
+def candidate_thumb(request: Request, candidate_id: str):
+    user = current_user(request)
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT c.thumb_key, r.user_id FROM studio_candidates c "
+                "JOIN studio_recordings r ON r.id = c.recording_id "
+                "WHERE c.id = %s",
+                (candidate_id,),
+            )
+            row = cur.fetchone()
+    if row is None or not row[0] or str(row[1]) != str(user["id"]):
+        raise HTTPException(404, "no thumbnail")
+    key = row[0]
+    if settings.storage_driver == "local":
+        path = (pathlib.Path(settings.storage_local_dir) / key).resolve()
+        if not path.is_file():
+            raise HTTPException(404, "no thumbnail")
+        return FileResponse(
+            path, media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+    tmp = pathlib.Path(tempfile.mkdtemp(prefix="cand-")) / "thumb.jpg"
+    storage.get_file(key, str(tmp))
+    return FileResponse(
+        tmp, media_type="image/jpeg",
+        background=BackgroundTask(shutil.rmtree, tmp.parent),
+    )
+
+
+@router.get("/studio/recordings")
+def recordings(request: Request):
+    """The admin's recent studio sessions, newest first."""
+    user = current_user(request)
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, filename, duration_seconds, width, height FROM studio_recordings "
+                "WHERE user_id = %s ORDER BY created_at DESC LIMIT 20",
+                (user["id"],),
+            )
+            rows = cur.fetchall()
+    return {
+        "items": [
+            {
+                "id": str(r[0]),
+                "filename": r[1],
+                "duration_seconds": r[2],
+                "width": r[3],
+                "height": r[4],
+            }
+            for r in rows
+        ]
+    }
+
+
 @router.get("/studio/recordings/{recording_id}/file")
 def recording_file(request: Request, recording_id: str):
     with db.session() as conn:
@@ -138,7 +243,7 @@ def recording_detail(request: Request, recording_id: str):
             row = _owned_recording(cur, request, recording_id)
             cur.execute(
                 "SELECT id, start_seconds, end_seconds, score, reasons, state, "
-                "template_id, clip_id FROM studio_candidates "
+                "template_id, clip_id, source, thumb_key FROM studio_candidates "
                 "WHERE recording_id = %s ORDER BY score DESC",
                 (recording_id,),
             )
@@ -152,9 +257,18 @@ def recording_detail(request: Request, recording_id: str):
                     "state": r[5],
                     "template_id": r[6],
                     "clip_id": str(r[7]) if r[7] else None,
+                    "source": r[8] or "audio",
+                    "thumb_url": f"/studio/candidates/{r[0]}/thumb" if r[9] else None,
                 }
                 for r in cur.fetchall()
             ]
+            cur.execute(
+                "SELECT kind, state, stage FROM jobs "
+                "WHERE payload->>'recording_id' = %s AND state IN ('queued', 'running') "
+                "ORDER BY updated_at DESC LIMIT 1",
+                (recording_id,),
+            )
+            active = cur.fetchone()
     return {
         "recording": {
             "id": str(row[0]),
@@ -167,8 +281,15 @@ def recording_detail(request: Request, recording_id: str):
             "whisper_device": row[7],
             "whisper_compute_type": row[8],
             "encoder": row[9],
-            "gpu": row[7] == "cuda",
+            "gpu": row[7] in ("cuda", "mlx"),
         },
+        "vision": {
+            "model": row[10],
+            "seconds_added": row[11],
+        },
+        "job": (
+            {"kind": active[0], "state": active[1], "stage": active[2]} if active else None
+        ),
         "candidates": candidates,
     }
 

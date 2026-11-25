@@ -21,6 +21,7 @@ CREATOR_PAGES = [
     ("remote", "/remote"),
     ("clips", "/clips"),
     ("clip", "/clips/c_0001"),
+    ("clip-rendering", "/clips/c_0002"),
     ("export", "/export/c_0001"),
     ("live", "/live"),
     ("results", "/results"),
@@ -36,12 +37,21 @@ CREATOR_PAGES = [
 
 ADMIN_PAGES = [
     ("admin", "/admin"),
+    ("admin-games", "/admin/games"),
+    ("admin-game", "/admin/games/g_1"),
     ("admin-pool", "/admin/pool"),
+    ("admin-projects", "/admin/projects"),
+    ("admin-studio", "/admin/studio"),
     ("admin-users", "/admin/users"),
     ("admin-invites", "/admin/invites"),
     ("admin-jobs", "/admin/jobs"),
     ("admin-ai", "/admin/ai"),
+    ("admin-models", "/admin/models"),
+    ("admin-wizard", "/admin/wizard"),
+    ("admin-calendar", "/admin/calendar"),
+    ("admin-long-form", "/admin/long-form"),
     ("admin-audit", "/admin/audit"),
+    ("admin-templates", "/admin/templates"),
     ("admin-setup", "/admin/setup"),
 ]
 
@@ -54,31 +64,55 @@ def main() -> int:
     with sync_playwright() as p:
         browser = p.chromium.launch()
         for size_name, width, height in SIZES:
-            for role, pages in (("creator", CREATOR_PAGES), ("admin", ADMIN_PAGES)):
-                context = browser.new_context(viewport={"width": width, "height": height})
-                name = "Admin" if role == "admin" else "Axe"
-                csrf = context.request.get(f"{BASE}/api/auth/csrf").json()["csrf"]
-                context.request.post(
-                    f"{BASE}/api/auth/dev/sign-in",
-                    data={"display_name": name},
-                    headers={"Content-Type": "application/json", "X-CSRF-Token": csrf},
-                )
-                page = context.new_page()
-                for page_name, path in pages:
-                    page.goto(f"{BASE}{path}?theme=dark", wait_until="networkidle")
-                    page.add_script_tag(path=str(AXE))
-                    results = page.evaluate(
-                        """() => axe.run(document, { resultTypes: ['violations'] })"""
+            for theme in ("dark", "light"):
+                for role, pages in (("creator", CREATOR_PAGES), ("admin", ADMIN_PAGES)):
+                    context = browser.new_context(viewport={"width": width, "height": height})
+                    name = "Admin" if role == "admin" else "Axe"
+                    csrf = ""
+                    for attempt in range(4):
+                        try:
+                            csrf = context.request.get(f"{BASE}/api/auth/csrf", timeout=20000).json()["csrf"]
+                            break
+                        except Exception:
+                            if attempt == 3:
+                                raise
+                            context.request.get(f"{BASE}/api/health", timeout=20000)
+                    context.request.post(
+                        f"{BASE}/api/auth/dev/sign-in",
+                        data={"display_name": name},
+                        headers={"Content-Type": "application/json", "X-CSRF-Token": csrf},
                     )
-                    violations = [
-                        {"id": v["id"], "impact": v["impact"], "nodes": len(v["nodes"]), "help": v["help"]}
-                        for v in results["violations"]
-                        if v["impact"] in ("serious", "critical")
-                    ]
-                    report[f"{size_name}-{page_name}"] = violations
-                    if violations:
-                        failed.append(f"{size_name}-{page_name}: {violations}")
-                context.close()
+                    page = context.new_page()
+                    page.set_default_timeout(20000)
+                    for page_name, path in pages:
+                        key = f"{size_name}-{theme}-{page_name}"
+                        try:
+                            page.goto(f"{BASE}{path}?theme={theme}", wait_until="domcontentloaded")
+                            try:
+                                page.wait_for_selector('[aria-busy="true"]', state="detached", timeout=8000)
+                            except Exception:
+                                pass
+                            page.wait_for_timeout(600)
+                            page.add_script_tag(path=str(AXE))
+                            results = page.evaluate(
+                                """() => axe.run(document, { resultTypes: ['violations'] })"""
+                            )
+                            violations = [
+                                {"id": v["id"], "impact": v["impact"], "nodes": len(v["nodes"]), "help": v["help"]}
+                                for v in results["violations"]
+                                if v["impact"] in ("serious", "critical")
+                            ]
+                            report[key] = violations
+                            if violations:
+                                failed.append(f"{key}: {violations}")
+                        except Exception as exc:
+                            report[key] = [{"id": "harness-error", "impact": "serious", "nodes": 1, "help": str(exc)[:200]}]
+                            failed.append(f"{key}: harness error {exc}")
+                            try:
+                                page.goto(f"{BASE}/signin?theme={theme}", wait_until="domcontentloaded")
+                            except Exception:
+                                pass
+                    context.close()
         browser.close()
 
     out = ROOT / "docs/screens/a11y.json"

@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 export const dynamic = "force-dynamic";
 
 export default async function LeaderboardPage() {
-  let rows: { rank: number; user_id: string; result_value: number | null }[] = [];
+  let rows: { rank: number; user_id: string; display_name: string; result_value: number | null }[] = [];
   let question: string | null = null;
   let error: string | null = null;
   try {
@@ -43,9 +43,17 @@ export default async function LeaderboardPage() {
           {rows.map((r) => (
             <Tr key={`${r.rank}-${r.user_id}`}>
               <Td>
-                <Badge tone={r.rank === 1 ? "accent" : "muted"}>#{r.rank}</Badge>
+                <span
+                  className={
+                    r.rank <= 3
+                      ? "text-2xl font-semibold tracking-tight text-accent"
+                      : "text-2xl font-semibold tracking-tight text-muted"
+                  }
+                >
+                  {r.rank}
+                </span>
               </Td>
-              <Td>{r.user_id}</Td>
+              <Td className="font-medium">{r.display_name}</Td>
               <Td>{r.result_value ?? "—"}</Td>
             </Tr>
           ))}

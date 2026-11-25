@@ -12,8 +12,12 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from starlette.background import BackgroundTask
 
 from . import db, storage
+from .caption_events import group
+from .config import settings
 from .paging import envelope, order_clause, parse
+from .projects import attach_stream
 from .users import current_user
+from platforms import get as platform_get
 
 router = APIRouter()
 
@@ -41,6 +45,8 @@ def _clip(row) -> dict:
         "export_description": row[15],
         "export_tags": row[16],
         "transcript": row[17],
+        "commentary": row[18],
+        "platform": row[19] or "youtube_shorts",
         "download_url": f"/clips/{row[0]}/download" if row[2] else None,
         "thumb_url": f"/clips/{row[0]}/thumbnail" if row[2] else None,
     }
@@ -50,13 +56,20 @@ _SELECT = (
     "SELECT c.id, c.assignment_id, c.file_key, c.title, c.state, c.template, "
     "c.duration_seconds, c.stage, c.progress, c.error, c.layout, c.caption_style, "
     "c.voice_over, c.voice, c.export_title, c.export_description, c.export_tags, "
-    "c.transcript "
+    "c.transcript, c.commentary, c.platform "
     "FROM clips c"
 )
 
 
 def _owned_clip(cur, request, clip_id):
     user = current_user(request)
+    if user["role"] == "admin":
+        # Admins review every clip (the pipeline publishes assignment-less
+        # clips); creators can only reach their own.
+        cur.execute("SELECT c.id FROM clips c WHERE c.id = %s", (clip_id,))
+        if cur.fetchone() is not None:
+            return
+        raise HTTPException(404, "clip not found")
     cur.execute(
         "SELECT c.id FROM clips c JOIN assignments a ON a.id = c.assignment_id "
         "WHERE c.id = %s AND a.user_id = %s",
@@ -200,6 +213,8 @@ def _create_clips(cur, user, key, items):
         (user["id"], "local-upload", key),
     )
     stream_id = cur.fetchone()[0]
+    # The stream belongs to the project that owns this recording.
+    attach_stream(cur, key, stream_id)
     for item in items:
         mission_id = item["mission_id"]
         cur.execute(
@@ -273,17 +288,26 @@ def clips(request: Request):
     state = request.query_params.get("state")
     with db.session() as conn:
         with conn.cursor() as cur:
-            where = "a.user_id = %s"
-            params: list = [user["id"]]
+            # Admins review every clip, including the automatic pipeline's
+            # assignment-less clips; creators see only their own.
+            admin = user["role"] == "admin"
+            where = "" if admin else "a.user_id = %s"
+            params: list = [] if admin else [user["id"]]
             if state:
-                where += " AND c.state = %s"
+                where += (" AND " if where else "") + "c.state = %s"
                 params.append(state)
-            cur.execute(f"SELECT count(*) FROM clips c JOIN assignments a ON a.id = c.assignment_id WHERE {where}", params)
+            cur.execute(
+                f"SELECT count(*) FROM clips c "
+                + ("" if admin else "JOIN assignments a ON a.id = c.assignment_id ")
+                + (f"WHERE {where}" if where else ""),
+                params,
+            )
             total = cur.fetchone()[0]
             cur.execute(
-                _SELECT + f" JOIN assignments a ON a.id = c.assignment_id WHERE {where} "
-                f"ORDER BY {order_clause(sort, CLIP_SORT, 'c.created_at', order)} "
-                f"LIMIT %s OFFSET %s",
+                _SELECT + (" " if admin else " JOIN assignments a ON a.id = c.assignment_id ")
+                + (f"WHERE {where}" if where else "")
+                + f" ORDER BY {order_clause(sort, CLIP_SORT, 'c.created_at', order)} "
+                "LIMIT %s OFFSET %s",
                 params + [size, (page - 1) * size],
             )
             rows = cur.fetchall()
@@ -296,9 +320,9 @@ def clip_detail(request: Request, clip_id: str):
     with db.session() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                _SELECT + " JOIN assignments a ON a.id = c.assignment_id "
-                "WHERE c.id = %s AND a.user_id = %s",
-                (clip_id, user["id"]),
+                _SELECT + " LEFT JOIN assignments a ON a.id = c.assignment_id "
+                "WHERE c.id = %s AND (a.user_id = %s OR %s = 'admin')",
+                (clip_id, user["id"], user["role"]),
             )
             row = cur.fetchone()
     if row is None:
@@ -306,13 +330,70 @@ def clip_detail(request: Request, clip_id: str):
     return _clip(row)
 
 
+@router.get("/clips/{clip_id}/captions")
+def clip_captions(request: Request, clip_id: str):
+    """The caption events an editor should show: the override, or the transcript
+    grouped the way the worker will burn it."""
+    user = current_user(request)
+    with db.session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT c.captions_override, c.transcript, c.caption_style "
+                "FROM clips c LEFT JOIN assignments a ON a.id = c.assignment_id "
+                "WHERE c.id = %s AND (a.user_id = %s OR %s = 'admin')",
+                (clip_id, user["id"], user["role"]),
+            )
+            row = cur.fetchone()
+    if row is None:
+        raise HTTPException(404, "clip not found")
+    override, transcript, style = row
+    if override:
+        return {"captions": override, "source": "override", "caption_style": style}
+    words = [
+        {"start": w["start"], "end": w["end"], "text": w["text"]}
+        for w in (transcript or [])
+    ]
+    return {"captions": group(words, style or "word"), "source": "transcript", "caption_style": style}
+
+
+def _clean_captions(payload) -> list[dict]:
+    if not isinstance(payload, list):
+        raise HTTPException(422, "captions must be a list")
+    clean = []
+    for item in payload:
+        if not isinstance(item, dict) or "start" not in item or "end" not in item:
+            raise HTTPException(422, "each caption needs start, end and text")
+        try:
+            start = float(item["start"])
+            end = float(item["end"])
+        except (TypeError, ValueError):
+            raise HTTPException(422, "caption start/end must be numbers")
+        if end < start or start < 0:
+            raise HTTPException(422, "caption end must be after start")
+        text = str(item.get("text", "")).strip()
+        if not text:
+            continue
+        clean.append({"start": round(start, 3), "end": round(end, 3), "text": text[:200]})
+    return clean
+
+
 @router.patch("/clips/{clip_id}")
 def update_clip(request: Request, clip_id: str, payload: dict):
     user = current_user(request)
     fields = {}
-    for key in ("title", "layout", "caption_style", "voice_over", "voice", "export_title", "export_description", "export_tags"):
+    for key in ("title", "layout", "caption_style", "voice_over", "voice", "export_title", "export_description", "export_tags", "commentary"):
         if key in payload:
             fields[key] = payload[key]
+    # A platform change carries its caption style with it, so the re-render
+    # already matches the target instead of needing a second edit.
+    if "platform" in payload:
+        preset = platform_get(payload["platform"])
+        fields["platform"] = payload["platform"]
+        fields.setdefault("caption_style", preset["caption_style"])
+    captions = None
+    if "captions" in payload:
+        captions = _clean_captions(payload["captions"])
+        fields["captions_override"] = json.dumps(captions)
     template_id = payload.get("template_id")
     if not fields and not template_id:
         raise HTTPException(422, "nothing to update")
@@ -322,24 +403,30 @@ def update_clip(request: Request, clip_id: str, payload: dict):
             if fields:
                 set_clause = ", ".join(f"{k} = %s" for k in fields)
                 cur.execute(f"UPDATE clips SET {set_clause} WHERE id = %s", (*fields.values(), clip_id))
-            # A template, layout or caption change re-renders in place.
-            if template_id or "layout" in fields or "caption_style" in fields:
+            # A template, layout, platform or caption change re-renders in place.
+            if template_id or any(k in fields for k in ("layout", "caption_style", "platform")) or captions is not None:
                 cur.execute(
                     "SELECT c.recording_key, c.source_start, c.source_end, m.card, "
-                    "c.trim_start, c.trim_end, c.voice_over, c.voice "
-                    "FROM clips c JOIN assignments a ON a.id = c.assignment_id "
-                    "JOIN missions m ON m.id = a.mission_id WHERE c.id = %s",
+                    "c.trim_start, c.trim_end, c.voice_over, c.voice, c.title "
+                    "FROM clips c LEFT JOIN assignments a ON a.id = c.assignment_id "
+                    "LEFT JOIN missions m ON m.id = a.mission_id WHERE c.id = %s",
                     (clip_id,),
                 )
                 row = cur.fetchone()
                 if row:
+                    card = row[3] or {
+                        "id": str(clip_id),
+                        "hook_text": row[8] or "Watch this",
+                        "question": "",
+                        "mode": "auto",
+                    }
                     _enqueue_render(
                         cur,
                         clip_id=clip_id,
                         assignment_id=None,
-                        card=row[3],
-                        start=float(row[4] or row[1]),
-                        end=float(row[5] or row[2]),
+                        card=card,
+                        start=float(row[4] if row[4] is not None else row[1]),
+                        end=float(row[5] if row[5] is not None else row[2]),
                         result="",
                         recording_key=row[0],
                         layout=fields.get("layout"),
@@ -363,10 +450,11 @@ def trim(request: Request, clip_id: str, payload: dict):
             _owned_clip(cur, request, clip_id)
             cur.execute(
                 "SELECT c.recording_key, c.source_start, c.source_end, m.card, "
-                "c.layout, c.caption_style, c.voice_over, c.voice "
-                "FROM clips c JOIN assignments a ON a.id = c.assignment_id "
-                "JOIN missions m ON m.id = a.mission_id WHERE c.id = %s",
-                (clip_id,),
+                "c.layout, c.caption_style, c.voice_over, c.voice, c.title "
+                "FROM clips c LEFT JOIN assignments a ON a.id = c.assignment_id "
+                "LEFT JOIN missions m ON m.id = a.mission_id "
+                "WHERE c.id = %s AND (a.user_id = %s OR %s = 'admin')",
+                (clip_id, user["id"], user["role"]),
             )
             row = cur.fetchone()
             if row is None:
@@ -379,7 +467,10 @@ def trim(request: Request, clip_id: str, payload: dict):
                 cur,
                 clip_id=clip_id,
                 assignment_id=None,
-                card=row[3],
+                card=row[3] or {
+                    "id": str(clip_id), "hook_text": row[8] or "Watch this",
+                    "question": "", "mode": "auto",
+                },
                 start=start,
                 end=end,
                 result="",
@@ -404,10 +495,11 @@ def voice_over(request: Request, clip_id: str, payload: dict):
             _owned_clip(cur, request, clip_id)
             cur.execute(
                 "SELECT c.recording_key, c.source_start, c.source_end, m.card, "
-                "c.layout, c.caption_style, c.trim_start, c.trim_end "
-                "FROM clips c JOIN assignments a ON a.id = c.assignment_id "
-                "JOIN missions m ON m.id = a.mission_id WHERE c.id = %s",
-                (clip_id,),
+                "c.layout, c.caption_style, c.trim_start, c.trim_end, c.title "
+                "FROM clips c LEFT JOIN assignments a ON a.id = c.assignment_id "
+                "LEFT JOIN missions m ON m.id = a.mission_id "
+                "WHERE c.id = %s AND (a.user_id = %s OR %s = 'admin')",
+                (clip_id, user["id"], user["role"]),
             )
             row = cur.fetchone()
             if row is None:
@@ -420,9 +512,12 @@ def voice_over(request: Request, clip_id: str, payload: dict):
                 cur,
                 clip_id=clip_id,
                 assignment_id=None,
-                card=row[3],
-                start=float(row[6] or row[1]),
-                end=float(row[7] or row[2]),
+                card=row[3] or {
+                    "id": str(clip_id), "hook_text": row[8] or "Watch this",
+                    "question": "", "mode": "auto",
+                },
+                start=float(row[6] if row[6] is not None else row[1]),
+                end=float(row[7] if row[7] is not None else row[2]),
                 result="",
                 recording_key=row[0],
                 layout=row[4],
@@ -470,9 +565,9 @@ def voice_over_status(request: Request, voice_over_id: str):
             cur.execute(
                 "SELECT v.id, v.state, v.audio_key, v.voice, v.text "
                 "FROM voice_overs v JOIN clips c ON c.id = v.clip_id "
-                "JOIN assignments a ON a.id = c.assignment_id "
-                "WHERE v.id = %s AND a.user_id = %s",
-                (voice_over_id, user["id"]),
+                "LEFT JOIN assignments a ON a.id = c.assignment_id "
+                "WHERE v.id = %s AND (a.user_id = %s OR %s = 'admin')",
+                (voice_over_id, user["id"], user["role"]),
             )
             row = cur.fetchone()
     if row is None:
@@ -493,9 +588,9 @@ def voice_over_audio(request: Request, voice_over_id: str):
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT v.audio_key FROM voice_overs v JOIN clips c ON c.id = v.clip_id "
-                "JOIN assignments a ON a.id = c.assignment_id "
-                "WHERE v.id = %s AND a.user_id = %s",
-                (voice_over_id, user["id"]),
+                "LEFT JOIN assignments a ON a.id = c.assignment_id "
+                "WHERE v.id = %s AND (a.user_id = %s OR %s = 'admin')",
+                (voice_over_id, user["id"], user["role"]),
             )
             row = cur.fetchone()
     if not row or not row[0]:
@@ -534,11 +629,14 @@ def download(request: Request, clip_id: str):
     user = current_user(request)
     with db.session() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT c.file_key FROM clips c JOIN assignments a ON a.id = c.assignment_id "
-                "WHERE c.id = %s AND a.user_id = %s",
-                (clip_id, user["id"]),
-            )
+            if user["role"] == "admin":
+                cur.execute("SELECT c.file_key FROM clips c WHERE c.id = %s", (clip_id,))
+            else:
+                cur.execute(
+                    "SELECT c.file_key FROM clips c JOIN assignments a ON a.id = c.assignment_id "
+                    "WHERE c.id = %s AND a.user_id = %s",
+                    (clip_id, user["id"]),
+                )
             row = cur.fetchone()
     if not row or not row[0]:
         raise HTTPException(404, "no file")
@@ -561,10 +659,19 @@ def thumbnail(request: Request, clip_id: str):
     key = f"clips/{clip_id}/thumb.jpg"
     if not storage.exists(key):
         raise HTTPException(404, "no thumbnail yet")
-    tmp = pathlib.Path(tempfile.mkdtemp()) / "thumb.jpg"
-    storage.get_file(key, str(tmp))
     from fastapi.responses import FileResponse
 
+    if settings.storage_driver == "local":
+        # Serve the file in place: no copy, and the browser can cache it.
+        path = (pathlib.Path(settings.storage_local_dir) / key).resolve()
+        if not path.is_file():
+            raise HTTPException(404, "no thumbnail yet")
+        return FileResponse(
+            path, media_type="image/jpeg", filename=f"{clip_id}.jpg",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+    tmp = pathlib.Path(tempfile.mkdtemp()) / "thumb.jpg"
+    storage.get_file(key, str(tmp))
     return FileResponse(
         tmp, media_type="image/jpeg", filename=f"{clip_id}.jpg",
         background=BackgroundTask(shutil.rmtree, tmp.parent),
@@ -612,9 +719,9 @@ def download_export(request: Request, clip_id: str):
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT c.file_key, c.export_title, c.export_description, c.export_tags "
-                "FROM clips c JOIN assignments a ON a.id = c.assignment_id "
-                "WHERE c.id = %s AND a.user_id = %s",
-                (clip_id, user["id"]),
+                "FROM clips c LEFT JOIN assignments a ON a.id = c.assignment_id "
+                "WHERE c.id = %s AND (a.user_id = %s OR %s = 'admin')",
+                (clip_id, user["id"], user["role"]),
             )
             row = cur.fetchone()
     if not row or not row[0]:

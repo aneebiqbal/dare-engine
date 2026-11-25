@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { api, type Clip, type ClipExport } from "@/lib/api";
 import { Badge, Button, Card, Field, Input, Notice, PageState, Textarea, useToast } from "@/components/ui";
+import { WorkHeader } from "./work";
+import { Thumb } from "./media";
 
 export function ExportPackage({ clip }: { clip: Clip }) {
   const [title, setTitle] = useState(clip.export_title ?? clip.title ?? "");
@@ -50,15 +52,16 @@ export function ExportPackage({ clip }: { clip: Clip }) {
 
   return (
     <PageState loading={false} error={error} empty={false}>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,24rem)_1fr]">
+      <div className="grid gap-6">
+        <WorkHeader eyebrow="Export" title={clip.title ?? "Export package"} status="idle" />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,24rem)_1fr]">
         <div className="mx-auto w-full max-w-[24rem]">
           <div className="overflow-hidden rounded-lg bg-black ring-surface">
             {clip.thumb_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Thumb
                 src={api.thumbnailUrl(clip.id)}
                 alt={`Preview of ${clip.title ?? "this clip"}`}
-                className="aspect-[9/16] w-full object-cover"
+                className="aspect-[9/16] w-full object-contain"
               />
             ) : (
               <div className="flex aspect-[9/16] items-center justify-center bg-surface-2 p-6 text-center">
@@ -69,7 +72,7 @@ export function ExportPackage({ clip }: { clip: Clip }) {
           {clip.download_url && (
             <a
               href={api.downloadClipUrl(clip.id)}
-              className="mt-4 block rounded-full py-3 text-center text-sm font-medium text-accent ring-surface transition hover:bg-surface-2"
+              className="mt-4 block rounded-md py-3 text-center text-sm font-medium text-text ring-surface transition hover:bg-surface-2"
             >
               Download video only
             </a>
@@ -110,18 +113,19 @@ export function ExportPackage({ clip }: { clip: Clip }) {
 
           <Card>
             <div className="flex flex-col gap-4">
-              <Badge tone="accent">Includes video, thumbnail, title, description and tags</Badge>
+              <Badge tone="muted">Includes video, thumbnail, title, description and tags</Badge>
               <div className="flex flex-wrap gap-2">
                 <Button onClick={save} disabled={busy}>Save package</Button>
                 <a
                   href={api.downloadExportUrl(clip.id)}
-                  className="inline-flex items-center rounded-full px-5 py-2.5 text-sm font-medium text-accent ring-surface transition hover:bg-surface-2"
+                  className="inline-flex items-center rounded-md px-5 py-2.5 text-sm font-medium text-text ring-surface transition hover:bg-surface-2"
                 >
                   Download package
                 </a>
               </div>
             </div>
           </Card>
+        </div>
         </div>
       </div>
     </PageState>

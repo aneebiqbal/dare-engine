@@ -77,9 +77,9 @@ Local disk is the default and needs nothing. To use S3-compatible storage:
 
 1. Run `make voice`. It downloads `en_US-amy-medium` from
    `rhasspy/piper-voices` into the `voices` volume.
-2. Piper itself is MIT. The voice repository declares MIT; check the individual
-   voice card before commercial use. For monetisation, your own voice is the
-   safer choice.
+2. The `piper-tts` package is GPL-3.0-or-later; the voice repository declares
+   MIT. Check the individual voice card before commercial use. For
+   monetisation, your own voice is the safer choice.
 
 **Confirm:** `make doctor` prints `PASS local TTS command` and
 `PASS voice model present`.

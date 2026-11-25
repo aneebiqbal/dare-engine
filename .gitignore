@@ -40,6 +40,15 @@ render-*/
 ssd-test/
 .pytest-outputs/
 trash/
+backups/
+vision-out/
+
+# Desktop app
+desktop/node_modules/
+desktop/src-tauri/target/
+
+# Local-run copy of a file the Docker images provide next to the app package.
+api/app/clip_templates.json
 
 # OS / editors
 .DS_Store

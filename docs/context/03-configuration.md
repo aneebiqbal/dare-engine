@@ -1,7 +1,7 @@
 # 03 — Configuration
 
 All values come from environment variables. Sources: `api/app/config.py`,
-`worker/app/config.py`, `docker-compose.yml`, `.env.example`. No `.env` is
+`worker/worker_app/config.py`, `docker-compose.yml`, `.env.example`. No `.env` is
 committed (`ls .env` → absent). `docs/SETUP_KEYS.md` explains how to create each
 secret.
 
@@ -39,7 +39,7 @@ secret.
 Cookie names are fixed: `clipdesk_session` (HttpOnly) and `clipdesk_csrf`
 (`api/app/config.py`).
 
-## Worker (`worker/app/config.py`)
+## Worker (`worker/worker_app/config.py`)
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
@@ -55,8 +55,8 @@ Cookie names are fixed: `clipdesk_session` (HttpOnly) and `clipdesk_csrf`
 | `WORKER_STALE_SECONDS` | stale-job reaper threshold | `600` |
 
 `WHISPER_*`, `WORKER_CONCURRENCY` and `WORKER_STALE_SECONDS` are read straight
-from `os.environ` in `worker/clip/transcribe.py` and `worker/app/worker.py`, not
-from `worker/app/config.py`.
+from `os.environ` in `worker/clip/transcribe.py` and `worker/worker_app/worker.py`, not
+from `worker/worker_app/config.py`.
 
 ## Database (`db` service)
 

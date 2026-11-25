@@ -5,12 +5,18 @@ from .stub import StubLLM
 
 
 def get_llm() -> LLM:
-    provider = (settings.llm_provider or "").lower()
+    from ..keys import resolve
+    from ..settings_store import get as stored
+
+    provider = (stored("llm_provider") or settings.llm_provider or "").lower()
     if provider == "openai":
         from .openai_compat import OpenAICompatibleLLM
 
         return OpenAICompatibleLLM(
-            settings.llm_base_url, settings.llm_api_key, settings.llm_model, settings.llm_timeout
+            stored("llm_base_url") or settings.llm_base_url,
+            resolve("llm"),
+            stored("llm_model") or settings.llm_model,
+            settings.llm_timeout,
         )
     if provider == "recorded":
         return RecordedLLM(settings.llm_recorded_response)

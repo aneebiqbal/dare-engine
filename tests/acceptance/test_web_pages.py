@@ -10,6 +10,7 @@ from helpers import (
     dev_sign_in,
     make_admin,
     seed_mission,
+    sql,
     upload_recording,
 )
 
@@ -145,7 +146,7 @@ def test_w4_clips_and_history(browser, size):
         sign_in(page, "Alice")
         page.goto(f"{WEB}/clips", wait_until="networkidle")
         page.wait_for_selector("text=Your Shorts", timeout=15000)
-        page.wait_for_selector("text=Review", timeout=15000)
+        page.wait_for_selector("#main-content >> text=Review", timeout=15000)
         page.goto(f"{WEB}/history", wait_until="networkidle")
         page.wait_for_selector("text=Mission history", timeout=15000)
     finally:
@@ -153,6 +154,9 @@ def test_w4_clips_and_history(browser, size):
 
 
 def test_w6_admin_pool(browser):
+    # The recorded provider writes fixed card ids; clear the pool first so the
+    # test does not depend on another test having approved them.
+    sql("TRUNCATE missions, assignments, daily_sets RESTART IDENTITY CASCADE")
     context = browser.new_context(viewport={"width": 390, "height": 844})
     page = context.new_page()
     try:
@@ -187,6 +191,6 @@ def test_w8_real_journey(browser):
         # A finished Short to review on the Clips page.
         _seed_clip()
         page.goto(f"{WEB}/clips", wait_until="networkidle")
-        page.wait_for_selector("text=Review", timeout=15000)
+        page.wait_for_selector("#main-content >> text=Review", timeout=15000)
     finally:
         context.close()

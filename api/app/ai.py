@@ -13,7 +13,11 @@ from .users import current_user
 
 router = APIRouter()
 
+# Docker copies contracts next to the app package; the repo keeps them at the
+# root. Resolve whichever exists so the app also runs from a local checkout.
 CONTRACTS = pathlib.Path(__file__).resolve().parents[1] / "contracts"
+if not CONTRACTS.exists():
+    CONTRACTS = pathlib.Path(__file__).resolve().parents[2] / "contracts"
 CARD_SCHEMA = json.loads((CONTRACTS / "mission-card.schema.json").read_text())
 GUIDE = (pathlib.Path(__file__).resolve().parent / "help_guide.md").read_text()
 
@@ -69,6 +73,24 @@ def _schema(kind: str) -> dict | None:
         }
     if kind == "help":
         return {"type": "object", "properties": {"answer": {"type": "string"}}, "required": ["answer"]}
+    if kind == "research":
+        idea = {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "question": {"type": "string", "minLength": 10, "maxLength": 200},
+                "hook_text": {"type": "string", "minLength": 3, "maxLength": 40},
+                "setup": {"type": "string", "minLength": 5, "maxLength": 300},
+                "win_condition": {"type": "string", "minLength": 5, "maxLength": 300},
+                "result_type": {"type": "string", "enum": ["time_seconds", "star_count", "pass_fail", "distance_meters", "cash_dollars"]},
+                "est_minutes": {"type": "integer", "minimum": 1, "maximum": 30},
+                "title_options": {"type": "array", "minItems": 1, "maxItems": 3, "items": {"type": "string", "minLength": 5, "maxLength": 100}},
+                "mode": {"type": "string", "enum": ["free_roam", "race", "mission_replay"]},
+                "source_ids": {"type": "array", "minItems": 1, "maxItems": 5, "items": {"type": "string", "minLength": 1}},
+            },
+            "required": ["question", "hook_text", "setup", "win_condition", "result_type", "est_minutes", "title_options", "mode", "source_ids"],
+        }
+        return {"type": "object", "properties": {"ideas": {"type": "array", "items": idea, "maxItems": 10}}, "required": ["ideas"]}
     return None
 
 
@@ -100,13 +122,19 @@ def run_ai(user: dict, page: str, kind: str, system: str, prompt: str, schema: d
     return result, fallback
 
 
-def _clip_rows(cur, user_id: str, clip_id: str | None = None):
+def _clip_rows(cur, user: dict, clip_id: str | None = None):
+    admin = user["role"] == "admin"
+    where = "" if admin else "a.user_id = %s"
+    params: list = [] if admin else [user["id"]]
+    if clip_id:
+        where += (" AND " if where else "") + "c.id = %s"
+        params.append(clip_id)
     cur.execute(
-        "SELECT c.id, c.title, c.transcript, c.state, m.card "
-        "FROM clips c JOIN assignments a ON a.id = c.assignment_id "
-        "JOIN missions m ON m.id = a.mission_id "
-        "WHERE a.user_id = %s" + (" AND c.id = %s" if clip_id else ""),
-        (user_id, clip_id) if clip_id else (user_id,),
+        "SELECT c.id, c.title, c.transcript, c.state, m.card, c.commentary "
+        "FROM clips c LEFT JOIN assignments a ON a.id = c.assignment_id "
+        "LEFT JOIN missions m ON m.id = a.mission_id "
+        + (f"WHERE {where}" if where else ""),
+        params,
     )
     return cur.fetchall()
 
@@ -176,10 +204,10 @@ def clip_review(request: Request, payload: dict):
     clip_id = payload.get("clip_id")
     with db.session() as conn:
         with conn.cursor() as cur:
-            rows = _clip_rows(cur, user["id"], clip_id)
+            rows = _clip_rows(cur, user, clip_id)
     if not rows:
         raise HTTPException(404, "clip not found")
-    _cid, title, transcript, state, card = rows[0]
+    _cid, title, transcript, state, card, commentary = rows[0]
     words = [w.get("text", "") for w in (transcript or [])][:400]
     system = (
         "You review a finished gameplay Short. Choose the strongest hook line, "
@@ -207,15 +235,19 @@ def export_copy(request: Request, payload: dict):
     clip_id = payload.get("clip_id")
     with db.session() as conn:
         with conn.cursor() as cur:
-            rows = _clip_rows(cur, user["id"], clip_id)
+            rows = _clip_rows(cur, user, clip_id)
     if not rows:
         raise HTTPException(404, "clip not found")
-    _cid, title, transcript, state, card = rows[0]
+    _cid, title, transcript, state, card, commentary = rows[0]
     system = (
         "You write YouTube Shorts metadata. Write three title options, a "
         "description and tags. Never use trademarked names in a title. Return JSON only."
     )
-    prompt = f"Mission: {card.get('question', '')}\nHook: {card.get('hook_text', '')}\nExisting title: {title or ''}"
+    prompt = (
+        f"Mission: {card.get('question', '')}\nHook: {card.get('hook_text', '')}\n"
+        f"Existing title: {title or ''}\n"
+        f"Creator commentary (added value): {commentary or 'none'}"
+    )
     result, fallback = run_ai(user, "export", "export", system, prompt)
     if fallback or not result:
         question = card.get("question", "Mission")
@@ -258,16 +290,27 @@ def results_summary(request: Request):
         "Cite the numbers you used. Return JSON only."
     )
     prompt = f"By mission type: {json.dumps(by_type)}\nTop clips: {json.dumps(top)}"
+    from .config import settings
+
+    # The recorded provider is a CI stand-in: never present its canned numbers
+    # as a real summary. Use the data-driven summary and say so.
+    recorded = (settings.llm_provider or "").lower() == "recorded"
     result, fallback = run_ai(user, "results", "results_summary", system, prompt)
-    if fallback or not result:
+    if fallback or not result or recorded:
         best = max(by_type, key=lambda r: r["views"], default=None)
         summary = (
             f"Best performing type: {best['mode']} with {best['views']} views across {best['clips']} clips."
             if best
             else "No results recorded yet."
         )
-        return {"summary": summary, "fallback": True, "notice": FALLBACK_NOTICE, "by_type": by_type}
-    return {**result, "fallback": False, "by_type": by_type}
+        return {
+            "summary": summary,
+            "fallback": True,
+            "notice": FALLBACK_NOTICE,
+            "by_type": by_type,
+            "sample": recorded,
+        }
+    return {**result, "fallback": False, "by_type": by_type, "sample": False}
 
 
 @router.post("/ai/pool-review")

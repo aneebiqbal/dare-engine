@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, type Clip, type MissionCard, type StudioCandidate, type StudioRecording, type SystemLoad } from "@/lib/api";
+import { api, type Clip, type MissionCard, type SsdResponse, type StudioCandidate, type StudioRecording, type SystemLoad } from "@/lib/api";
+import { NextStep } from "./next-step";
+import { DesktopEngine } from "./desktop";
 import {
   Badge,
   Button,
@@ -14,8 +16,23 @@ import {
   Select,
   useToast,
 } from "@/components/ui";
+import { Metric, Pipeline, Section, StatusBadge, WorkHeader } from "./work";
 
 const TEMPLATES = ["cold_open", "center", "punch", "clean", "wide"];
+
+const DETECT_STAGES = ["fetch", "transcribe", "rank"];
+const VISION_STAGES = ["fetch", "sample", "rank"];
+const RENDER_STAGES = ["fetch", "transcribe", "select", "render", "store"];
+
+function stageIndex(stage: string | null, steps: string[]): number {
+  if (!stage) return 0;
+  const i = steps.indexOf(stage);
+  return i < 0 ? 0 : i;
+}
+
+function jobStages(kind: string | null): string[] {
+  return kind === "suggest_clips" ? VISION_STAGES : DETECT_STAGES;
+}
 
 type Window = { candidate_id: string; start: number; end: number; template_id: string | null };
 
@@ -27,6 +44,8 @@ export function Studio() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [detecting, setDetecting] = useState(false);
+  const [visionOn, setVisionOn] = useState(false);
+  const [visionBusy, setVisionBusy] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -36,6 +55,10 @@ export function Studio() {
   const [clips, setClips] = useState<Clip[]>([]);
   const [edits, setEdits] = useState<Record<string, { start: string; end: string; template: string }>>({});
   const [playing, setPlaying] = useState<string | null>(null);
+  const [ssd, setSsd] = useState<SsdResponse | null>(null);
+  const [ssdBusy, setSsdBusy] = useState(false);
+  const [importing, setImporting] = useState<string | null>(null);
+  const [release, setRelease] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const toast = useToast();
 
@@ -44,6 +67,25 @@ export function Studio() {
       .then((d) => {
         setTemplates(d.templates.map((t) => t.id));
         setCaptionStyles(Object.keys(d.caption_styles));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Reopen the latest session, so the studio is already pointed at it.
+  useEffect(() => {
+    api.studioRecordings()
+      .then((d) => {
+        const first = d.items[0];
+        if (!first) return;
+        return api.studioRecording(first.id).then((detail) => {
+          setRecording(detail);
+          const ids = new Set(
+            detail.candidates.map((c) => c.clip_id).filter(Boolean),
+          );
+          return api.clips("?page_size=50").then((res) =>
+            setClips(res.items.filter((c) => ids.has(c.id))),
+          );
+        });
       })
       .catch(() => {});
   }, []);
@@ -75,6 +117,17 @@ export function Studio() {
     return res.items;
   }, []);
 
+  const openRecording = useCallback(
+    async (id: string) => {
+      const detail = await api.studioRecording(id);
+      setRecording(detail);
+      setClips([]);
+      setEdits({});
+      toast("Recording imported", "success");
+    },
+    [toast],
+  );
+
   async function upload() {
     if (!file) {
       setError("Choose a recording first.");
@@ -98,6 +151,39 @@ export function Studio() {
     }
   }
 
+  async function refreshSsd() {
+    setSsdBusy(true);
+    setError(null);
+    try {
+      setSsd(await api.studioSsd());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not read the drives");
+    } finally {
+      setSsdBusy(false);
+    }
+  }
+
+  async function importSsd(path: string) {
+    setImporting(path);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await api.studioSsdImport(path, release);
+      const detail = await api.studioRecording(res.recording_id);
+      setRecording(detail);
+      setClips([]);
+      setEdits({});
+      toast(
+        res.released ? "Imported from SSD and released the copy" : "Imported from SSD",
+        "success",
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Import failed");
+    } finally {
+      setImporting(null);
+    }
+  }
+
   async function findMoments() {
     if (!recording) return;
     setError(null);
@@ -111,10 +197,38 @@ export function Studio() {
         if (detail.candidates.length && detail.compute.whisper_device) break;
       }
       setNotice("Moments found. Accept the ones you want, then generate.");
+      if (visionOn) await suggestClips();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Detection failed");
     } finally {
       setDetecting(false);
+    }
+  }
+
+  // Optional: the sampled VLM widens the net. Off unless the admin turns it on.
+  async function suggestClips() {
+    if (!recording) return;
+    setVisionBusy(true);
+    setError(null);
+    try {
+      await api.studioVision(recording.recording.id, 5);
+      let last = recording;
+      for (let i = 0; i < 180; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        last = await api.studioRecording(recording.recording.id);
+        setRecording(last);
+        if (last.vision.seconds_added != null) break;
+      }
+      const vision = last.candidates.filter((c) => c.source === "vision").length;
+      setNotice(
+        vision
+          ? `The vision model suggested ${vision} more clip${vision === 1 ? "" : "s"}.`
+          : "The vision model found nothing extra.",
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Vision pass failed");
+    } finally {
+      setVisionBusy(false);
     }
   }
 
@@ -213,6 +327,42 @@ export function Studio() {
 
   return (
     <div className="flex flex-col gap-6">
+      <WorkHeader
+        eyebrow="Create"
+        title="Clip studio"
+        status={detecting || visionBusy || generating || rendering ? "running" : "idle"}
+        actions={
+          <span className="font-mono text-xs text-muted">
+            {recording
+              ? `${recording.recording.filename} · ${recording.recording.duration_seconds.toFixed(1)}s`
+              : "no recording loaded"}
+          </span>
+        }
+      />
+      <DesktopEngine onRecording={openRecording} />
+
+      {recording?.job && (
+        <Card>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <StatusBadge status="running" label={recording.job.kind} />
+              <span className="font-mono text-xs text-muted">
+                {recording.job.state}
+                {recording.job.stage ? ` · ${recording.job.stage}` : ""}
+              </span>
+            </div>
+            <Pipeline
+              steps={jobStages(recording.job.kind)}
+              current={stageIndex(recording.job.stage, jobStages(recording.job.kind))}
+              label="Analysis progress"
+            />
+            <p className="text-xs text-muted">
+              The worker reports its real stage. Detection loads a model, so the first run is
+              slower than a warm one.
+            </p>
+          </div>
+        </Card>
+      )}
       <Card>
         <div className="flex flex-col gap-4" data-tour="studio-upload">
           <div className="flex items-center justify-between">
@@ -254,13 +404,110 @@ export function Studio() {
               {detecting ? "Finding moments…" : "Find moments"}
             </Button>
           </div>
+          <label className="flex items-center gap-2 text-xs text-muted">
+            <input
+              type="checkbox"
+              checked={visionOn}
+              onChange={(e) => setVisionOn(e.target.checked)}
+              className="h-4 w-4 accent-[var(--accent)]"
+              data-testid="studio-vision-toggle"
+            />
+            <span>
+              AI also suggest clips — a small vision model samples the recording and
+              proposes extra moments. Slower, and it loads a model.
+            </span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={suggestClips}
+              disabled={!recording || visionBusy || detecting}
+              data-testid="studio-vision"
+            >
+              {visionBusy ? "Watching…" : "Ask the vision model"}
+            </Button>
+            {recording?.vision.seconds_added != null && (
+              <span className="self-center text-xs text-muted">
+                vision pass {recording.vision.seconds_added.toFixed(0)}s
+                {recording.vision.model ? ` · ${recording.vision.model}` : ""}
+              </span>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-medium">Import from SSD</h2>
+            <Button size="sm" variant="outline" onClick={refreshSsd} disabled={ssdBusy}>
+              {ssdBusy ? "Reading…" : "Refresh drives"}
+            </Button>
+          </div>
+          <label className="flex items-start gap-2 text-xs text-muted">
+            <input
+              type="checkbox"
+              checked={release}
+              onChange={(e) => setRelease(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
+            />
+            <span>
+              Process and release — delete the inbox copy after import so the disk never
+              fills. The clip is already safe in local storage.
+            </span>
+          </label>
+          {!ssd ? (
+            <p className="text-sm text-muted">Plug in a drive and press Refresh drives.</p>
+          ) : ssd.error ? (
+            <Notice tone="warn">
+              {ssd.error} {ssd.how_to}
+            </Notice>
+          ) : !ssd.enabled ? (
+            <Notice tone="warn">{ssd.reason}</Notice>
+          ) : ssd.drives.length === 0 ? (
+            <EmptyState
+              title="No external drive mounted"
+              body="Plug in an SSD or USB drive, then refresh."
+            />
+          ) : (
+            ssd.drives.map((drive) => (
+              <div key={drive.path} className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Badge tone="accent">{drive.name}</Badge>
+                  <span className="text-xs text-muted">{drive.videos.length} video(s)</span>
+                </div>
+                {drive.error && <Notice tone="warn">{drive.error}</Notice>}
+                {drive.videos.length === 0 && (
+                  <p className="text-xs text-muted">No videos found at the top level of this drive.</p>
+                )}
+                {drive.videos.map((video) => (
+                  <div key={video.path} className="flex items-center justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate">{video.name}</span>
+                    <span className="shrink-0 text-xs text-muted">
+                      {video.error
+                        ? video.error
+                        : `${(video.size_bytes / 1e6).toFixed(1)} MB · ${video.duration_seconds?.toFixed(1)}s · ${video.width}×${video.height}`}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={importing === video.path || Boolean(video.error)}
+                      onClick={() => importSsd(video.path)}
+                    >
+                      {importing === video.path ? "Importing…" : "Import"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
         </div>
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <div className="flex flex-col gap-2">
-            <h3 className="text-sm font-medium">Compute path</h3>
+          <div className="flex flex-col gap-3">
+            <span className="folio">Compute path</span>
             <div data-testid="studio-compute" className="flex flex-wrap gap-2">
               <Badge tone={recording?.compute.gpu ? "success" : "muted"}>
                 {recording?.compute.gpu ? "GPU" : "CPU"}
@@ -271,12 +518,18 @@ export function Studio() {
           </div>
         </Card>
         <Card>
-          <div className="flex flex-col gap-2">
-            <h3 className="text-sm font-medium">System load</h3>
-            <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
-              <span>CPU {load?.cpu_percent ?? "—"}%</span>
-              <span>Memory {load?.memory_percent ?? "—"}%</span>
-              <span>GPU {load?.gpu ? `${load.gpu.utilization_percent}%` : "none"}</span>
+          <div className="flex flex-col gap-3">
+            <span className="folio">System load</span>
+            <div className="grid grid-cols-3 gap-3">
+              <Metric label="CPU" value={load?.cpu_percent != null ? `${Math.round(load.cpu_percent)}%` : "—"} />
+              <Metric
+                label="Memory"
+                value={load?.memory_percent != null ? `${Math.round(load.memory_percent)}%` : "—"}
+              />
+              <Metric
+                label="GPU"
+                value={load?.gpu ? `${load.gpu.utilization_percent}%` : "none"}
+              />
             </div>
             <div data-testid="studio-idle" className="text-xs text-muted">
               {idle && !rendering ? "Idle — no jobs running" : "Working…"}
@@ -309,11 +562,21 @@ export function Studio() {
                     className="flex flex-col gap-3 rounded-lg p-3 ring-surface"
                   >
                     <div className="flex flex-wrap items-center gap-3">
+                      {c.thumb_url && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={api.candidateThumbUrl(c.id)}
+                          alt=""
+                          className="h-14 w-14 rounded-lg object-cover ring-surface"
+                          data-testid={`studio-candidate-thumb-${i}`}
+                        />
+                      )}
                       <Badge tone={c.state === "accepted" ? "success" : c.state === "rejected" ? "danger" : "muted"}>
                         {c.state}
                       </Badge>
                       <span className="text-sm font-medium">#{i + 1} · score {c.score.toFixed(2)}</span>
                       <span className="text-xs text-muted">{c.reasons.join(", ")}</span>
+                      {c.source === "vision" && <Badge tone="accent">vision suggestion</Badge>}
                     </div>
                     <div className="grid gap-3 sm:grid-cols-[80px_80px_1fr_auto_auto_auto]">
                       <Input
@@ -391,76 +654,104 @@ export function Studio() {
 
       {clips.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {clips.map((clip, i) => (
-            <Card key={clip.id}>
-              <div className="flex h-full flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <Badge tone={clip.state === "ready" ? "success" : "muted"}>{clip.state}</Badge>
-                  <span className="text-xs text-muted">
-                    {clip.duration_seconds ? `${clip.duration_seconds.toFixed(1)}s` : "—"}
-                  </span>
+          {clips.map((clip, i) => {
+            const working = !["ready", "approved", "posted", "discarded", "failed"].includes(clip.state);
+            return (
+              <Card key={clip.id}>
+                <div className="flex h-full flex-col gap-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <StatusBadge
+                      status={
+                        clip.state === "ready" || clip.state === "approved" || clip.state === "posted"
+                          ? "done"
+                          : clip.state === "failed"
+                            ? "failed"
+                            : "running"
+                      }
+                      label={clip.state}
+                    />
+                    <span className="font-mono text-xs text-muted">
+                      {clip.duration_seconds ? `${clip.duration_seconds.toFixed(1)}s` : "—"}
+                    </span>
+                  </div>
+                  {clip.state === "ready" ? (
+                    <video
+                      controls
+                      src={api.downloadClipUrl(clip.id)}
+                      className="w-full rounded-md"
+                      data-testid={`studio-clip-${i}`}
+                    />
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <Pipeline
+                        steps={RENDER_STAGES}
+                        current={stageIndex(clip.stage, RENDER_STAGES)}
+                        label={`Render progress for ${clip.title ?? "this clip"}`}
+                      />
+                      <Progress value={clip.progress} label={`${clip.title ?? "Clip"} render progress`} />
+                    </div>
+                  )}
+                  <h3 className="text-sm font-medium">{clip.title ?? "Untitled"}</h3>
+                  {working && clip.error && <Notice tone="warn">{clip.error}</Notice>}
+                  <div className="mt-auto flex flex-wrap items-center gap-2">
+                    <Select
+                      aria-label="Clip template"
+                      value={clipEdits[clip.id]?.template ?? "cold_open"}
+                      onChange={(e) =>
+                        setClipEdits((prev) => ({
+                          ...prev,
+                          [clip.id]: {
+                            template: e.target.value,
+                            captions: prev[clip.id]?.captions ?? "word",
+                          },
+                        }))
+                      }
+                    >
+                      {templates.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </Select>
+                    <Select
+                      aria-label="Clip caption style"
+                      value={clipEdits[clip.id]?.captions ?? "word"}
+                      onChange={(e) =>
+                        setClipEdits((prev) => ({
+                          ...prev,
+                          [clip.id]: {
+                            template: prev[clip.id]?.template ?? "cold_open",
+                            captions: e.target.value,
+                          },
+                        }))
+                      }
+                    >
+                      {captionStyles.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </Select>
+                    <Button variant="ghost" onClick={() => rerender(clip)}>
+                      Re-render
+                    </Button>
+                  </div>
                 </div>
-                {clip.state === "ready" ? (
-                  <video
-                    controls
-                    src={api.downloadClipUrl(clip.id)}
-                    className="w-full rounded-md"
-                    data-testid={`studio-clip-${i}`}
-                  />
-                ) : (
-                  <Progress value={clip.progress} />
-                )}
-                <h3 className="text-sm font-medium">{clip.title ?? "Untitled"}</h3>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Select
-                    aria-label="Clip template"
-                    value={clipEdits[clip.id]?.template ?? "cold_open"}
-                    onChange={(e) =>
-                      setClipEdits((prev) => ({
-                        ...prev,
-                        [clip.id]: {
-                          template: e.target.value,
-                          captions: prev[clip.id]?.captions ?? "word",
-                        },
-                      }))
-                    }
-                  >
-                    {templates.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </Select>
-                  <Select
-                    aria-label="Clip caption style"
-                    value={clipEdits[clip.id]?.captions ?? "word"}
-                    onChange={(e) =>
-                      setClipEdits((prev) => ({
-                        ...prev,
-                        [clip.id]: {
-                          template: prev[clip.id]?.template ?? "cold_open",
-                          captions: e.target.value,
-                        },
-                      }))
-                    }
-                  >
-                    {captionStyles.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </Select>
-                  <Button variant="ghost" onClick={() => rerender(clip)}>
-                    Re-render
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
       {recording && recording.candidates.length === 0 && !detecting && (
         <EmptyState title="No moments yet" body="Upload a recording, then press Find moments." />
+      )}
+
+      {clips.length > 0 && (
+        <NextStep
+          href="/clips"
+          title="Review the clips"
+          body="Watch, add commentary and approve the finished Shorts."
+        />
       )}
     </div>
   );

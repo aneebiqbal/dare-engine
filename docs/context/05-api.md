@@ -7,7 +7,7 @@ see `api/app/users.py:csrf_protect`. Errors have the shape
 (`api/app/main.py:http_error_handler`). List routes return
 `{"items": […], "total": n, "page": p, "page_size": s}` (`api/app/paging.py`).
 
-The route list below is the live `/openapi.json` (73 paths). The CI test
+The route list below is the live `/openapi.json` (105 paths). The CI test
 `tests/acceptance/test_contract.py` compares this set with
 `contracts/openapi.yaml` in both directions; it passes, so **no route is
 missing from the contract and no contract entry has no route**.

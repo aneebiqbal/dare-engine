@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type HistoryEntry } from "@/lib/api";
 import { Badge, Input, PageState, Table, Td, Tr } from "@/components/ui";
+import { Metric, WorkHeader } from "./work";
 
 export function History({ initial }: { initial: HistoryEntry[] }) {
   const [rows, setRows] = useState(initial);
@@ -33,6 +34,7 @@ export function History({ initial }: { initial: HistoryEntry[] }) {
 
   return (
     <div className="flex flex-col gap-4">
+      <WorkHeader eyebrow="Review" title="Mission history" status="idle" actions={<Metric label="Sessions" value={rows.length} />} />
       <Input
         type="search"
         value={q}
@@ -60,7 +62,7 @@ export function History({ initial }: { initial: HistoryEntry[] }) {
               <Td>{r.result_value ?? "—"}</Td>
               <Td>
                 {r.clip_id ? (
-                  <a href={`/clips/${r.clip_id}`} className="text-accent hover:underline">
+                  <a href={`/clips/${r.clip_id}`} className="text-text underline decoration-border underline-offset-4 hover:text-accent">
                     {r.clip_state ?? "view"}
                   </a>
                 ) : (

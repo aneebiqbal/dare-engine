@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { api, type Me, type Settings } from "@/lib/api";
 import { Badge, Button, Card, Field, Input, Notice, PageState, Select, useToast } from "@/components/ui";
+import { WorkHeader } from "./work";
 
 export function Settings({ user, initial, loadError }: { user: Me; initial: Settings | null; loadError?: boolean }) {
   const [settings, setSettings] = useState<Settings | null>(initial);
@@ -65,11 +66,12 @@ export function Settings({ user, initial, loadError }: { user: Me; initial: Sett
       error={loadError ? "Could not load your settings. Try again in a moment." : null}
       empty={false}
     >
+      <WorkHeader eyebrow="Account" title="Settings" status="idle" />
       {settings && (
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <div className="flex flex-col gap-4">
-              <Badge tone="accent">{settings.plan} plan</Badge>
+              <Badge tone="muted">{settings.plan} plan</Badge>
               <div className="flex flex-col gap-1 text-sm">
                 <span className="text-muted">Signed in as</span>
                 <span className="font-medium">{user.email}</span>
@@ -81,7 +83,7 @@ export function Settings({ user, initial, loadError }: { user: Me; initial: Sett
               <div className="flex flex-wrap gap-2">
                 <a
                   href={api.exportAccountUrl()}
-                  className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
+                  className="inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
                 >
                   Export my data
                 </a>

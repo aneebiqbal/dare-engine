@@ -41,7 +41,7 @@ role is admin.
 6. Creator opens **Go Live** (issues a stream key) or **Remote**.
 7. Creator taps Start and Done (`POST /marks`); the API enqueues one
    `render_clip` job per mission (`api/app/clips.py`).
-8. The worker claims the job (`worker/app/jobs.py`), renders
+8. The worker claims the job (`worker/worker_app/jobs.py`), renders
    (`worker/clip/engine.py`), stores the Short, and marks the clip `ready`.
 9. Creator opens **Clips → review**, retitles/trims/styles, optionally adds a
    voice-over, and exports a zip (`GET /clips/{id}/export`).

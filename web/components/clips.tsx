@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Clip, type MissionCard } from "@/lib/api";
+import { NextStep } from "./next-step";
 import {
   Badge,
   Button,
@@ -15,6 +16,8 @@ import {
   Select,
   useToast,
 } from "@/components/ui";
+import { Metric, StatusBadge, WorkHeader } from "./work";
+import { Thumb } from "./media";
 
 type MarkRow = { mission_id: string; start: string; end: string; result: string };
 
@@ -95,8 +98,22 @@ export function Clips({ initial }: { initial: Clip[] }) {
     }
   }
 
+  const needsCommentary = clips.find((c) => c.state === "ready" && !c.commentary);
+  const firstReady = clips.find((c) => c.state === "ready" || c.state === "approved");
+
   return (
     <div className="flex flex-col gap-6">
+      <WorkHeader
+        eyebrow="Review"
+        title="Your Shorts"
+        status={clips.some((c) => !["ready", "approved", "posted", "discarded"].includes(c.state)) ? "running" : "idle"}
+        actions={
+          <div className="flex items-center gap-4">
+            <Metric label="Total" value={clips.length} />
+            <Metric label="Ready" value={clips.filter((c) => c.state === "ready" || c.state === "approved").length} />
+          </div>
+        }
+      />
       <Card>
         <div className="flex flex-col gap-4" data-tour="clips-upload">
           <div className="flex items-center justify-between">
@@ -219,55 +236,84 @@ export function Clips({ initial }: { initial: Clip[] }) {
       </Card>
 
       <PageState loading={loading} error={error} empty={clips.length === 0}>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {clips.map((clip) => (
-            <Card key={clip.id}>
-              <div className="flex h-full flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <Badge tone={clip.state === "ready" ? "success" : clip.state === "failed" ? "danger" : "muted"}>
-                    {clip.state}
-                  </Badge>
-                  <span className="text-xs text-muted">{clip.stage ?? ""}</span>
-                </div>
-                {clip.thumb_url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={api.thumbnailUrl(clip.id)}
-                    alt=""
-                    className="h-32 w-full rounded-xl object-cover"
-                  />
-                )}
-                <h3 className="text-base font-medium leading-snug">{clip.title ?? "Untitled"}</h3>
-                {clip.state !== "ready" && clip.progress > 0 && (
-                  <Progress value={clip.progress} label={`Render progress for ${clip.title ?? "this clip"}`} />
-                )}
-                {clip.error && <Notice tone="warn">{clip.error}</Notice>}
-                <p className="text-xs text-muted">
-                  {clip.duration_seconds ? `${clip.duration_seconds.toFixed(1)}s` : "—"}
-                  {clip.layout ? ` · ${clip.layout}` : ""}
-                  {clip.voice_over ? " · voice-over" : ""}
-                </p>
-                <div className="mt-auto flex flex-wrap gap-2 pt-2">
-                  <a
-                    href={`/clips/${clip.id}`}
-                    className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
-                  >
-                    Review
-                  </a>
-                  {clip.download_url && (
-                    <a
-                      href={api.downloadClipUrl(clip.id)}
-                      className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
-                    >
-                      Download
-                    </a>
+        <Card>
+          <ul className="flex flex-col">
+            {clips.map((clip) => (
+              <li
+                key={clip.id}
+                className="flex flex-col gap-4 border-b border-border py-4 last:border-0 sm:flex-row"
+              >
+                <Thumb
+                  src={api.thumbnailUrl(clip.id)}
+                  alt={`Frame from ${clip.title ?? "this Short"}`}
+                  className="aspect-[9/16] h-44 w-full shrink-0 rounded-md object-contain ring-surface sm:w-auto"
+                />
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <StatusBadge
+                      status={
+                        clip.state === "ready" || clip.state === "approved" || clip.state === "posted"
+                          ? "done"
+                          : clip.state === "failed"
+                            ? "failed"
+                            : "running"
+                      }
+                      label={clip.state}
+                    />
+                    <span className="font-mono text-xs text-muted">{clip.stage ?? ""}</span>
+                  </div>
+                  <h3 className="text-base font-medium leading-snug">{clip.title ?? "Untitled"}</h3>
+                  {clip.state !== "ready" && clip.progress > 0 && (
+                    <Progress value={clip.progress} label={`Render progress for ${clip.title ?? "this clip"}`} />
                   )}
+                  {clip.error && <Notice tone="warn">{clip.error}</Notice>}
+                  <p className="text-xs text-muted">
+                    {clip.duration_seconds ? `${clip.duration_seconds.toFixed(1)}s` : "—"}
+                    {clip.layout ? ` · ${clip.layout}` : ""}
+                    {clip.voice_over ? " · voice-over" : ""}
+                  </p>
+                  <div className="mt-auto flex flex-wrap gap-2 pt-2">
+                    <a
+                      href={`/clips/${clip.id}`}
+                      className="inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-text ring-surface transition hover:bg-surface-2"
+                    >
+                      Review
+                    </a>
+                    {clip.download_url && (
+                      <a
+                        href={api.downloadClipUrl(clip.id)}
+                        className="inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
+                      >
+                        Download
+                      </a>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
       </PageState>
+
+      {needsCommentary ? (
+        <NextStep
+          href={`/clips/${needsCommentary.id}`}
+          title="Add commentary for monetisation"
+          body="Tell viewers what you were doing — a silent re-upload is not enough."
+        />
+      ) : firstReady ? (
+        <NextStep
+          href={`/clips/${firstReady.id}`}
+          title="Review and export"
+          body="Watch the Short, approve it, then schedule it."
+        />
+      ) : (
+        <NextStep
+          href="/clips"
+          title="Upload a recording"
+          body="Choose a recording and mark the moments worth clipping."
+        />
+      )}
     </div>
   );
 }

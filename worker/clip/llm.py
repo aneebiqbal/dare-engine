@@ -4,13 +4,13 @@ Returns None when no key is configured, so callers fall back to word density.
 """
 from __future__ import annotations
 
-from app.config import settings
+from worker_app.config import settings
 
 
 def _log_usage(**kw) -> None:
     """Best-effort usage logging; never let it break a render."""
     try:
-        from app import db
+        from worker_app import db
 
         with db.session() as conn:
             with conn.cursor() as cur:
@@ -29,14 +29,20 @@ def _log_usage(**kw) -> None:
 
 
 def get_llm():
-    if (settings.llm_provider or "").lower() != "openai" or not settings.llm_api_key:
+    from worker_app.keys import resolve
+    from worker_app.settings_store import get as stored
+
+    if (stored("llm_provider") or settings.llm_provider or "").lower() != "openai":
+        return None
+    api_key = resolve("llm", "llm_api_key")
+    if not api_key:
         return None
     from llm_shared import OpenAICompatibleLLM
 
     return OpenAICompatibleLLM(
-        settings.llm_base_url,
-        settings.llm_api_key,
-        settings.llm_model,
+        stored("llm_base_url") or settings.llm_base_url,
+        api_key,
+        stored("llm_model") or settings.llm_model,
         settings.llm_timeout,
         log_usage=_log_usage,
     )

@@ -117,7 +117,7 @@ export function Tour({ tourId, onClose }: { tourId: string; onClose: () => void 
       <div className="absolute inset-0 bg-black/60" onClick={() => finish(false, true)} />
       {rect && (
         <div
-          className="pointer-events-none absolute rounded-2xl ring-2 ring-accent"
+          className="pointer-events-none absolute rounded-lg ring-2 ring-accent"
           style={{
             left: rect.left - 6,
             top: rect.top - 6,
@@ -129,11 +129,11 @@ export function Tour({ tourId, onClose }: { tourId: string; onClose: () => void 
       <div
         ref={tipRef}
         tabIndex={-1}
-        className="absolute rounded-lg bg-surface p-1.5 ring-surface shadow-ambient focus:outline-none"
+        className="absolute rounded-lg bg-surface p-1.5 ring-surface shadow-float focus:outline-none"
         style={style}
       >
-        <div className="rounded-[calc(2rem-0.375rem)] bg-surface-2 p-5">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted">
+        <div className="rounded-md bg-surface-2 p-5">
+          <p className="folio">
             {index + 1} / {tour.steps.length}
           </p>
           <h2 className="mt-2 text-lg font-semibold">{step.title}</h2>

@@ -35,6 +35,9 @@ services:
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3100}
       INVITE_REQUIRED: ${INVITE_REQUIRED:-true}
       DEV_AUTH_ENABLED: ${DEV_AUTH_ENABLED:-false}
+      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-60}
+      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-60}
+      RATE_LIMIT_AUTH: ${RATE_LIMIT_AUTH:-10}
       STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
       STORAGE_LOCAL_DIR: /data/storage
       S3_ENDPOINT: ${S3_ENDPOINT:-http://storage:9090}
@@ -47,6 +50,25 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-}
       LLM_RECORDED_RESPONSE: ${LLM_RECORDED_RESPONSE:-/app/app/llm_recorded.json}
+      RAWG_API_KEY: ${RAWG_API_KEY:-}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      REDDIT_CLIENT_ID: ${REDDIT_CLIENT_ID:-}
+      REDDIT_CLIENT_SECRET: ${REDDIT_CLIENT_SECRET:-}
+      REDDIT_USERNAME: ${REDDIT_USERNAME:-}
+      REDDIT_PASSWORD: ${REDDIT_PASSWORD:-}
+      REDDIT_USER_AGENT: ${REDDIT_USER_AGENT:-clipdesk-research/0.1}
+      RESEARCH_ENABLED: ${RESEARCH_ENABLED:-true}
+      RESEARCH_HOUR: ${RESEARCH_HOUR:-5}
+      RESEARCH_TIMEZONE: ${RESEARCH_TIMEZONE:-UTC}
+      OBS_WS_URL: ${OBS_WS_URL:-ws://host.docker.internal:4455}
+      MODEL_BRIDGE_URL: ${MODEL_BRIDGE_URL:-http://host.docker.internal:8798}
+      MLX_WHISPER_URL: ${MLX_WHISPER_URL:-}
+      MLX_WHISPER_MODEL: ${MLX_WHISPER_MODEL:-mlx-community/whisper-large-v3-mlx}
+      OBS_WS_PASSWORD: ${OBS_WS_PASSWORD:-}
+      OBS_SNAPSHOT_WIDTH: ${OBS_SNAPSHOT_WIDTH:-640}
+      SSD_BRIDGE_URL: ${SSD_BRIDGE_URL:-http://host.docker.internal:8799}
+      SSD_INBOX_DIR: /ssd-inbox
+      SSD_MOUNT_DIR: ${SSD_MOUNT_DIR:-/Volumes}
       TTS_COMMAND: ${TTS_COMMAND:-piper}
       TTS_VOICE: ${TTS_VOICE:-en_US-amy-medium}
       TTS_MODEL_DIR: /data/voices
@@ -54,6 +76,8 @@ services:
     volumes:
       - storage-data:/data/storage
       - voices:/data/voices
+      # The host SSD bridge copies the chosen video here; the API imports it.
+      - ${HOME}/.clipdesk/ssd-inbox:/ssd-inbox
     depends_on:
       db:
         condition: service_healthy
@@ -79,6 +103,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://clipdesk:clipdesk@db:5432/clipdesk}
       DATABASE_URL_DIRECT: ${DATABASE_URL_DIRECT:-postgresql://clipdesk:clipdesk@db:5432/clipdesk}
+      SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret-change-me}
       STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
       STORAGE_LOCAL_DIR: /data/storage
       S3_ENDPOINT: ${S3_ENDPOINT:-http://storage:9090}
@@ -96,6 +121,12 @@ services:
       WHISPER_MODEL: ${WHISPER_MODEL:-small}
       WHISPER_DEVICE: ${WHISPER_DEVICE:-cpu}
       WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
+      MLX_WHISPER_URL: ${MLX_WHISPER_URL:-}
+      MLX_WHISPER_MODEL: ${MLX_WHISPER_MODEL:-mlx-community/whisper-large-v3-mlx}
+      MODEL_BRIDGE_URL: ${MODEL_BRIDGE_URL:-http://host.docker.internal:8798}
+      VISION_MODEL: ${VISION_MODEL:-qwen2.5vl:7b}
+      VISION_SAMPLE_FPS: ${VISION_SAMPLE_FPS:-0.2}
+      VISION_MAX_FRAMES: ${VISION_MAX_FRAMES:-40}
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
       WORKER_STALE_SECONDS: ${WORKER_STALE_SECONDS:-600}
     volumes:

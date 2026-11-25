@@ -25,6 +25,7 @@ Argon2id, server sessions and CSRF; sign-up is invite-only.
 | Migrations on an empty DB | **working locally** (26 tables) |
 | Job queue, backoff, errors | **working locally** (kill/recovery test) |
 | Mission cards from questions | **stand-in only** (recorded AI) |
+| Games + daily research brain | **built** (sample feed, recorded AI; live keys optional) |
 | Live AI | **blocked** (key present, account has no balance/quota: 402/429) |
 | Upload → render → Short | **stand-in only** (1.4 MB synthetic fixture) |
 | Admin clip studio (auto moments + grammar) | **built, tested on the stand-in and a trailer** |
@@ -58,6 +59,8 @@ Argon2id, server sessions and CSRF; sign-up is invite-only.
 | `13-dependencies-and-licences.md` | every dependency, version, licence |
 | `14-gaps-and-risks.md` | unfinished, dead code, cleanup, security, operations |
 | `15-open-questions.md` | questions only the owner can answer |
+| `research.md` | the daily research brain: sources, pipeline, scheduling |
+| `pages.md` | one row per route: why it exists and what the user does |
 
 ## Five things to know first
 

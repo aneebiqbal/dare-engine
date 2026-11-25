@@ -1,5 +1,20 @@
 # Design direction
 
+## Rebuild sprint — identity: "Volt"
+
+A bold gaming creator tool, not a SaaS dashboard. OLED black with a blue cast,
+one **electric volt** accent (`#C8FF3D`) and a **deep violet** secondary
+(`#8B7CFF`), a fixed radial mesh gradient behind the app, Geist Sans with a
+tight display tracking, and a volt edge + soft glow reserved for the three
+signature moments. Light mode swaps volt for indigo so the accent always clears
+contrast. Motion is one curve, `cubic-bezier(0.22, 1, 0.36, 1)`, only
+`transform` + `opacity`, and everything is disabled under
+`prefers-reduced-motion: reduce`.
+
+Signature moments: the **dare card** (volt edge, glow, the hook set large),
+the **live render progress** (gradient bar with a volt glow), and the
+**leaderboard** (large rank numerals, top three in the gradient).
+
 ## Concept, in three sentences
 
 Clipdesk Missions turns a stream into a series: every mission is a card with a
@@ -77,6 +92,65 @@ Only `transform` and `opacity` animate. Every transition is disabled under
 No default component-library look: no all-grey cards, no drop-shadow stacks, no
 linear easing, no scrolling marquees. If a screen could be any dashboard, it is
 not done.
+
+## Redesign — identity: "Control room"
+
+Status: **built. Visual verdict pending a human looking at the screenshots.**
+
+The first identity ("Volt") was a broadcast look: OLED black, one volt accent,
+tiles in a grid. The pages showed counts, not work. The redesign keeps the
+dare card as the one brand moment and turns every page into a working surface.
+
+### Colour
+
+Light is the default working theme (cool silver `#F3F4F6`, white surfaces,
+diffused ambient shadows); dark is a first-class alternative (`#0A0C0F`,
+`#12151A`). The accent is a **signal blue** (`#2158E0` light / `#8FB4FF` dark,
+chosen to clear 4.5:1 on its own soft tint) and means *running*. Three more status colours complete the vocabulary: **needs-you**
+amber, **done** green, **failed** red. A colour never decorates; it always
+carries one of those five meanings. The volt accent survives only on the dare
+card and the brand mark (`--signature`).
+
+### Type
+
+Geist Sans for UI, **Geist Mono for numbers, stages, ids and timestamps** — a
+tool shows values in mono. Scale: 3.5rem display (the one live timer), 2.25rem
+page title, 1.125rem section title, 0.9375rem body, 0.6875rem uppercase labels.
+
+### Layout
+
+A persistent left rail, a **live status strip** under the header on the admin
+command center, a wide main column and a 320 px right rail (live status, needs
+you, activity) on desktop, collapsing to one column under 1024 px. The equal
+`md:2 / xl:3 / 2xl:4` tile grid is gone.
+
+### Motion
+
+One curve, `cubic-bezier(0.22, 1, 0.36, 1)`, three moves: **progress** (a
+pipeline connector or bar fills), **live** (the running dot breathes, only while
+work is actually running), **arrive** (a finished item settles). Nothing else
+animates; `prefers-reduced-motion: reduce` kills all of it.
+
+### Component kit
+
+`web/components/work.tsx` — `WorkHeader`, `LiveStrip`, `Pipeline`,
+`ProgressCard`, `StatusBadge`, `LiveDot`, `WorkQueue`, `ActivityFeed`, `Metric`,
+`WorkEmpty`, `FilterBar`, `DataTable`, `Section`, `Rail`. Every rebuilt page is
+built from these, so the states and the status vocabulary are the same
+everywhere.
+
+### Work is the interface
+
+- Research runs in a background thread and reports `fetch → write → store`; the
+  admin watches the pipeline, the source counts and the stored ideas.
+- Projects show the full stage pipeline (Planned → … → Exported) with the real
+  job stage and queue position.
+- The studio shows the detection job's real stage and the render stages
+  (`fetch → transcribe → select → render → store`) with the worker's percentage.
+- The clip editor states its source (override vs transcript) and shows the
+  re-render progress it triggered.
+- The overview is one batched `/admin/overview` read: live strip, needs-you,
+  projects, job queue, activity, best/worst results, key health.
 
 ## Sprint 6 — the app shell and layout system
 

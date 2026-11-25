@@ -10,7 +10,7 @@ import sys
 from playwright.sync_api import sync_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-OUT = ROOT / "docs/screens"
+OUT = pathlib.Path(os.environ.get("CLIPDESK_SCREENS_DIR", ROOT / "docs" / "screens")).resolve()
 BASE = os.environ.get("CLIPDESK_WEB_URL", "http://localhost:3100")
 
 PAGES = [
@@ -21,9 +21,20 @@ PAGES = [
     ("today", "/today"),
     ("mission", "/missions/m_0214"),
     ("admin", "/admin"),
+    ("admin-games", "/admin/games"),
+    ("admin-game", "/admin/games/g_1"),
+    ("admin-pool", "/admin/pool"),
+    ("admin-projects", "/admin/projects"),
+    ("admin-studio", "/admin/studio"),
+    ("admin-calendar", "/admin/calendar"),
+    ("admin-long-form", "/admin/long-form"),
+    ("admin-models", "/admin/models"),
+    ("admin-wizard", "/admin/wizard"),
+    ("admin-setup", "/admin/setup"),
     ("remote", "/remote"),
     ("clips", "/clips"),
     ("clip", "/clips/c_0001"),
+    ("clip-rendering", "/clips/c_0002"),
     ("export", "/export/c_0001"),
     ("live", "/live"),
     ("results", "/results"),
@@ -33,13 +44,12 @@ PAGES = [
     ("leaderboard", "/leaderboard"),
     ("public-mission", "/m/m_0214"),
     ("creator", "/creators/u_1"),
-    ("admin-pool", "/admin/pool"),
     ("admin-users", "/admin/users"),
     ("admin-invites", "/admin/invites"),
     ("admin-jobs", "/admin/jobs"),
     ("admin-ai", "/admin/ai"),
     ("admin-audit", "/admin/audit"),
-    ("admin-setup", "/admin/setup"),
+    ("admin-templates", "/admin/templates"),
     ("terms", "/terms"),
     ("privacy", "/privacy"),
     ("styleguide", "/styleguide"),

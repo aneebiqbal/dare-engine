@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminSetupPage() {
   const user = await requireAdmin();
   return (
-    <AppPage user={user} eyebrow="Admin" title="Setup status">
+    <AppPage user={user} eyebrow="Admin" title="Setup status" header={false}>
       <AdminSetup />
     </AppPage>
   );

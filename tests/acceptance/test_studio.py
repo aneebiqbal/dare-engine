@@ -55,7 +55,7 @@ def test_upload_reports_specs(admin):
 
 def test_detect_returns_ranked_candidates_with_reasons(admin):
     detail = _detect(admin, _upload(admin)["recording_id"])
-    assert detail["compute"]["whisper_device"] in ("cpu", "cuda")
+    assert detail["compute"]["whisper_device"] in ("cpu", "cuda", "mlx")
     assert detail["candidates"]
     for candidate in detail["candidates"]:
         assert candidate["start"] < candidate["end"]

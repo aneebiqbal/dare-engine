@@ -1,0 +1,40 @@
+{
+  "comment": "Saved sample feed used when no research keys are configured or LLM_PROVIDER=recorded. URLs are stable stand-ins, not live pages.",
+  "sources": [
+    {
+      "kind": "youtube",
+      "title": "GTA V realistic five-star wanted level gameplay",
+      "url": "https://www.youtube.com/watch?v=sample-gta-1",
+      "external_id": "sample-gta-1",
+      "published_at": "2026-11-18T10:00:00Z"
+    },
+    {
+      "kind": "youtube",
+      "title": "Can you outrun five stars on a bicycle?",
+      "url": "https://www.youtube.com/watch?v=sample-gta-2",
+      "external_id": "sample-gta-2",
+      "published_at": "2026-11-17T10:00:00Z"
+    },
+    {
+      "kind": "reddit",
+      "title": "What is the funniest way you lost a five-star wanted level?",
+      "url": "https://www.reddit.com/r/GTAV/comments/sample-gta-3/",
+      "external_id": "sample-gta-3",
+      "published_at": "2026-11-16T10:00:00Z"
+    },
+    {
+      "kind": "reddit",
+      "title": "Bicycle escape from the police actually works",
+      "url": "https://www.reddit.com/r/GTAV/comments/sample-gta-4/",
+      "external_id": "sample-gta-4",
+      "published_at": "2026-11-15T10:00:00Z"
+    },
+    {
+      "kind": "news",
+      "title": "GTA V players are still finding new wanted-level tricks",
+      "url": "https://www.polygon.com/sample-gta-5",
+      "external_id": "sample-gta-5",
+      "published_at": "2026-11-14T10:00:00Z"
+    }
+  ]
+}

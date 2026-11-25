@@ -40,22 +40,37 @@
       {
         "selector": "[data-tour='nav-overview']",
         "title": "Admin overview",
-        "body": "Users, invites, jobs, pool, AI usage and storage in one place."
+        "body": "System health, recent jobs and AI usage in one place."
       },
       {
-        "selector": "[data-tour='nav-invites']",
-        "title": "Invites",
-        "body": "Sign-up is invite-only. Create a code and give it to a creator."
+        "selector": "[data-tour='nav-games']",
+        "title": "Games",
+        "body": "Add a game, then run daily research to turn it into sourced ideas."
       },
       {
-        "selector": "[data-tour='nav-jobs']",
-        "title": "Job queue",
-        "body": "Failed jobs show their error and can be retried here. Jobs retry with backoff first."
+        "selector": "[data-tour='nav-pool']",
+        "title": "Pool",
+        "body": "Approve the ideas you want and assign one to a creator."
       },
       {
-        "selector": "[data-tour='nav-ai-usage']",
-        "title": "AI usage",
-        "body": "Tokens and latency per call, and which provider and model are configured."
+        "selector": "[data-tour='nav-studio']",
+        "title": "Studio",
+        "body": "Import a recording, find the moments and generate a captioned Short."
+      },
+      {
+        "selector": "[data-tour='nav-calendar']",
+        "title": "Calendar",
+        "body": "Schedule the approved Shorts and keep the cadence."
+      },
+      {
+        "selector": "[data-tour='nav-long-form']",
+        "title": "Long-form",
+        "body": "Assemble a session's Shorts into one video."
+      },
+      {
+        "selector": "[data-tour='nav-models']",
+        "title": "Models",
+        "body": "Pull, unload and free the local models, and watch live memory."
       },
       {
         "selector": "[data-tour='nav-setup-status']",

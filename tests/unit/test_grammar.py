@@ -54,3 +54,13 @@ def test_context_is_skipped_when_it_would_overlap_the_payoff():
     beats = build_beats(template, peak=5.0, payoff_start=0.0, payoff_end=20.0,
                         context_range=(4.4, 4.5))
     assert all(b.kind != "context" for b in beats)
+
+
+def test_a_peak_at_the_window_edge_still_leaves_a_payoff():
+    template = get_template("cold_open")
+    beats = build_beats(template, peak=15.5, payoff_start=0.0, payoff_end=16.0,
+                        context_range=None)
+    payoff = [b for b in beats if b.kind == "payoff"]
+    assert payoff, beats
+    assert payoff[0].length >= 3.0
+    assert sum(b.length for b in beats) >= 4.0

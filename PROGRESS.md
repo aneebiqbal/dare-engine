@@ -1,5 +1,1117 @@
 # Progress
 
+## 2026-11-25 — gamer section rebuild
+
+The admin section was left alone. Every gamer route was audited and rebuilt on
+the committed identity, with the image bugs treated as the primary defect.
+
+**Image bugs found and fixed**
+- The clips grid drew every thumbnail in an `h-32 object-cover` strip: a 9:16
+  frame cropped to a horizontal sliver. Clips are now hairline rows carrying
+  the whole frame (`aspect-[9/16]`, `object-contain`).
+- Missing thumbnails rendered the browser's broken-image icon because
+  `thumb_url` is always set even when storage has no file. New
+  `web/components/media.tsx` `Thumb` falls back to a graphite plate with a
+  quiet label; used by clips, clip review, export, results and card art.
+- The mission card SVG still shipped the rejected volt/citron artwork
+  (`#C8FF3D`, `#8B7CFF`, Verdana). Rebuilt in graphite + coral + ink for the
+  same 1080×1920 frame; no cropping at any usage.
+- OBS snapshot was `object-cover`; now `object-contain` in a 16:9 frame.
+- Clip preview video has a real poster frame so the full frame shows before
+  playback instead of a half-painted element.
+
+**Broken pages / dead controls**
+- Dashboard next-step was a button nested inside a link; now one primary link.
+- Empty-clips fallback sent creators to `/admin/studio` (redirects home);
+  it now points at `/clips`. Voice-over step points at `/settings`.
+- Remote's card-in-card panels flattened; its giant empty void replaced with
+  compact flow.
+- Accent noise removed from plan badges, AI/Sources chips, sort pills,
+  section chips; coral is running/primary/focus only.
+- Dashboard highlights only the actual daily dare, not every card.
+
+**QA**
+- 44 screenshots at `docs/screens/after/gamer/` (phone/desktop × dark/light),
+  captured against real Neon data; six real rendered clips were seeded into
+  local storage so full frames show (documented in `docs/screens/README.md`).
+- Admin routes re-checked on the same build; layout unchanged (only the shared
+  mission card artwork is new, which is the point).
+- Visual verdict pending a human; pipeline footage itself still needs the
+  owner's own recordings.
+
+### Next three tasks
+1. Human verdict on `docs/screens/after/gamer/`.
+2. Seed/cache cover and clip imagery at serving size (a 4 MB cover and 1080p
+   thumbnails load raw today).
+3. Run the full acceptance suite on Docker once available (local runs skip
+   worker/FFmpeg paths).
+
+## 2026-11-25 — Editorial Graphite + Burnt Coral re-theme
+
+The owner approved the product brief but rejected the electric-citron/violet
+direction. The visual world was replaced; research, Geist typography, the
+work-kit architecture and every functional decision were preserved.
+
+- `docs/design-direction.md` — the committed identity: pinned palette,
+  typographic scale, editorial layout grammar, component language, imagery
+  findings, explicit refusals. `docs/design-execution-prompt.md` is the build
+  order derived from it.
+- Palette validated before code: `scripts/validate_palette.py`, all 20 text
+  pairs pass ≥ 4.5:1 in both themes.
+- Real imagery checked first: RAWG covers + a real gameplay frame downloaded
+  to `docs/design/imagery/`; artwork is presented without duotone and editing
+  surfaces stay neutral for colour judgment.
+- Tokens replaced across `globals.css`; radius scale reduced to 2/4/6/8 px;
+  panels are flat sheets with hairlines; one shadow token for floating layers;
+  purple mesh gradients, volt edges and glows removed; pill buttons/badges
+  replaced by squared controls and folio labels; accent reserved for running
+  state, primary action and focus.
+- `next build` and `tsc --noEmit` green; screenshots refreshed into
+  `docs/screens/after/2026-11-25-editorial/` (phone/desktop × dark/light).
+- Visual verdict remains pending a human looking at those shots.
+
+### Next three tasks
+
+1. Human verdict on the new renders; fix what feels generic.
+2. Downscale/cache game cover art at card size (a 4 MB cover currently loads
+   in the grid); `scripts/cache_game_art.py`.
+3. Run the mechanical Impeccable detector over the changed UI targets once the
+   theme is stable.
+
+## 2026-11-24 — audit, live research fix, platform targeting, showcase
+
+### Audit first
+
+`docs/audit.md` records the real tree before any change: a prior session had
+already built the whole product and a control-room redesign (568 screenshots,
+29 routes, the nine-stage pipeline). The brief's "flat tiles, 2–3/10" described
+an earlier build. The actual gaps were three features and a distribution
+surface, not the whole UI.
+
+### Research brain fixed and proved live
+
+- `gather_sources()` no longer gates on the AI provider. A configured YouTube
+  key is read; the sample feed is used only with no key or when every live
+  fetch fails.
+- New `research_runs.source_fallback` / `ai_fallback` columns report the two
+  facts separately; the UI says which one happened.
+- `scripts/prove_research_live.py` proves a run end to end. With the recorded
+  provider: 10 live YouTube sources in ~15 s, `source_fallback=false`,
+  `ai_fallback=true`. With a local Ollama model
+  (`qwen2.5-coder:14b`, no cloud credit): 10 live sources → **1 stored sourced
+  idea**, `fallback=false`, 37 s. Run `f313e8ed-7b31-4bcf-b98a-72a1b6d5deb9`.
+
+### Platform targeting
+
+`shared/platforms.py` is the single registry (YouTube Shorts, Instagram Reels,
+TikTok) copied into both images. It drives `max_seconds` when windows grow, the
+default caption style at render, and is carried on project → run → clip. New
+`/platforms`, project create/queue platform, upload `platform` form field, a
+platform selector on the projects page, a badge on the pipeline panel, and a
+target selector in the clip editor. Adding a target is now a data change.
+
+### Editor fix (real bug)
+
+Layout/caption edits on automatic-pipeline clips did nothing: the re-render
+lookup inner-joined `assignments`, but pipeline clips have `assignment_id =
+NULL`. It now falls back to the clip's recording window + cached transcript.
+
+### Showcase, setup invite, landing
+
+- Games grid rebuilt as cover-art cards (real RAWG art, live research state,
+  idea counts, actions). Both art-less games backfilled from RAWG
+  (`scripts/backfill_game_art.py`).
+- Admin overview shows a dismissible setup-wizard invitation when a check fails;
+  never blocks basic use.
+- Public `/landing` download page with marked owner slots for the `.dmg`,
+  Windows installer, web origin and demo clip.
+- `docs/desktop-app.md` now has the concrete Windows build, capture and signing
+  steps (still needs a Windows machine).
+
+### Verification
+
+- Web production build green; API imports clean; contract regenerated (134
+  paths).
+- **Mac `.dmg` rebuilt from this tree**: `Clipdesk Missions_0.1.0_aarch64.dmg`
+  (2.37 MiB), sha256 `a8aad18f…bde612cc`. Unsigned.
+- Unit tests: 119 passed + 5 new platform/research tests; the 15 failures are
+  all missing host `ffmpeg` plus one SSD env-key test (environmental).
+- Not run here: Docker acceptance/web suites and the budgets/axe runs (no Docker
+  on this machine). Fresh screenshots were captured against a locally running
+  API + `next dev` on the real Neon database: `docs/screens/after/2026-11-24/`
+  (phone/desktop × dark/light). Visual verdict remains pending a human.
+
+### Next three tasks
+
+1. Human visual verdict on the new games cards and landing page (screenshots
+   refreshed once Docker is available).
+2. Build the Windows installer on a Windows box and record the artifact hash.
+3. Run the real pipeline on a clip with a non-default platform and confirm the
+   rendered duration/caption style follow the preset.
+
+## Transcript-first moment selection (rebuild)
+
+Status: **built, unit-tested, and proven end to end on the real trailer with the
+local scoring LLM. Owner-gameplay quality verdict still pending.**
+
+The old picker was vision-first and produced random 7–9 s fragments. This
+rebuild makes the transcript the primary signal, exactly like the tools studied
+in `docs/decisions.md`.
+
+### What changed
+
+- **Transcribe first, on regions only** (`worker/clip/regions.py`): the cheap
+  FFmpeg scan produces per-second speech/RMS/scene signals; those become a
+  bounded set of speech regions (silent and music-only stretches are skipped).
+  Whisper transcribes only those regions — never the whole video — and the
+  detected language is stored (`pipeline_runs.language`).
+- **Sentence-aligned moments** (`worker/clip/select.py`): words are segmented
+  into sentences on punctuation and pauses; windows grow from whole sentences to
+  15/25/35/45 s targets, clamped to a **14–60 s** range, edges always on speech;
+  overlaps above 50 % are suppressed.
+- **Multimodal event timeline**: each candidate carries a compact text timeline
+  (audio peak/baseline, quiet→burst moments, speech %, scene cuts, plus the
+  shortlist vision read) that the scoring LLM reads alongside the words.
+- **Calibrated rubric in editable skill files** (`skills/clip-scoring/`):
+  seven weighted dimensions, 0–10 bands with worked examples, kill criteria
+  (hook < 4 or payoff < 4 rejects), labels, strict JSON schema. Scored by the
+  local Ollama model at temperature 0.75 for spread. All tuning lives in those
+  files.
+- **Head-to-head rerank** (`local_scoring.rerank`): finalists are ordered
+  relatively at temperature 0.3, which fixes the narrow-band scoring of small
+  models.
+- **Quality-bar selection, no arbitrary cap**: keep everything above
+  `quality_bar` (default 60) and ≥ `min_seconds` (14), ceiling `max_clips`
+  (40). Labels are mixed so one does not dominate.
+- **Whole-window render**: the selected window IS the story, so `render_cut`
+  preserves all of it (no template truncation). Hook line burned over the start,
+  word-synced captions, **no internal branding** anywhere.
+- Pipeline stages are now
+  `ingest → scan → regions → detect → signals → score → cut → render → done`,
+  still resumable per stage/candidate under the lane lease.
+
+### Measured on the real trailer (2026-11-24)
+
+`fixtures/gameplay_4min.mp4`, 291.8 s, 7 clips:
+
+| Stage | Seconds |
+| --- | --- |
+| ingest | 12.95 |
+| scan | 18.70 |
+| regions (transcribe speech) | 148.53 |
+| detect | 14.98 |
+| signals (vision fusion) | 199.55 |
+| score (LLM + rerank) | 297.55 |
+| cut | 59.33 |
+| render | 103.56 |
+| **total** | **~856** (~14.3 min) |
+
+- **9 candidates grew; 7 cleared the bar.** Composites were genuinely spread:
+  74.5, 74.0, 73.0, 72.0, 71.5, 71.0, 71.0 kept; 68.0 and 58.5 dropped. Labels
+  mixed (insight / spicy / funny / story). Each carried a hook line and reason,
+  e.g. *“In an industrial area, vehicles pull off a series of audacious heists to
+  survive.”* (spicy, 74.0).
+- Language detected `en`; compute path `asr=mlx/metal encoder=libx264`;
+  `ollama_running: []` at the end.
+- **Bug found and fixed:** the grammar used to drop content before the cold open
+  and produced 6.8–8.2 s Shorts from 14–22 s windows. Render now preserves the
+  selected window whole (regression test asserts duration ≈ cut length).
+
+### The owner's own GTA stream through the new engine (2026-11-24)
+
+`~/Downloads/last gta stream .mp4` — 8475 s (2 h 21 m), 1280×720, 1.49 GB,
+**11 Shorts** selected from 15 candidates (after transcript cleaning):
+
+| Stage | Seconds |
+| --- | --- |
+| ingest | 13.15 |
+| scan | 259.97 |
+| regions (transcribe speech) | 1693.77 |
+| detect | 20.08 |
+| signals | 443.39 |
+| score (15 candidates + rerank) | 277.99 |
+| cut (11) | 102.75 |
+| render (11) | 244.80 |
+| **total** | **3055.9** (~51 min) |
+
+- **11 self-contained moments**, 14.7–34.1 s, labels mixed (funny, surprising,
+  spicy, insight, story, tip); composites spread 79.5 → 64.0.
+- Language: `en`. Compute: `asr=mlx/metal encoder=libx264`.
+- Saved to **`~/Desktop/clipdesk-review/last-gta-stream-transcript-first/`**
+  with a manifest of windows, labels, scores and hook lines.
+- **Quality bug found on real footage:** Whisper auto-detected a wrong language
+  inside quiet game audio and hallucinated Urdu/Hindi lines; those reached the
+  hooks and captions (first pass: 19 clips, several wrong-script). Fixed by
+  locking the detected language after the first region (`X-Language` on the
+  bridge) and strictly stripping wrong-script tokens from a Latin-language
+  transcript (4703 → 1442 English words). The cleaned re-run produced only
+  English hooks; the old clips are still in `last-gta-stream/` for comparison.
+- **Bottleneck on long video:** region transcription (28 min) then scoring
+  (~18 s/candidate). Total is still 2.8× shorter than the source.
+
+### Proven vs needs the owner
+
+- **Proven:** the full selection path on a real 4.9 min video with the real local
+  LLM and MLX Whisper; differentiated rubric scores; language detection; no
+  branding; resume after a completed run.
+- **Scan got 6× faster:** the new scan dropped the per-frame luma pass (the LLM
+  no longer needs it) — 8475 s of real 720p30 gameplay scanned in **230.8 s**
+  (0.027 s/s), against 1501 s with the old vision-first scan.
+- **Bugs the real runs caught and fixed:** signals were cached in the run temp
+  dir so a retry could not see them (now stored on the run row, migration
+  0026); `plan_regions` indexed past the shorter audio signal array
+  (IndexError on a 2 h file). Both have regression tests. A dropped Neon
+  connection mid-transcription on the 2 h stream killed the stage; regions are
+  now **checkpointed per region**, so a resume continues instead of restarting
+  all 61 regions.
+- **Needs the owner:** a human verdict on whether the selected moments are
+  actually worth posting (11 clean clips are on the Desktop for their own
+  stream, 7 from the trailer).
+- **Not yet tuned:** the scoring prompt/model (qwen2.5-coder:14b default), the
+  region budget, and scoring throughput (~20–30 s per candidate → the top 40
+  shortlist is the lever).
+
+## Automatic upload-to-Shorts pipeline
+
+Status: **built and committed on branch `auto-pipeline`; proven end to end
+through the real API on the real stack with the real MLX/VLM bridge. The
+acceptance suite is running. Clip quality still needs the owner's gameplay.**
+
+### What was built
+
+- **Schema** (`0022_pipeline.sql`, `0023_pipeline_media.sql`): `pipeline_runs`
+  (state, last completed stage, progress, plain-language action, ETA/remaining,
+  model loaded, per-stage timings, measured rates, notes, memory readout) and
+  `pipeline_candidates` (cheap score, vision score, final score, origin
+  `ai|user`, selected, status, cut key, transcript, clip id). The run resumes
+  from the last COMPLETED stage; each candidate resumes at its own status.
+- **Cheap whole-video scan** (`worker/clip/scan.py`): FFmpeg only — per-second
+  audio RMS, scene cuts, 1 fps frame stats, and silencedetect speech activity.
+  No model ever sees the whole file. Produces a shortlist, merges user
+  timestamps as high-priority candidates and never replaces the AI suggestions.
+- **Vision pass** (`vision.score_windows`): loads the VLM once, samples two
+  downscaled frames per shortlisted window (never the whole video), scores
+  clippability + reason + striking frame, then unloads and verifies against the
+  model inventory.
+- **Cut**: seeks (`-ss` before `-i`), re-encodes only the short window, with a
+  2 s pre-roll/post-roll; downscales sources above 1080p.
+- **Transcribe**: MLX Whisper on Metal once per stage, only the cut clips,
+  word timestamps cached to the SSD and the DB; unloads and verifies. Falls
+  back to faster-whisper CPU and says so. A bridge call is bounded at 180 s so
+  a music-only or synthetic-tone cut (which can make Whisper decode for minutes)
+  falls back instead of hanging the stage.
+- **Render** (`engine.render_cut`): renders from the cached cut with the cached
+  transcript — no re-transcribe, no re-cut of the source. Grammar beats, ASS
+  word-synced captions clear of the platform UI zone, 1080×1920 H.264, thumbnail.
+  Each Short is published as soon as it finishes.
+- **Orchestration** (`worker/clip/pipeline.py`): sequential stages, converging
+  ETA (measured rates replace the starting estimates after every stage), live
+  action/progress/model, pause on a full disk or a missing source volume,
+  resume from the last completed stage, cleanup of cuts and a live memory
+  readout at the end.
+- **One model at a time**: `run_pipeline` and `run_project` share a
+  self-expiring **lane lease** row (`pipeline_lane`) instead of a session
+  advisory lock, so two models are never resident at once and a killed worker
+  cannot wedge the lane forever (a stale heartbeat is taken over after 5 min).
+- **API** (`api/app/pipeline.py`): `POST /pipeline/upload` (one upload starts
+  the run), `GET /pipeline`, `GET /pipeline/{id}` (run + candidates + clips),
+  `POST /pipeline/{id}/timestamps`, `POST /pipeline/{id}/resume`. Admin-only;
+  metadata only, media stays on the SSD.
+- **UI** (`web/components/pipeline.tsx`, projects page): one upload control,
+  per-stage bars with seconds, plain-language action, model loaded/idle, ETA and
+  remaining, ranked candidates with reasons and thumbnails, finished Shorts as
+  cards that appear one by one, optional timestamp entry, resume on a paused or
+  failed run.
+- **Output**: every run is self-contained under `projects/<run_id>/` on the SSD —
+  the source, candidate thumbnails, transcripts, and the finished Shorts,
+  captions and metadata. The same finals are served from `clips/<id>/` for the
+  existing review/calendar pages. Nothing media-sized enters the database.
+- Contract regenerated (**133 paths**). Unit tests **16 passed**; `make check`
+  **2 passed**; web `tsc --noEmit` clean.
+
+### Measured on this machine (2026-11-23)
+
+A 45 s stand-in through the real API (`POST /pipeline/upload`), top_n=3, real
+MLX Whisper bridge up, real Qwen2.5-VL-7B vision bridge up:
+
+| Stage | Seconds |
+| --- | --- |
+| ingest | 11.61 |
+| cheap scan | 16.36 |
+| rank | 14.81 |
+| vision (real VLM, 6 frames) | 91.02 |
+| cut (3 clips) | 36.91 |
+| transcribe (MLX Metal, 3 cuts) | 43.20 |
+| render (3 Shorts) | 54.98 |
+| **total** | **268.9** (~4.5 min) |
+
+- Compute path recorded: `asr=mlx/metal encoder=libx264` (the worker container
+  has no VideoToolbox; the host path would use it).
+- MLX peak memory **3.95 GB**; host RAM 21.3 / 38.6 GB (55.1%) at the end;
+  `ollama_running: []` — the vision model was unloaded and verified.
+- Cheap scan alone on the 291.8 s trailer: **5.84 s** total (audio 0.2,
+  speech 1.2, scene 3.2, frame stats 1.2), 18 candidates, **no model**.
+- Vision cost is ~15 s per frame on this 6 GB VLM; the first finished Short
+  lands after the vision pass, the cut, all transcripts and the first render.
+- Sampling frames at **512 px** instead of full resolution measured **8.5 s vs
+  12.7 s per frame** with the same clippability judgment.
+
+A second real run on the 291.8 s publisher trailer (`fixtures/gameplay_4min.mp4`),
+top_n=2, real VLM + MLX:
+
+| Stage | Seconds |
+| --- | --- |
+| ingest | 13.59 |
+| cheap scan | 30.65 |
+| rank | 21.03 |
+| vision (real VLM, 15 windows × 2 frames) | 193.51 |
+| cut (2 clips) | 29.91 |
+| transcribe (MLX Metal, 2 cuts) | 39.69 |
+| render (2 Shorts) | 50.05 |
+| **total** | **358.4** (~6.0 min) |
+
+- The vision pass found striking moments (no fallback note); compute path
+  `asr=mlx/metal encoder=libx264`; MLX peak **3.96 GB**; `ollama_running: []`
+  at the end.
+- First finished Short ≈ 5.7 min into the run (after scan, vision, cut, all
+  transcripts and the first render).
+- A first trailer run exposed a real quality bug: when the cold-open peak sat at
+  the window edge, the grammar produced a **2.8 s** Short. `grammar.build_beats`
+  now reserves a real payoff after the cold open; the re-run produced **7.9 s
+  and 16.0 s** clips from the same candidates. Regression test added.
+
+### 2 h synthetic stress test (2026-11-24)
+
+A generated 2 h / 318 MB file (`testsrc2` + a constant 440 Hz tone), top_n=10,
+real VLM + MLX bridge:
+
+| Stage | Seconds |
+| --- | --- |
+| ingest | 22.56 |
+| cheap scan | 87.14 |
+| rank | 26.69 |
+| vision (15 windows × 2 frames) | 253.46 |
+| cut (10 clips) | 147.88 |
+| transcribe | 399.28 |
+| render (10 Shorts) | 244.94 |
+| **total** | **1181.9** (~19.7 min) |
+
+- All 10 Shorts finished in **19.7 min**, far below the 2 h source duration.
+- Cheap scan **87 s** for 2 h on this low-resolution synthetic content
+  (0.012 s/s); the busier trailer measured 0.107 s/s in the same 4-core VM.
+- The ETA converged exactly: final estimate **1181 s** vs **1181.9 s** actual.
+- 10 clips, 6.9–16.0 s; compute `asr=mlx/metal encoder=libx264`;
+  `ollama_running: []` at the end.
+- **First clip ≈ 16 min.** The stages are sequential, so nothing renders until
+  every candidate is vision-scored and every cut is transcribed. The synthetic
+  audio is a pure tone — a worst case for Whisper: one 16 s tone clip took over
+  100 s on the MLX bridge, while real speech measured earlier ran at ~0.10×
+  realtime. On gameplay audio the transcribe stage would drop to seconds, giving
+  a first clip around **6–7 min**; it stays vision-bound (~4.2 min).
+  `VISION_FRAMES_PER_WINDOW=1` halves that if the owner needs it lower.
+
+### The long-video lever (honest)
+
+The cheap scan is CPU-bound FFmpeg. In this 4-core Colima VM it measured
+**0.107 s of scan per second of video** (a 2 h upload ≈ 12.8 min); on the
+14-core host the same scan measured **0.020 s/s** (2 h ≈ 2.4 min). The scan does
+not get faster by adding a model — it needs CPU threads. `colima start --cpu 8`
+(or running the worker natively on the Mac) is the fix on this machine. The
+vision pass is capped at 15 windows × 2 frames regardless of length, so it stays
+~3–4 min; the scan is the part that scales with duration.
+
+Reproduce a long-video run on a generated 2 h file:
+
+```sh
+ffmpeg -f lavfi -i testsrc2=duration=7200:size=640x360:rate=15 \
+       -f lavfi -i sine=frequency=440:duration=7200 \
+       -c:v libx264 -preset veryfast -crf 30 -c:a aac -shortest /tmp/long2h.mp4
+make pipeline-demo FILE=/tmp/long2h.mp4 TOP_N=10
+```
+
+The lever is real and measurable: the same 2 h cheap scan took **87.1 s on 4
+cores** and **55.4 s after `colima start --cpu 8`** (0.0121 → 0.0077 s/s), with
+no code change.
+
+### The owner's own GTA stream — first real gameplay (2026-11-24)
+
+Source: `~/Downloads/last gta stream .mp4` — **8475 s (2 h 21 m)**, 1280×720,
+30 fps, AAC stereo, 1.49 GB. Uploaded through `POST /pipeline/upload`
+(streamed, 10 s) and run with the default top_n=10.
+
+| Stage | Seconds |
+| --- | --- |
+| ingest | 11.51 |
+| cheap scan | **1501.3** |
+| rank | 16.40 |
+| vision (15 windows × 2 frames) | 204.65 |
+| cut (10 clips) | 138.50 |
+| transcribe | 284.09 |
+| render (10 Shorts) | 161.66 |
+| **total** | **2318.1** (~38.6 min) |
+
+- **10 finished Shorts**, 6.9–16.0 s, 1080×1920 H.264 30 fps with burned captions.
+  Copied to **`~/Desktop/clipdesk-review/last-gta-stream/`** with a manifest of
+  windows, origins and scores.
+- ETA converged exactly: final estimate **2318 s** vs **2318.1 s** actual.
+- Compute path recorded: `asr=cpu/int8 encoder=libx264`. The MLX Whisper bridge
+  was unreachable mid-transcribe, so it used faster-whisper CPU; the run note
+  says `whisper fell back to cpu/int8 (requested mlx/metal)` and the vision pass
+  ran normally.
+- **The scan is the long-video bottleneck on real footage:** 1501 s for 8475 s
+  of 720p30 gameplay (0.177 s/s) vs 55 s for the low-res synthetic. Total is
+  still 3.7× shorter than the source itself (38.6 min vs 141 min).
+- Worth a look: every candidate's vision score came back exactly **0.7**, so the
+  ranking leaned on the cheap scores. Investigate the VLM prompt/format next.
+- **Clip quality is now the owner's call** — this is their own stream, not a
+  stand-in.
+
+### Honest latency note
+
+The stages are sequential by design, so on a 2 h upload the cheap scan plus the
+vision pass dominate before the first cut. Measured: the 45 s stand-in put the
+first finished Short at ~3.9 min, the 4.9 min trailer at ~5.7 min, and the 2 h
+synthetic stress test at ~16 min (dominated by a pathological pure-tone
+transcription). On normal gameplay audio the transcribe stage drops to seconds,
+giving a first clip around **6–7 min**; it stays vision-bound (~4.2 min).
+A one-frame-per-window mode (`VISION_FRAMES_PER_WINDOW=1`) and a larger Colima
+CPU allocation are the two levers if the owner needs the first Short under
+three minutes. This is unproven on real 2 h footage.
+
+### Verification
+
+- Unit tests: **138 passed, 1 skipped** (selection/rubric, regions, pipeline
+  sequencing, resume from the last completed stage, window-scoped vision with
+  unload, user-timestamp merging, silent video, disk-full pause, high-res
+  downscale, render preservation and a real `render_cut` on a cached cut).
+- `make check` (no mock + licence): **2 passed**. Web `tsc --noEmit`: clean.
+- Pipeline acceptance through the real API: **4/4 passed** — upload → done with
+  three published Shorts and all seven stage timings; the project shows the live
+  run; timestamps add a user candidate while the AI candidates remain; a paused
+  run resumes and finishes.
+- `test_projects.py` **6/6**; `test_contract.py` **2/2**.
+- **Fallback path proven end to end:** with the MLX/VLM bridge deliberately down,
+  a 45 s upload still completed all seven stages on `asr=cpu/int8`
+  (`encoder=libx264`), the vision pass fell back to the cheap ranking and both
+  fallbacks were recorded in the run notes — never presented as the fast path.
+- **Restart recovery, real incident:** a worker killed overnight left an
+  orphaned Neon session holding the shared advisory lock (0 advisory locks, one
+  idle-in-transaction backend) and the next pipeline stayed queued behind it.
+  The lane is now a heartbeat lease; a killed holder loses the lane after 5 min
+  with no manual cleanup.
+- Live UI proof: `docs/screens/pipeline-live.png` (stage bars, ETA, model state,
+  a user-marked candidate next to AI ones).
+
+### Bugs the real runs caught (and fixed)
+
+1. **`_claim_pipeline` returned the whole row.** `str((UUID(...),))` was passed
+   as the run id; every attempt failed and the run stayed queued. Now returns
+   `row[0]`.
+2. **The CPU fallback was unreachable while MLX was configured.**
+   `transcribe()` fell back to faster-whisper but `_load()` still asked for
+   `device="mlx"`, raising `ValueError: unsupported device mlx`. The bridge being
+   down now falls back to real CPU transcription and records it.
+3. **Edge-peak grammar produced a 2.8 s Short** (fixed above).
+4. **A killed worker held the lane forever** (orphaned advisory-lock session);
+   replaced by the heartbeat lease.
+
+### Real vs stand-in
+
+- **Real:** ingest, cheap scan, ranking, real VLM scoring with reasons, cutting,
+  MLX transcription, caption/render, publishing, resume, timestamps, the live
+  UI, per-stage timings, memory unload verification.
+- **Stand-in / sample:** the acceptance footage is the synthetic
+  `standin_speech_45s.mp4` test pattern, so the VLM correctly reports "nothing
+  striking"; the publisher trailer is the only real video. **No human has
+  watched the output**, so clip quality is unproven.
+- **Not measured on 2 h footage:** the owner's own recording. The 45 s and
+  4.9 min runs prove the plumbing and the rates; a 2 h run needs the owner's
+  file and is the only thing that proves the long-video budget.
+
+### Blocked on the owner
+
+1. The owner's own gameplay recording — the only thing that proves clip quality
+   and the real 2 h timing budget.
+2. Credit on the AI/research keys for live runs (not needed for the local
+   MLX/Ollama path).
+3. The SSD mount and the host/remote decisions.
+
+## Redesign sprint — a workplace tool, not a stat dashboard
+
+Status: **built, tested on the real stack, and screenshot-verified. The human
+visual verdict is pending.**
+
+### What changed
+
+- **Design tokens** (`web/app/globals.css`, `tailwind.config.ts`): the "control
+  room" theme. Light is the default (cool silver canvas, white surfaces,
+  diffused ambient shadows); dark is a first-class alternative. The accent is a
+  signal blue that means *running*; amber means *needs you*, green *done*, red
+  *failed*. Geist Mono for numbers, stages and ids. One motion curve; a
+  breathing live dot and a filling pipeline are the only moves.
+- **Component kit** (`web/components/work.tsx`): `WorkHeader`, `LiveStrip`,
+  `Pipeline`, `ProgressCard`, `StatusBadge`, `LiveDot`, `WorkQueue`,
+  `ActivityFeed`, `Metric`, `WorkEmpty`, `FilterBar`, `DataTable`, `Section`,
+  `Rail`. Every rebuilt page is built from these.
+- **Backend**: `GET /admin/overview` (one batched read of jobs, research,
+  projects, pool, keys, system, activity, best/worst results, clips today,
+  users, invites, storage); `GET /admin/projects` (admin-only, all users);
+  async research runs with real stages (`fetch → write → store`) via
+  `POST /admin/games/{id}/research` + `GET /admin/research/{run_id}`
+  (migration `0021_research_progress.sql`); pool filters (`q`, `source`,
+  `min_score`) and `POST /admin/pool/bulk`.
+- **Pages rebuilt on real data**: Overview (command center), Games + game
+  profile (live research pipeline), Pool (filterable table, row expansion, bulk
+  approve/reject/assign), Projects (full stage pipeline + queue position),
+  Studio (live detection job stage, render stages, candidates), Clip review +
+  Captions (render pipeline, sourced caption editor with re-render progress),
+  Calendar (week-first with the cadence guardrail), Long-form (live build),
+  Results (leading indicators + best/worst + sort), Models (live engine panel),
+  Setup (grouped checks + integration keys), Users, Invites, Jobs, AI, Audit,
+  Templates, Dashboard, Today, Clips, History, Settings, Mission editor, Export.
+- **Screenshots**: `docs/screens/before/` (the old build) and
+  `docs/screens/after/{mock,real}/` (the new build, phone/desktop × dark/light).
+
+### Verification
+
+- Unit **105 passed, 1 skipped**; `make check` **2 passed**.
+- Contract regenerated (**127 paths**, including `/admin/overview`,
+  `/admin/projects`, `/admin/research/{run_id}`, `/admin/pool/bulk`);
+  `test_contract.py` **2 passed**.
+- `test_redesign.py` **4 passed**; `test_games_research.py` **2 passed** — the
+  latter drives a real async research run (fetch → write → store) and asserts
+  the ideas land.
+- `make budgets` — **PASS**: TBT 0 ms everywhere; LCP 28–2032 ms on the five
+  main pages at phone and desktop (`docs/screens/budgets.json`). The range is
+  Neon-bound: the managed compute answered ~10 ms/query when warm and
+  ~240–600 ms/query during the run, and `/today` makes two to three queries.
+  `/admin/overview` batches its five scalar counts into one round trip.
+- a11y (axe-core, every page × phone/desktop × dark/light): see
+  `docs/screens/a11y.json`. The first redesign build failed contrast (dark
+  accent-on-soft 4.29, dark muted 2.79, light success 4.2); the tokens were
+  darkened and re-measured to 0 serious/critical.
+
+### Honest labels
+
+- **Real work:** jobs, projects, clips, research runs, calendar, users,
+  invites, models, keys, the studio pipeline.
+- **Stand-in:** the AI provider is recorded unless a key is stored; research
+  uses the sample feed unless source keys are stored; publishing is a manual
+  marker.
+- **Empty because it needs the owner:** clip quality (no owner gameplay
+  fixture), live trends (source keys), real metrics (a YouTube collector).
+
+### Owner verdict pending
+
+The honest bar is a human looking at `docs/screens/after/` and calling the
+layout a real workplace tool. Screenshots are saved; the verdict is not claimed.
+
+## Autonomous sprint — projects, setup wizard, edge cases
+
+Status: **projects and the first-run wizard are built, tested on the real
+stack, and committed.**
+
+### Projects (one stream = one project)
+
+- Migration `0016_projects.sql`: `projects` — one per studio recording, or
+  created by hand.
+- The stage is **derived from real artifacts** on read, never stored:
+  `planned → recording → imported → analyzing → clips_ready → reviewed → exported`.
+- `api/app/projects.py`: list/create/get/attach/vision/queue/delete. Upload and
+  SSD import start a project; a render links its stream back.
+- Sequential analysis: `POST /projects/{id}/queue` enqueues a `run_project` job;
+  the worker claims the **oldest queued** project under a Postgres advisory lock
+  and holds the lane until its analysis drains, so two projects never load models
+  at once.
+- Web: `/admin/projects` (stage stepper, progress, candidates, clips, queue,
+  vision toggle) plus a Projects panel on the admin overview and a nav entry.
+- Tests: `tests/unit/test_projects.py` (the stage machine) and
+  `tests/acceptance/test_projects.py`, which proves the stage follows real
+  clips → review → export and that two projects run one after the other.
+
+### Setup wizard (Part 1)
+
+- Migration `0017_setup_steps.sql`: per-user step progress, so a returning user
+  skips completed steps.
+- `api/app/wizard.py`: four steps (SSD, OBS, models, cloud). `GET /admin/wizard`
+  and `POST /admin/wizard/{step}`; a step is pending/done/failed and the next
+  unlocks only when the previous is done.
+- Web `/admin/wizard`: each **Verify** calls the real endpoint (SSD bridge, OBS
+  WebSocket, model bridge, provider config) and only then records done. The
+  models step embeds the real Models page. "You're ready" when all four are done.
+- Tests: `tests/acceptance/test_wizard.py`.
+
+### Verification
+
+- Acceptance `test_projects.py` + `test_wizard.py` — **11 passed**.
+- Unit `test_projects.py` — **9 passed**; `make check` — **2 passed**.
+
+### In-window clip editor (Part 4)
+
+- Migration `0018_caption_override.sql`: `clips.captions_override`.
+- `GET /clips/{id}/captions` returns the caption events an editor should show —
+  the stored override, or the cached transcript grouped the way the worker burns
+  it (`api/app/caption_events.py`).
+- `PATCH /clips/{id}` with `captions` validates and stores the override, then
+  re-renders. The render reuses the cached transcript; **nothing is
+  re-transcribed**.
+- `worker/clip/engine.py` takes `caption_override` and burns those events
+  instead of the transcript-derived ones.
+- Web: a **Captions** card in clip review edits text, start and end per line,
+  adds/removes lines and saves. Trim, layout, caption style and voice-over were
+  already there.
+- Caption grouping now breaks on a pause > 1 s, so a caption never spans silence
+  (worker and API grouping match).
+- Tests: `tests/unit/test_caption_editor.py` (6),
+  `tests/acceptance/test_caption_editor.py` (3).
+
+### Clean machine, visible process (Part 5)
+
+- Migration `0019_engine_events.sql`: `engine_events`.
+- `worker/worker_app/events.py` logs model loads/unloads, job start/done/failed and
+  render cleanup. It is best-effort — a logging failure never breaks a job.
+- The worker logs: whisper load/unload around detection, vision load/unload around
+  the sampled pass, and render start/cleanup. The API exposes
+  `GET /admin/engine-events`; the admin overview shows the recent activity.
+- The Models page still shows the live memory readout (host RAM, Ollama VRAM, MLX
+  peak), so the user can see the Mac return to idle.
+
+## Ship sprint — cloud web, desktop app, vision suggestions
+
+Status: **the split is built and documented; the cloud deploy and the desktop
+capture need the owner's host and a human at a Mac.**
+
+### Architecture
+
+- `docs/architecture.md`: the cloud (web + API + managed Postgres) and the
+  desktop (worker, models, capture, SSD) with a Mermaid diagram and the one API
+  contract between them.
+
+### Cloud web
+
+- `docs/deploy-web.md`: managed Postgres, Caddy TLS, `docker compose up api web`,
+  health check, backups, hardening.
+- Rate limiting: per-IP sliding window, stricter on `/auth` and `/admin`
+  (`api/app/ratelimit.py`, 8 unit tests).
+- Error reporting: the browser posts to `/client-error`; an admin reads them on
+  the overview (`api/app/errors.py`, migration 0014).
+- Backups: `scripts/backup.sh` + `make backup` (pg_dump gzip).
+
+### Desktop app
+
+- `desktop/` — a Tauri v2 shell. Builds a **2.37 MB** `.dmg`
+  (`make desktop`); the artifact mounts and verifies.
+- Rust commands: `app_url`, `app_home`, `start_stack`, `capture_start`,
+  `capture_stop`, `read_file_b64`, `recordings_dir`. ACL-managed
+  (`build.rs` + `capabilities/default.json`).
+- The web UI shows a **Desktop engine** card only inside the app: start the
+  local stack, record the screen, import the recording into the studio.
+- OBS remains the reliable capture default (Go Live); the bundled FFmpeg
+  recorder is the no-OBS path.
+
+### Vision suggestions
+
+- `worker/clip/vision.py`: a bounded, sampled pass (one frame / 5 s, max 40).
+  The VLM scores each window for JSON; suggestions carry a reason and the frame.
+- The VLM unloads after the pass and the unload is verified against the model
+  inventory. Off by default; a studio toggle turns it on.
+- Migration 0015 adds `source`/`thumb_key`; the studio shows vision suggestions
+  with a thumbnail and the pass time.
+- Unit tests use a fake VLM (4 tests) + the bridge endpoint (2 tests). An
+  acceptance test runs the real sampled pass end to end.
+
+### Models & Setup
+
+- A **Suggested engine** card shows transcription, writing and vision models
+  with state, size, fit and one-click install, plus an approximate total.
+
+### Real vision run (2026-11-23)
+
+`qwen2.5vl:7b` (6.0 GB, Apache-2.0), on `fixtures/gameplay_4min.mp4`:
+
+- **40 frames sampled** (one every 5 s, capped at 40) — not every frame.
+- **447 s** for the 4-minute recording; **unloaded: true** (verified against the
+  model inventory; Ollama unloads asynchronously, so the check polls).
+- **5 ranked suggestions**, each with a reason and the frame it judged, e.g.
+  - `94–106 s · 0.8` — "The character is rappelling down a building, showcasing a
+    tense and action-packed moment in the game."
+  - `9–21 s · 0.8` — "The dramatic silhouette of the character against the dark,
+    ruined backdrop creates a visually striking moment."
+
+This is a real VLM run on a real recording (the publisher trailer already in the
+repo). It is **not** the owner's gameplay, so it proves the pass works, not clip
+quality. Reproduce with `make vision-model` then `make vision-run FILE=...`.
+
+### Verification
+
+- Acceptance — **69 passed, 2 skipped** (run in bounded chunks; the only failure
+  was a missing Playwright browser, installed).
+- Unit — **63 passed, 1 skipped** fast, plus the detect/transcribe suites;
+  vision **9/9**; `make check` **2 passed**; `make doctor` **14/14**.
+- Desktop — `make desktop` builds a **2.37 MB** `.dmg` that mounts and verifies.
+- Contract — regenerated (`make contract`); 111 paths.
+
+## Final sprint — clean, fast, demo-ready
+
+Status: **the product is demo-ready; the demo clip and live AI/research await the
+owner.**
+
+### Part 1 — cleanup
+
+- Render scratch (42 MB) moved to `trash/` (listed in `trash/README.txt`);
+  `.DS_Store` removed.
+- The nav is trimmed to the core flow. `docs/pages.md` lists the core pages first
+  and the supporting pages (styleguide, templates, jobs, AI usage, audit, public
+  community) separately as reachable-by-URL but off the nav.
+
+### Part 2 — navigation
+
+- **Admin**: Overview, then Plan (Games, Pool), Create (Studio, Calendar,
+  Long-form), Manage (Models, Setup status, Users, Invites). Current page
+  highlighted; the page search filters the groups.
+- **Gamer**: Play (Dashboard, Today, Go Live, Remote), Review (Clips, History,
+  Results), Account (Settings). No admin controls.
+
+### Part 3 — speed
+
+- `/today`: the three sequential Neon queries are now two (dares + assignments in
+  one join), and the generated card image is cached for 60 s (warm 3 ms). The
+  shell already streams via Suspense.
+- `/clips`: the thumbnail is served in place (no temp copy) with a cache header,
+  and the grid thumbnails lazy-load.
+- Numbers: `docs/screens/budgets.json` (`make budgets`).
+
+### Part 5 — demo
+
+- `docs/START_HERE.md`: run it, add a game, generate ideas, import from SSD, make
+  clips, review/schedule, results, local models, and what still needs the owner.
+
+### Final verification
+
+- `make accept` — **67 passed, 2 skipped** (30.5 min).
+- Unit — **60 passed, 1 skipped**; `make check` **2 passed**; `make doctor`
+  **14/14**.
+- a11y — **0 serious/critical on 30 pages** at phone + desktop.
+- `make budgets` — PASS. Cold LCP: `/today` 1760/1828 ms, `/clips` 752/736 ms,
+  `/remote` 24/36 ms, `/admin` 60/64 ms, `/` 864/820 ms; TBT 0 ms everywhere.
+  Warm `/today` paints in **60 ms**.
+- `make flow` — **11 steps**, every handoff a real route, screenshots in
+  `docs/screens/flow/`.
+
+## Polish sprint — one product, end to end
+
+Status: **the journey walks end to end on real data; the owner's visual verdict
+is pending.**
+
+### Part 1 — the flow is one product
+
+- A persistent **Up next** affordance on every step: Today, Go Live, Remote,
+  Clips, Clip review, Studio, Calendar, Results, the games list and the game
+  profile. Each reflects real state and leads to the next real screen;
+  self-referential links were removed.
+- `tests/screenshots/flow.py` (`make flow`) seeds a real game, sourced ideas and
+  an assignment, then the admin runs the real studio (upload → find moments →
+  generate), reviews with commentary, schedules, builds a long-form and records
+  metrics; a creator walks Today → Go Live → Remote with real Start/Done taps.
+  It asserts every step has a real next link and saves 11 screenshots to
+  `docs/screens/flow/`.
+- The studio reopens the latest session on load, so a session is already pointed
+  at.
+
+### Part 2 — signature moments
+
+- One shared `DareCard` (hook, question, win condition, generated card image,
+  sources) on Today, the dashboard and the pool/profile surfaces.
+- The studio shows the real compute path, live system load, ranked candidates
+  with scores and reasons, the finished clip and the next step.
+- Results shows swipe-through, saves/shares per 1k and a data-driven summary;
+  the recorded provider's canned numbers are never presented as real.
+
+### Part 3 — half-built features finished
+
+- Calendar: drag a clip onto a 7-day grid, with the cadence guardrail on the day
+  cells; the queue and the manual-publish label are real.
+- Long-form: optional intro/outro title cards burned by FFmpeg, matched to the
+  clip format.
+- Commentary: a real field in review, fed into the AI export prompt.
+- Models: per-model “Fits this Mac”, real MLX download status, pull/unload/free.
+- SSD: process-and-release deletes the inbox copy after a safe import.
+
+### Part 4 — speed and docs
+
+- `docs/performance.md` reconciled with `docs/screens/budgets.json`.
+- Doc drift fixed: `worker/worker_app` paths, the contract path count (105) and
+  the piper-tts licence.
+- a11y: 0 serious/critical on 30 pages at phone and desktop.
+
+### Owner verdict pending
+
+The honest bar is a human looking at `docs/screens/flow/` and the page
+screenshots. The clip-quality bar and the launch demo still need the owner's own
+gameplay footage.
+
+### Sprint verification
+
+- `make accept` — **66 passed, 2 skipped**, then `test_contract` **2 passed**
+  after regenerating the contract for the new routes (67 passed, 2 skipped).
+- `make screens` / a11y — **0 serious/critical on 30 pages** at phone + desktop.
+- Unit — **60 passed, 1 skipped**; `make check` **2 passed**; `make doctor`
+  **14/14**.
+- `make budgets` — LCP/TBT within budget on the five main pages; the numbers are
+  in `docs/performance.md` and `docs/screens/budgets.json` (TBT 0 ms everywhere).
+- `make flow` — **11 steps**, every handoff real, screenshots in
+  `docs/screens/flow/`.
+
+## Autonomous build session — model manager, memory discipline, content loop
+
+Status: **P1 model manager, P3 memory discipline and P4 content loop are built
+and committed; the full acceptance suite is running.**
+
+### What was built this session
+
+- **Fix: api/worker `app` package collision.** The worker package was renamed
+  to `worker_app` (relative imports, Dockerfile, Makefile, tests), so the api
+  and worker test suites can no longer shadow each other. Unit tests are
+  hermetic (`tests/unit/conftest.py`: `MLX_WHISPER_URL=""`, `HF_HUB_OFFLINE=1`).
+- **P1 — Models page (`/admin/models`).** `local/mlx_bridge.py` now exposes
+  `/models`, pull with progress, unload, free-all and live host/Ollama/MLX
+  memory. `api/app/models.py` proxies it; the page shows the provider, every
+  Ollama model with size and loaded state, pull/unload/free controls and a live
+  memory readout. Real values verified on this machine.
+- **P3 — memory discipline.** `worker/clip/transcribe.py` gains `unload()`;
+  detection and first-time renders free the ASR model after use. The MLX bridge
+  serializes transcription, clears the MLX cache after each call, and a watchdog
+  frees everything after `MLX_IDLE_MINUTES` (default 10).
+- **P4 — content loop.**
+  - `clips.commentary` (migration 0008): the added-value step in clip review,
+    fed into the AI export prompt.
+  - `/admin/calendar` (migration 0009): review-and-export queue, 2 Shorts/day
+    cadence guardrail, TikTok/Instagram refused as approval-gated, publish is a
+    manual marker marked `unproven: youtube-api`.
+  - metrics gain `swiped`/`saves`/`shares` (migration 0010); `/results` shows
+    swipe-through and saves/shares per 1k, and `missions.score` blends them
+    (unit-tested in `tests/unit/test_results_score.py`).
+  - `/admin/long-form` + `build_long_form` job (migration 0011): concatenates a
+    session's finished Shorts into one video.
+- **P5 — launch docs.** README rewritten (pitch, proof, demo slots), new
+  `docs/licences.md`, new `docs/launch.md` with the git-history cleanup plan.
+
+### Final verification
+
+- `make accept` — **67 passed, 2 skipped** (31.6 min).
+- `make web-accept` — Playwright page flows pass; axe-core **0 serious/critical**
+  on 30 pages at phone and desktop (includes the new models, calendar and
+  long-form pages).
+- `make doctor` — **14/14**; `make check` — **2 passed**.
+- Unit tests — **60 passed, 1 skipped**.
+- Provider picker verified on the real API and in the worker: `asr=cpu` →
+  `('cpu','int8')`, `asr=mlx` → `('mlx','metal')`.
+
+### Real vs stand-in
+
+- **Real:** the model inventory/controls/memory, the commentary field, the
+  calendar queue and cadence rule, the leading indicators and ranking score,
+  the long-form concat job, the memory unload/watchdog.
+- **Stand-in / blocked:** YouTube API publishing (manual marker only), TikTok
+  and Instagram (approval gated), the AI provider (recorded), research sources
+  (sample feed), the real gameplay fixture.
+
+### Blocked on the user
+
+- The user's own gameplay recording with commentary — the clip-quality verdict.
+- AI key credit and research source keys.
+- **The copyrighted trailer `fixtures/gameplay_4min.mp4` is on `origin/main`.**
+  `docs/launch.md` has the cleanup plan; a local `git rm` alone leaves it on the
+  remote, so the owner must choose a fresh repo or an approved history purge.
+- The GitHub token that was embedded in `origin` was removed from the remote URL;
+  it still needs revoking on GitHub.
+
+## Finish sprint — OBS, SSD, local MLX engine
+
+Status: **Parts 1–3 built and proven on real devices; Part 0 still blocked.**
+
+### Part 0 — security (BLOCKED, not done)
+
+`.git/config`'s `origin` URL still embeds a live GitHub token
+(`https://ghp_…@github.com/aneebiqbal/dare-engine.git`). **Rotate it and reset
+the remote.** Nothing was pushed; all work is committed locally on
+`research-brain`. Finish-line item 5 stays false until the remote is clean.
+
+### Part 1 — OBS live view (done)
+
+- `api/app/obs.py` over obs-websocket 5.x (`simpleobsws`, MIT): real connection,
+  OBS version, stream/record state, program scene, mic mute.
+- `GET /live/obs/snapshot` returns a real `GetSourceScreenshot` JPEG of the
+  program scene, labelled on the page as a **periodic snapshot, not a live feed**.
+- Go-Live checklist now has real OBS signals (connected, recording) plus the
+  manual HDCP / mic / radio ticks; unreachable OBS shows how to enable it.
+- **Proven on real OBS 33.0.1 / WebSocket 5.7.6:** `connected:true`, scene
+  `Scene`, `Mic/Aux` unmuted, 640×360 JPEG snapshot (4307 bytes).
+- Unit tests: status mapping, snapshot decoding, unreachable state.
+
+### Part 2 — SSD flow (done)
+
+- Host bridge `local/ssd_bridge.py` (stdlib) lists `/Volumes`, ffprobes each
+  video (size, duration, resolution) and copies the chosen file into a shared
+  inbox; it refuses paths outside the mount dir.
+- `GET /studio/ssd` and `POST /studio/ssd/import`: import registers a local
+  studio recording **and enqueues a real `detect_moments` job**. No cloud.
+- Studio page: "Import from SSD" with drive/video list and clear no-drive /
+  no-video / bridge-down states.
+- **Proven on a real mounted DMG** (`/Volumes/TestSSD/gameplay.mp4`): listed
+  (291.8 s, 1280×720, 33 MB), imported, `detect_queued:true`, job `queued`.
+
+### Part 3 — local MLX clip engine (done, human verdict still blocked)
+
+- **MLX Whisper on Metal** via a host bridge (`local/mlx_bridge.py`); the worker
+  streams the file bytes (the container's storage is not on the host) and falls
+  back to faster-whisper CPU when `MLX_WHISPER_URL` is empty. Compute path is
+  stored and shown as `mlx / metal` with the GPU badge.
+- **Measured:** 30.17 s to transcribe the 4.9-min fixture (593 words) on Metal.
+- **Visual strikingness:** 1 fps 32×32 gray frame stats; dark (<8% luma) and
+  blown-out (>95%) frames score 0 and are never the cold open. The trailer's top
+  candidate (243–255 s, 6.91) carries the new `striking frame` reason.
+- **Karaoke captions:** a `karaoke` style emits one ASS event per phrase with
+  `{\k}` word timings (word-by-word highlight), added to the template list.
+- Detection on the trailer with MLX returned 3 candidates, all carrying
+  `striking frame`; the top (243–255 s, 6.91) also has commentary + marker +
+  fast cuts + rising voice.
+- **Rendered the 3 moments:** 14.5 s / 5.5 s / 16.5 s clips, all `ready`,
+  `blur_fit`. 3 clips in parallel: **87.1 s wall** (≈29 s/clip). A warm karaoke
+  re-render of one clip: **6.6 s** (transcript and window cached).
+- Karaoke re-render stored `caption_style: karaoke`; the render calls
+  `write_ass(caption_style=...)`, and the unit test proves the `{\k}` output.
+
+### Per-clip verdict (the bar that is NOT met)
+
+The only footage is a publisher trailer (`fixtures/gameplay_4min.mp4`, IGN
+watermark), not the user's own gameplay with commentary. **No human has watched
+the clips and recorded a verdict.** Per the Gate 0 rule, the clip-quality bar is
+**unmet** until `fixtures/stream_10min.mp4` exists and a person watches the
+output. The 3 trailer clips are in the studio (recording
+`5cd6b8e9-70ef-4f7c-8f98-dbce9d1e4ec8`); watch them and record one line each.
+
+### Re-prove after the source_ids change
+
+- `tests/acceptance/test_games_research.py` + `test_contract.py` over HTTP:
+  **4 passed.** The research path is proven over HTTP, not only by the unit test
+  and the local-model run.
+
+## Research-brain sprint — games + sourced daily ideas
+
+Status: **built and green on the real stack.** The games grid, the game profile,
+the daily research brain, sourced ideas, the approval gate and the gamer's Today
+are wired end to end. The brain runs on the recorded provider + saved sample feed
+and is flagged as a fallback; live source keys and AI credit are still missing.
+
+### What was built
+
+- **Games.** Migration `0006_games.sql` (games, `missions.game_id`,
+  `mission_sources`, `research_runs`). `api/app/games.py`: admin grid, RAWG
+  search/create (auto-builds genre/release/art), profile, enable/disable,
+  on-demand research, gamer-facing list. Web: `/admin/games`,
+  `/admin/games/[id]`, "Games" in the admin rail.
+- **Research brain.** `api/app/research.py`: YouTube Data API + Reddit + gaming
+  news RSS → one AI client → schema-validated ideas whose citations are checked
+  against the fetched feed. An idea with no real source is dropped. Stored as
+  candidates with `mission_sources`. A DB-gated daily loop runs it per enabled
+  game; `RESEARCH_ENABLED` / `RESEARCH_HOUR` / `RESEARCH_TIMEZONE` in `.env`.
+- **Card identity.** `GET /missions/{id}/card.svg` renders the idea's card as an
+  SVG (hook, question, win condition, game, id) with no remote image.
+- **Accuracy.** Sources are shown on the game profile, the pool and the dare
+  editor. The admin approval gate is unchanged: nothing reaches a gamer
+  unapproved.
+- **Priority 1 audit.** `docs/pages.md` (one row per route), and the public
+  leaderboard now shows a display name instead of a raw user id.
+- **One env.** `.env.example` gains the research group; `docker-compose.yml`
+  passes every new variable; `make doctor` is 14/14 with a research check that
+  never fails and never prints a key.
+
+### Ran and observed
+
+- `make doctor` — **14/14**.
+- New unit tests `tests/unit/test_research.py` — **7 passed**.
+- `make check` (licence + no-mock) — **passed**.
+- `tests/acceptance/test_games_research.py` + `test_contract.py` +
+  `test_research.py` together — **11 passed**.
+- `tests/acceptance/test_sprint2_interface.py` — **11 passed** (regression on
+  the pool sources and the leaderboard display name).
+- `tests/acceptance/test_games_research.py` — **2 passed** on the real stack:
+  create game → research → 3 sourced candidates (2 youtube, 2 reddit, 1 news
+  from the sample feed) → approve → assign → the creator's Today shows the
+  assigned idea. One earlier run failed on a transient `psql`/Neon error in
+  cleanup; it passed on rerun and on a combined rerun.
+- `tests/acceptance/test_contract.py` — **2 passed** after regenerating
+  `contracts/openapi.yaml` (89 paths).
+- Manual smoke on the real stack: research returned
+  `{"sources":{"youtube":2,"reddit":2,"news":1},"ideas":3,"fallback":true}`
+  in 3.8 s; the card SVG served `image/svg+xml`.
+
+### Real data vs stand-ins
+
+- **Real:** the API, the database, the accounts, the approval/assign flow, the
+  schema validation, the citation check, the SVG renderer.
+- **Stand-in:** the research sources (saved sample feed) and the AI response
+  (recorded provider). Marked `fallback: true`. Not proven on live YouTube /
+  Reddit / news, and not proven with a live AI key.
+
+### Blocked on the user
+
+- `YOUTUBE_API_KEY`, the Reddit app, `RAWG_API_KEY` — live research and live game
+  search.
+- AI key credit — the live idea-writing call.
+- The user's own gameplay recording with commentary — the clip-quality bar.
+- `origin` exists but its URL embeds a GitHub token. Rotate it and use a
+  credential helper; do not push until then.
+
+### Next three tasks
+
+1. **Priority 1c — OBS live view.** Connect the Go-Live page to obs-websocket,
+   show real connection/recording state, and document the preview path.
+2. **Priority 3a — SSD flow.** Detect an external drive, list its videos, load
+   one into the local studio; nothing uploads.
+3. **Priority 3b/3c — local models.** `make setup-engine` (MLX Whisper on Metal,
+   MPS game-aware detection with a CPU fallback) and the word-synced caption
+   engine; measure seconds-per-clip.
+
+## Local models + cleanup sprint
+
+Status: **local Chinese open-weight models are wired in and the machine is
+stopped and cleaned.**
+
+### Local models (the user's choice: local open-source, no cloud)
+
+- **Ollama 0.40 is on the host** with `qwen3.8:27b-mlx` (Qwen3.5 27.8B, nvfp4,
+  MLX, vision + tools + thinking), `qwen2.5-coder:14b`, `qwen2.5-coder-16k`
+  and `kimi-k2.6:cloud`. Ollama serves the OpenAI chat format, so the existing
+  `shared/llm.py` client works with **no code change** — only `.env`.
+- `.env.example` documents the local block: `LLM_PROVIDER=openai`,
+  `LLM_BASE_URL=http://localhost:11434/v1`, `LLM_API_KEY=ollama`,
+  `LLM_MODEL=qwen3:8b`.
+- `make setup-engine ENGINE_MODEL=...` pulls a model and prints the `.env`
+  lines. `make research-local` runs the real `api/app/research.py` pipeline
+  against Ollama (`local/research_local.py`) — no Docker, no key.
+- `docs/local-models.md` records the wiring, the models and the limitation:
+  **Metal is host-only**, so a Linux container cannot run MLX/Ollama; the
+  container reaches a host model at `host.docker.internal:11434`. Transcription
+  is still `faster-whisper` CPU in the container — the remaining P3 work.
+- **Accuracy fix.** The brain now cites sources by short id (`s1`, `s2`, …), not
+  by long URL. A 27B model copies ids reliably and mangles URLs; an unknown id
+  is dropped. Same schema validated, same filter.
+- **Ran:** `make research-local` → `qwen3.8:27b-mlx` produced **3 ideas, each
+  citing real sample-feed sources, fallback=false**. The local path is proven
+  end to end (prompt → schema → citation filter → stored-shape ideas).
+
+### Cleanup (the user asked for it)
+
+- Stack stopped (`make down`); both Android emulators killed; Colima stopped.
+- Docker pruned: **20.19 GB reclaimed** (build cache 17.4 GB + images). Volumes
+  kept (they hold local recordings).
+- Repo artifacts removed: `m1-render-*` (except the two named review dirs),
+  `ssd-test/`, `web/.next/`, `.pytest_cache/`. Repo 1.1 GB → 948 MB.
+- Not touched (the user chose "nothing"): Docker Desktop data (63 GB), Android
+  SDK/AVDs (44 GB), Xcode (24 GB), `~/Desktop/not active` (30 GB), caches.
+
 ## Completion sprint — one committed, proven application
 
 Status: the accumulated work is committed and the full acceptance suite passes

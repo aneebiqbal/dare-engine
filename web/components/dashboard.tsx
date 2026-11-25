@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { api, type Clip, type HistoryEntry, type Results, type Today } from "@/lib/api";
-import { Badge, Button, Card, Notice, PageState, Progress, Stat } from "@/components/ui";
+import { DareCard } from "./dare-card";
+import { Badge, Button, Card, Notice, PageState, Progress } from "@/components/ui";
+import { Metric, Section, StatusBadge, WorkHeader, WorkQueue, type WorkItem } from "./work";
 
 export function Dashboard({ role }: { role: string }) {
   const [today, setToday] = useState<Today | null>(null);
@@ -51,35 +53,38 @@ export function Dashboard({ role }: { role: string }) {
     { id: "mission", label: "Accept a mission", href: "/today", done: Object.keys(today?.accepted ?? {}).length > 0 },
     { id: "upload", label: "Upload a recording", href: "/clips", done: clips.length > 0 },
     { id: "render", label: "Render your first Short", href: "/clips", done: ready.length > 0 },
-    { id: "voice", label: "Try a voice-over", href: "/clips", done: clips.some((c) => c.voice_over) },
+    { id: "voice", label: "Try a voice-over", href: "/settings", done: clips.some((c) => c.voice_over) },
   ];
   const doneCount = steps.filter((s) => s.done).length;
 
+  const renderItems: WorkItem[] = rendering.map((c) => ({
+    id: c.id,
+    title: c.title ?? "Untitled",
+    subtitle: c.error ?? undefined,
+    status: c.state === "failed" ? "failed" : "running",
+    meta: `${c.stage ?? "queued"} · ${c.progress}%`,
+    href: `/clips/${c.id}`,
+  }));
+
   return (
     <div className="grid gap-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <Stat label="Accepted today" value={Object.keys(today?.accepted ?? {}).length} />
-        </Card>
-        <Card>
-          <Stat label="Shorts ready" value={ready.length} hint={`${clips.length} total`} />
-        </Card>
-        <Card>
-          <Stat
-            label="Views"
-            value={results?.clips.reduce((n, c) => n + c.views, 0)?.toLocaleString() ?? "0"}
-          />
-        </Card>
-        <Card>
-          <Stat label="Last session" value={history[0]?.date ?? "—"} hint={history[0]?.state} />
-        </Card>
-      </div>
+      <WorkHeader
+        eyebrow="Dashboard"
+        title="Your day"
+        status={rendering.length ? "running" : ready.length ? "done" : "idle"}
+        actions={
+          <div className="flex items-center gap-4">
+            <Metric label="Shorts ready" value={ready.length} />
+            <Metric label="Views" value={(results?.clips ?? []).reduce((n, c) => n + c.views, 0).toLocaleString()} />
+          </div>
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <section className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold tracking-tight">Today&apos;s dares</h2>
-            <Link href="/today" className="text-sm text-accent hover:underline">
+            <Link href="/today" className="text-sm text-text underline decoration-border underline-offset-4 hover:text-accent">
               Open Today
             </Link>
           </div>
@@ -90,8 +95,8 @@ export function Dashboard({ role }: { role: string }) {
             emptyTitle="No dares today"
             emptyBody="The admin pool is empty. Dares appear here once one is approved."
           >
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-tour="dashboard-today">
-              {today?.daily && <MissionCard card={today.daily} />}
+            <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3" data-tour="dashboard-today">
+              {today?.daily && <MissionCard card={today.daily} highlight />}
               {today?.picks?.map((card) => (
                 <MissionCard key={card.id} card={card} />
               ))}
@@ -101,10 +106,13 @@ export function Dashboard({ role }: { role: string }) {
 
         <aside className="flex flex-col gap-4">
           <Card>
-            <div className="flex flex-col gap-3">
-              <Badge tone="accent">Next step</Badge>
-              <Link href={next.href}>
-                <Button className="w-full">{next.label}</Button>
+            <div className="flex flex-col gap-2">
+              <span className="folio">Next step</span>
+              <Link
+                href={next.href}
+                className="inline-flex items-center justify-center rounded-md bg-accent px-4 py-3 text-sm font-medium text-accent-ink transition hover:bg-accent/92"
+              >
+                {next.label}
               </Link>
             </div>
           </Card>
@@ -176,29 +184,17 @@ export function Dashboard({ role }: { role: string }) {
         </Card>
       </div>
 
-      {rendering.length > 0 && (
-        <Notice tone="warn">
-          {rendering.length} Short{rendering.length === 1 ? "" : "s"} still rendering.
-        </Notice>
+      {renderItems.length > 0 && (
+        <Section title="Rendering now" count={renderItems.length} live>
+          <Card>
+            <WorkQueue items={renderItems} />
+          </Card>
+        </Section>
       )}
     </div>
   );
 }
 
-function MissionCard({ card }: { card: NonNullable<Today["daily"]> }) {
-  return (
-    <Card>
-      <div className="flex h-full flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <Badge tone="accent">{card.id}</Badge>
-          <span className="text-xs text-muted">{card.est_minutes} min</span>
-        </div>
-        <h3 className="text-base font-medium leading-snug">{card.question}</h3>
-        <p className="text-sm text-muted">{card.win_condition}</p>
-        <Link href={`/missions/${card.id}`} className="mt-auto pt-2 text-sm text-accent hover:underline">
-          Edit dare
-        </Link>
-      </div>
-    </Card>
-  );
+function MissionCard({ card, highlight = false }: { card: NonNullable<Today["daily"]>; highlight?: boolean }) {
+  return <DareCard card={card} highlight={highlight} href={`/missions/${card.id}`} />;
 }

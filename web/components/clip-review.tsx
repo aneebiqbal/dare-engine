@@ -9,6 +9,8 @@ import {
   type ReviewResult,
   type VoiceOver,
 } from "@/lib/api";
+import { NextStep } from "./next-step";
+import { CaptionEditor } from "./caption-editor";
 import {
   Badge,
   Button,
@@ -22,6 +24,9 @@ import {
   Textarea,
   useToast,
 } from "@/components/ui";
+import { Pipeline, Section, StatusBadge, WorkHeader } from "./work";
+import { PlatformSelect, usePlatforms } from "./platforms";
+import { Thumb } from "./media";
 
 const VOICES = [
   "en_US-amy-medium",
@@ -32,10 +37,19 @@ const VOICES = [
 
 const LAYOUTS = ["blur_fit", "center_crop", "fit_height"];
 
+const RENDER_STAGES = ["fetch", "transcribe", "select", "render", "store"];
+
+function stageIndex(stage: string | null): number {
+  if (!stage) return 0;
+  const i = RENDER_STAGES.indexOf(stage);
+  return i < 0 ? 0 : i;
+}
+
 export function ClipReview({ clip }: { clip: Clip }) {
   const [current, setCurrent] = useState(clip);
   const [title, setTitle] = useState(clip.title ?? "");
   const [description, setDescription] = useState(clip.export_description ?? "");
+  const [commentary, setCommentary] = useState(clip.commentary ?? "");
   const [tags, setTags] = useState((clip.export_tags ?? []).join(", "));
   const [trimStart, setTrimStart] = useState("");
   const [trimEnd, setTrimEnd] = useState("");
@@ -47,6 +61,8 @@ export function ClipReview({ clip }: { clip: Clip }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
+  const platforms = usePlatforms();
+  const [videoFailed, setVideoFailed] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -83,6 +99,13 @@ export function ClipReview({ clip }: { clip: Clip }) {
       toast("Title saved", "success");
     });
 
+  const saveCommentary = () =>
+    run(async () => {
+      await api.updateClip(clip.id, { commentary });
+      setCurrent((p) => ({ ...p, commentary }));
+      toast("Commentary saved", "success");
+    });
+
   const applyTrim = () =>
     run(async () => {
       await api.trim(clip.id, Number(trimStart), Number(trimEnd));
@@ -94,6 +117,13 @@ export function ClipReview({ clip }: { clip: Clip }) {
       await api.updateClip(clip.id, { layout, caption_style });
       setCurrent((p) => ({ ...p, layout, caption_style }));
       toast("Re-rendering with the new style", "success");
+    });
+
+  const applyPlatform = (platform: string) =>
+    run(async () => {
+      await api.updateClip(clip.id, { platform });
+      setCurrent(await api.clip(clip.id));
+      toast("Target changed — re-rendering for that platform", "success");
     });
 
   const toggleVoice = (enabled: boolean) =>
@@ -141,26 +171,54 @@ export function ClipReview({ clip }: { clip: Clip }) {
       toast("Export package saved", "success");
     });
 
+  const ready = ["ready", "approved", "posted", "discarded"].includes(current.state);
+
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,24rem)_1fr]">
+    <div className="grid gap-6">
+      <WorkHeader
+        eyebrow="Review"
+        title={current.title ?? "Clip review"}
+        status={
+          current.state === "ready" || current.state === "approved" || current.state === "posted"
+            ? "done"
+            : current.state === "failed"
+              ? "failed"
+              : current.state === "discarded"
+                ? "idle"
+                : "running"
+        }
+        actions={
+          current.download_url ? (
+            <a
+              href={api.downloadClipUrl(clip.id)}
+              className="inline-flex items-center rounded-md px-5 py-2.5 text-sm font-medium text-text ring-surface transition hover:bg-surface-2"
+            >
+              Download video
+            </a>
+          ) : undefined
+        }
+      />
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,24rem)_1fr]">
       <div className="flex flex-col gap-4">
         <div className="mx-auto w-full max-w-[24rem]">
           <div className="overflow-hidden rounded-lg bg-black ring-surface">
-            {current.download_url ? (
+            {current.download_url && !videoFailed ? (
               <video
                 controls
                 src={api.downloadClipUrl(clip.id)}
+                poster={api.thumbnailUrl(clip.id)}
+                preload="metadata"
+                onError={() => setVideoFailed(true)}
                 className="aspect-[9/16] w-full object-contain"
                 aria-label={`Preview of ${current.title ?? "this clip"}`}
                 data-testid="clip-preview"
               />
             ) : current.thumb_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Thumb
                 src={api.thumbnailUrl(clip.id)}
                 alt={`Preview of ${current.title ?? "this clip"}`}
-                className="aspect-[9/16] w-full object-cover"
-                data-testid="clip-preview"
+                className="aspect-[9/16] w-full object-contain"
               />
             ) : (
               <div className="flex aspect-[9/16] items-center justify-center bg-surface-2 p-6 text-center">
@@ -170,18 +228,27 @@ export function ClipReview({ clip }: { clip: Clip }) {
               </div>
             )}
           </div>
-          {current.state !== "ready" && (
-            <Progress
-              value={current.progress}
-              label={`Render progress for ${current.title ?? "this clip"}`}
-              className="mt-3"
-            />
+          {!ready && (
+            <div className="mt-3 flex flex-col gap-2">
+              <Pipeline
+                steps={RENDER_STAGES}
+                current={stageIndex(current.stage)}
+                label={`Render stages for ${current.title ?? "this clip"}`}
+              />
+              <Progress
+                value={current.progress}
+                label={`Render progress for ${current.title ?? "this clip"}`}
+              />
+              <span className="font-mono text-xs text-muted">
+                {current.stage ?? "queued"} · {current.progress}%
+              </span>
+            </div>
           )}
           {current.error && <Notice tone="warn">{current.error}</Notice>}
           {current.download_url && (
             <a
               href={api.downloadClipUrl(clip.id)}
-              className="mt-4 block rounded-full py-3 text-center text-sm font-medium text-accent ring-surface transition hover:bg-surface-2"
+              className="mt-4 block rounded-md py-3 text-center text-sm font-medium text-text ring-surface transition hover:bg-surface-2"
             >
               Download video
             </a>
@@ -245,9 +312,23 @@ export function ClipReview({ clip }: { clip: Clip }) {
               <Field label="Tags" hint="Comma separated.">
                 <Input value={tags} onChange={(e) => setTags(e.target.value)} />
               </Field>
+              <Field
+                label="Commentary / added value"
+                hint="Your own context, reaction or explanation. Required for monetisation; a silent re-upload is not enough."
+              >
+                <Textarea
+                  rows={4}
+                  value={commentary}
+                  onChange={(e) => setCommentary(e.target.value)}
+                  placeholder="What were you doing, and why is this moment worth watching?"
+                />
+              </Field>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={saveTitle} disabled={busy}>
                   Save title
+                </Button>
+                <Button variant="outline" onClick={saveCommentary} disabled={busy}>
+                  Save commentary
                 </Button>
                 <Button variant="outline" onClick={runExportCopy} disabled={busy}>
                   Write with AI
@@ -299,6 +380,14 @@ export function ClipReview({ clip }: { clip: Clip }) {
                   Apply trim
                 </Button>
               </div>
+              <Field label="Target platform">
+                <PlatformSelect
+                  value={current.platform ?? "youtube_shorts"}
+                  onChange={applyPlatform}
+                  items={platforms.items}
+                  label={`Target platform for ${current.title ?? "this clip"}`}
+                />
+              </Field>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Layout">
                   <Select
@@ -325,6 +414,8 @@ export function ClipReview({ clip }: { clip: Clip }) {
               </div>
             </div>
           </Card>
+
+          <CaptionEditor clipId={clip.id} />
 
           <Card>
             <div className="flex flex-col gap-4">
@@ -365,13 +456,13 @@ export function ClipReview({ clip }: { clip: Clip }) {
                 <Button onClick={saveExport} disabled={busy}>Save package</Button>
                 <Link
                   href={`/export/${clip.id}`}
-                  className="inline-flex items-center rounded-full px-5 py-2.5 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
+                  className="inline-flex items-center rounded-md px-5 py-2.5 text-sm font-medium text-muted ring-surface transition hover:bg-surface-2 hover:text-text"
                 >
                   Open export page
                 </Link>
                 <a
                   href={api.downloadExportUrl(clip.id)}
-                  className="inline-flex items-center rounded-full px-5 py-2.5 text-sm font-medium text-accent ring-surface transition hover:bg-surface-2"
+                  className="inline-flex items-center rounded-md px-5 py-2.5 text-sm font-medium text-text ring-surface transition hover:bg-surface-2"
                   data-tour="export-button"
                 >
                   Download package
@@ -381,6 +472,15 @@ export function ClipReview({ clip }: { clip: Clip }) {
           </Card>
         </PageState>
       </div>
+      </div>
+
+      {current.state === "approved" && (
+        <NextStep
+          href="/admin/calendar"
+          title="Schedule this Short"
+          body="Add it to the posting calendar and keep the cadence."
+        />
+      )}
     </div>
   );
 }

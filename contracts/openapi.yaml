@@ -154,6 +154,189 @@ paths:
           content:
             application/json:
               schema: {}
+  /admin/calendar:
+    get:
+      summary: Calendar
+      operationId: calendar_admin_calendar_get
+      parameters:
+      - name: month
+        in: query
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: Month
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      summary: Schedule
+      operationId: schedule_admin_calendar_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/calendar/{entry_id}/publish:
+    post:
+      summary: Publish
+      operationId: publish_admin_calendar__entry_id__publish_post
+      parameters:
+      - name: entry_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Entry Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/calendar/{entry_id}:
+    delete:
+      summary: Remove
+      operationId: remove_admin_calendar__entry_id__delete
+      parameters:
+      - name: entry_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Entry Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/clips:
+    get:
+      summary: Admin Clips
+      description: Every finished clip, so the admin can assemble a long-form video.
+      operationId: admin_clips_admin_clips_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /admin/long-form:
+    get:
+      summary: List Long Forms
+      operationId: list_long_forms_admin_long_form_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    post:
+      summary: Create
+      operationId: create_admin_long_form_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/long-form/{lf_id}:
+    get:
+      summary: Detail
+      operationId: detail_admin_long_form__lf_id__get
+      parameters:
+      - name: lf_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Lf Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/long-form/{lf_id}/download:
+    get:
+      summary: Download
+      operationId: download_admin_long_form__lf_id__download_get
+      parameters:
+      - name: lf_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Lf Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /admin/questions:
     post:
       summary: Write Cards
@@ -186,6 +369,31 @@ paths:
           content:
             application/json:
               schema: {}
+  /admin/pool/bulk:
+    post:
+      summary: Pool Bulk
+      description: 'One transaction for many ideas: approve, reject or assign.'
+      operationId: pool_bulk_admin_pool_bulk_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /admin/pool/{mission_id}/approve:
     post:
       summary: Approve
@@ -250,6 +458,29 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AssignIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /missions/{mission_id}/card.svg:
+    get:
+      summary: Mission Card Svg
+      operationId: mission_card_svg_missions__mission_id__card_svg_get
+      parameters:
+      - name: mission_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Mission Id
       responses:
         '200':
           description: Successful Response
@@ -378,6 +609,97 @@ paths:
     get:
       summary: Me
       operationId: me_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /admin/models:
+    get:
+      summary: Models
+      operationId: models_admin_models_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /admin/models/pull:
+    post:
+      summary: Pull
+      operationId: pull_admin_models_pull_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/models/pull/{task_id}:
+    get:
+      summary: Pull Status
+      operationId: pull_status_admin_models_pull__task_id__get
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/models/unload:
+    post:
+      summary: Unload
+      operationId: unload_admin_models_unload_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/models/free:
+    post:
+      summary: Free All
+      operationId: free_all_admin_models_free_post
       responses:
         '200':
           description: Successful Response
@@ -589,6 +911,33 @@ paths:
               type: object
               additionalProperties: true
               title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /clips/{clip_id}/captions:
+    get:
+      summary: Clip Captions
+      description: 'The caption events an editor should show: the override, or the
+        transcript
+
+        grouped the way the worker will burn it.'
+      operationId: clip_captions_clips__clip_id__captions_get
+      parameters:
+      - name: clip_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Clip Id
       responses:
         '200':
           description: Successful Response
@@ -915,6 +1264,197 @@ paths:
     get:
       summary: History
       operationId: history_history_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /projects:
+    get:
+      summary: List Projects
+      operationId: list_projects_projects_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    post:
+      summary: Create Project
+      operationId: create_project_projects_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{project_id}:
+    get:
+      summary: Get Project
+      operationId: get_project_projects__project_id__get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      summary: Delete Project
+      operationId: delete_project_projects__project_id__delete
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{project_id}/attach:
+    post:
+      summary: Attach
+      description: Attach a studio recording to a project (one recording = one project).
+      operationId: attach_projects__project_id__attach_post
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{project_id}/vision:
+    post:
+      summary: Set Vision
+      operationId: set_vision_projects__project_id__vision_post
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{project_id}/queue:
+    post:
+      summary: Queue
+      description: 'Mark the project queued and enqueue one analysis run.
+
+
+        The worker claims the oldest queued project under an advisory lock, so two
+
+        projects never analyse (and never load models) at the same time.'
+      operationId: queue_projects__project_id__queue_post
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Project Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - type: object
+                additionalProperties: true
+              - type: 'null'
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /platforms:
+    get:
+      summary: List Platforms
+      description: The shared platform registry. Adding a target is a data change
+        here.
+      operationId: list_platforms_platforms_get
       responses:
         '200':
           description: Successful Response
@@ -1470,6 +2010,550 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /client-error:
+    post:
+      summary: Report
+      operationId: report_client_error_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportIn'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/errors:
+    get:
+      summary: Admin Errors
+      operationId: admin_errors_admin_errors_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /admin/engine-events:
+    get:
+      summary: Engine Events
+      operationId: engine_events_admin_engine_events_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /admin/games:
+    get:
+      summary: List Games
+      operationId: list_games_admin_games_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    post:
+      summary: Create Game
+      operationId: create_game_admin_games_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/games/search:
+    post:
+      summary: Search Games
+      operationId: search_games_admin_games_search_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/games/{game_id}:
+    get:
+      summary: Game Profile
+      operationId: game_profile_admin_games__game_id__get
+      parameters:
+      - name: game_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Game Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      summary: Update Game
+      operationId: update_game_admin_games__game_id__patch
+      parameters:
+      - name: game_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Game Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/games/{game_id}/research:
+    post:
+      summary: Run Game Research
+      description: Start a run and return its id; the admin polls the run's real stage.
+      operationId: run_game_research_admin_games__game_id__research_post
+      parameters:
+      - name: game_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Game Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/research/{run_id}:
+    get:
+      summary: Research Run
+      operationId: research_run_admin_research__run_id__get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/projects:
+    get:
+      summary: Admin Projects
+      description: 'Every user''s projects, for the admin overview. `/projects` stays
+
+        user-scoped.'
+      operationId: admin_projects_admin_projects_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /games:
+    get:
+      summary: List Enabled Games
+      operationId: list_enabled_games_games_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /live/obs:
+    get:
+      summary: Obs Status
+      operationId: obs_status_live_obs_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /live/obs/snapshot:
+    get:
+      summary: Obs Snapshot
+      description: A periodic still of the program scene. Not a live video feed.
+      operationId: obs_snapshot_live_obs_snapshot_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /admin/keys:
+    get:
+      summary: List Keys
+      operationId: list_keys_admin_keys_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    post:
+      summary: Save Key
+      operationId: save_key_admin_keys_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/keys/{name}:
+    delete:
+      summary: Remove Key
+      operationId: remove_key_admin_keys__name__delete
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/keys/test:
+    post:
+      summary: Test Key
+      operationId: test_key_admin_keys_test_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/overview:
+    get:
+      summary: Overview
+      operationId: overview_admin_overview_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /pipeline/upload:
+    post:
+      summary: Upload
+      description: Accept one video and start the automatic pipeline. Zero manual
+        steps.
+      operationId: upload_pipeline_upload_post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_pipeline_upload_post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /pipeline:
+    get:
+      summary: List Runs
+      operationId: list_runs_pipeline_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /pipeline/{run_id}:
+    get:
+      summary: Get Run
+      operationId: get_run_pipeline__run_id__get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /pipeline/{run_id}/candidates/{candidate_id}/thumb:
+    get:
+      summary: Candidate Thumb
+      operationId: candidate_thumb_pipeline__run_id__candidates__candidate_id__thumb_get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      - name: candidate_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Candidate Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /pipeline/{run_id}/timestamps:
+    post:
+      summary: Add Timestamps
+      description: Add exact windows to the cut list. The AI suggestions are never
+        replaced.
+      operationId: add_timestamps_pipeline__run_id__timestamps_post
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /pipeline/{run_id}/resume:
+    post:
+      summary: Resume
+      description: Re-queue a paused or failed run. It continues from the last completed
+        stage.
+      operationId: resume_pipeline__run_id__resume_post
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/provider:
+    get:
+      summary: Provider
+      operationId: provider_admin_provider_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    post:
+      summary: Save
+      operationId: save_admin_provider_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /studio/ssd:
+    get:
+      summary: Ssd Drives
+      operationId: ssd_drives_studio_ssd_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /studio/ssd/import:
+    post:
+      summary: Ssd Import
+      operationId: ssd_import_studio_ssd_import_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /studio/upload:
     post:
       summary: Upload
@@ -1516,6 +2600,65 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /studio/vision:
+    post:
+      summary: Vision Suggest
+      description: 'Optional: enqueue the sampled VLM pass. Off unless the admin asks.'
+      operationId: vision_suggest_studio_vision_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /studio/candidates/{candidate_id}/thumb:
+    get:
+      summary: Candidate Thumb
+      operationId: candidate_thumb_studio_candidates__candidate_id__thumb_get
+      parameters:
+      - name: candidate_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Candidate Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /studio/recordings:
+    get:
+      summary: Recordings
+      description: The admin's recent studio sessions, newest first.
+      operationId: recordings_studio_recordings_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /studio/recordings/{recording_id}/file:
     get:
       summary: Recording File
@@ -1670,6 +2813,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /admin/wizard:
+    get:
+      summary: Wizard
+      operationId: wizard_admin_wizard_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /admin/wizard/{step}:
+    post:
+      summary: Save Step
+      operationId: save_step_admin_wizard__step__post
+      parameters:
+      - name: step
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Step
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /hooks/relay/auth:
     post:
       summary: Auth
@@ -1773,6 +2957,20 @@ components:
       required:
       - user_id
       title: AssignIn
+    Body_upload_pipeline_upload_post:
+      properties:
+        file:
+          type: string
+          format: binary
+          title: File
+        platform:
+          type: string
+          title: Platform
+          default: youtube_shorts
+      type: object
+      required:
+      - file
+      title: Body_upload_pipeline_upload_post
     Body_upload_studio_upload_post:
       properties:
         file:
@@ -1859,6 +3057,29 @@ components:
       required:
       - questions
       title: QuestionsIn
+    ReportIn:
+      properties:
+        message:
+          type: string
+          maxLength: 2000
+          minLength: 1
+          title: Message
+        stack:
+          anyOf:
+          - type: string
+            maxLength: 8000
+          - type: 'null'
+          title: Stack
+        path:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Path
+      type: object
+      required:
+      - message
+      title: ReportIn
     ResetPassword:
       properties:
         token:

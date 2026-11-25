@@ -89,7 +89,7 @@ PK `(user_id, tour_id)`. Written by `tours.py`.
 `voice_over boolean`, `voice text NULL`, `voice_key text NULL`,
 `export_title text NULL`, `export_description text NULL`,
 `export_tags jsonb NULL`, `render_key text NULL`, `created_at`. Written by
-`clips.py` and `worker/app/handlers.py`.
+`clips.py` and `worker/worker_app/handlers.py`.
 
 **attempts** — `id uuid PK`, `mission_id → missions`, `user_id → users`,
 `result_value float NULL`, `clip_id → clips NULL`, `created_at`. Written by
@@ -97,7 +97,7 @@ PK `(user_id, tour_id)`. Written by `tours.py`.
 
 **voice_overs** — `id uuid PK`, `clip_id → clips`, `voice text`, `text text`,
 `audio_key text NULL`, `duration float NULL`, `state text`, `created_at`.
-Written by `clips.py` (row) and `worker/app/handlers.py` (audio).
+Written by `clips.py` (row) and `worker/worker_app/handlers.py` (audio).
 
 **exports** — `id uuid PK`, `clip_id → clips`, `title text NULL`,
 `description text NULL`, `tags jsonb`, `video_key text NULL`,
@@ -126,12 +126,12 @@ no writer, so the Templates page is always empty.
 (`queued`/`running`/`done`/`failed`), `attempts int`, `available_at`,
 `locked_by text NULL`, `error text NULL`, `retry_count int`,
 `idempotency_key text UNIQUE NULL`, `created_at`, `updated_at`.
-Written by `clips.py` (enqueue), `admin.py` (retry), `worker/app/jobs.py`
+Written by `clips.py` (enqueue), `admin.py` (retry), `worker/worker_app/jobs.py`
 (claim/finish/fail).
 
-**Job types** (`worker/app/handlers.py`): `render_clip`, `preview_voice`.
+**Job types** (`worker/worker_app/handlers.py`): `render_clip`, `preview_voice`.
 
-**Retry** (`worker/app/jobs.py`): on failure `retry_count += 1`,
+**Retry** (`worker/worker_app/jobs.py`): on failure `retry_count += 1`,
 `delay = min(300, 5 × 2^retry_count)` seconds, `queued` while
 `retry_count < MAX_RETRIES (5)`, else `failed`. The stale reaper returns
 `running` jobs to `queued` after `WORKER_STALE_SECONDS`.

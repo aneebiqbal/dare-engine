@@ -1,26 +1,26 @@
 {
   "phone-dashboard": {
-    "lcp_ms": 924,
+    "lcp_ms": 904,
     "tbt_ms": 0
   },
   "phone-today": {
-    "lcp_ms": 2808,
+    "lcp_ms": 2248,
     "tbt_ms": 0
   },
   "phone-remote": {
-    "lcp_ms": 2484,
+    "lcp_ms": 28,
     "tbt_ms": 0
   },
   "phone-clips": {
-    "lcp_ms": 2276,
+    "lcp_ms": 868,
     "tbt_ms": 0
   },
   "phone-admin": {
-    "lcp_ms": 776,
+    "lcp_ms": 40,
     "tbt_ms": 0
   },
   "desktop-dashboard": {
-    "lcp_ms": 692,
+    "lcp_ms": 1012,
     "tbt_ms": 0
   },
   "desktop-today": {
@@ -28,15 +28,15 @@
     "tbt_ms": 0
   },
   "desktop-remote": {
-    "lcp_ms": 2448,
+    "lcp_ms": 32,
     "tbt_ms": 0
   },
   "desktop-clips": {
-    "lcp_ms": 2176,
+    "lcp_ms": 2584,
     "tbt_ms": 0
   },
   "desktop-admin": {
-    "lcp_ms": 664,
+    "lcp_ms": 52,
     "tbt_ms": 0
   }
 }

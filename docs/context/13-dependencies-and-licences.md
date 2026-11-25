@@ -44,7 +44,12 @@ Not in the manifest but used by `make types`: `openapi-typescript` (fetched with
 | `faster-whisper` | 1.2.1 | MIT | transcription |
 | `av` | 16.1.0 | BSD-3-Clause | media decode for whisper |
 | `boto3` | 1.37.1 | Apache-2.0 | S3 |
-| `piper-tts` | **1.8.0** | **GPL-3.0-or-later** | local TTS |
+
+## Optional voice add-on (`worker/requirements-voice.txt`)
+
+| Package | Version | Licence | Use |
+| --- | --- | --- | --- |
+| `piper-tts` | >=1.8.0 | **GPL-3.0-or-later** | local TTS; installed by `make voice` |
 | `onnxruntime` (transitive) | 1.32.0 | MIT | Piper runtime |
 
 ## Tests (`tests/requirements.txt`)
@@ -63,12 +68,13 @@ Not in the manifest but used by `make types`: `openapi-typescript` (fetched with
 
 ## Flags
 
-1. **`piper-tts` 1.8.0 is GPL-3.0-or-later** (package metadata,
+1. **`piper-tts` is GPL-3.0-or-later** (package metadata,
    `Home-page: github.com/OHF-voice/piper1-gpl`). The old `rhasspy/piper` was
    MIT but is archived; the current package is GPL. The BUILD_PROMPT hard rule
-   says "Do not use AGPL or GPL code inside the app." `docs/decisions.md` still
-   says "Piper is MIT" — **out of date**. This needs an owner decision
-   (replace the TTS engine, or accept GPL).
+   says "Do not use AGPL or GPL code inside the app", so voice-over is an
+   optional add-on installed by `make voice`, never in the default build.
+   `docs/licences.md` is the current manifest; an owner decision on the GPL
+   add-on is still pending (replace the TTS engine, or accept GPL).
 2. **`psycopg` is LGPL-3.0.** It is used as a client over a socket; no linking
    into a distributed binary. Lower risk than GPL, but noted.
 3. **FFmpeg** may be a GPL build; see `docs/decisions.md`.

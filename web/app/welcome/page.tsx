@@ -16,13 +16,18 @@ export default async function Welcome() {
     <main className="relative flex min-h-[100dvh] flex-col overflow-hidden px-6 py-10 sm:px-10">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(120,119,198,0.16),transparent_70%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-accent"
       />
       <header className="relative flex items-center justify-between">
         <span className="text-sm font-medium tracking-tight text-text">clipdesk</span>
-        <Link href="/signin" className="text-sm text-muted transition hover:text-text">
-          Sign in
-        </Link>
+        <nav className="flex items-center gap-2">
+          <Link href="/landing" className="rounded-md px-4 py-2 text-sm text-muted ring-surface transition hover:bg-surface-2 hover:text-text">
+            Download
+          </Link>
+          <Link href="/signin" className="text-sm text-muted transition hover:text-text">
+            Sign in
+          </Link>
+        </nav>
       </header>
 
       <section className="relative flex flex-1 flex-col justify-center gap-6 py-24">
@@ -48,13 +53,13 @@ export default async function Welcome() {
 
       <section className="relative grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {[
-          ["01", "Missions", "Questions people ask become playable cards."],
-          ["02", "Marks", "Start and Done give the clip its exact window."],
-          ["03", "Short", "Hook, captions and end card, rendered in minutes."],
-        ].map(([n, title, body]) => (
-          <Card key={n}>
+          ["Question", "Missions", "Questions people ask become playable cards."],
+          ["Window", "Marks", "Start and Done give the clip its exact window."],
+          ["Render", "Short", "Hook, captions and end card, rendered in minutes."],
+        ].map(([label, title, body]) => (
+          <Card key={title}>
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] uppercase tracking-[0.2em] text-muted">{n}</span>
+              <span className="folio">{label}</span>
               <h3 className="text-base font-medium">{title}</h3>
               <p className="text-sm text-muted">{body}</p>
             </div>

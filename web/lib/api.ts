@@ -1,11 +1,19 @@
 import type {
   AiConfig,
+  PipelineRun,
+  PipelineCandidate,
+  PipelineClip,
+  Platform,
   AiUsage,
   Attempt,
   AuditEntry,
   Clip,
   ClipExport,
   EditorResult,
+  ErrorReport,
+  Game,
+  GameProfile,
+  GameSearchEntry,
   HelpAnswer,
   HistoryEntry,
   Invite,
@@ -13,8 +21,17 @@ import type {
   List,
   Mark,
   Me,
+  ObsStatus,
+  Project,
+  EngineEvent,
+  WizardState,
+  WizardStep,
+  SsdDrive,
+  SsdResponse,
+  SsdVideo,
   MissionCard,
   PoolEntry,
+  ResearchRun,
   Results,
   ReviewResult,
   Settings,
@@ -23,6 +40,16 @@ import type {
   StudioRecording,
   Suggestion,
   SystemLoad,
+  ModelStatus,
+  PullTask,
+  CalendarResponse,
+  AdminClip,
+  LongForm,
+  ProviderStatus,
+  IntegrationKey,
+  KeyStatusResponse,
+  KeyTestResponse,
+  AdminOverview,
   Today,
   TourProgress,
   User,
@@ -31,12 +58,20 @@ import type {
 
 export type {
   AiConfig,
+  PipelineRun,
+  PipelineCandidate,
+  PipelineClip,
+  Platform,
   AiUsage,
   Attempt,
   AuditEntry,
   Clip,
   ClipExport,
   EditorResult,
+  ErrorReport,
+  Game,
+  GameProfile,
+  GameSearchEntry,
   HelpAnswer,
   HistoryEntry,
   Invite,
@@ -44,8 +79,17 @@ export type {
   List,
   Mark,
   Me,
+  ObsStatus,
+  Project,
+  EngineEvent,
+  WizardState,
+  WizardStep,
+  SsdDrive,
+  SsdResponse,
+  SsdVideo,
   MissionCard,
   PoolEntry,
+  ResearchRun,
   Results,
   ReviewResult,
   Settings,
@@ -54,6 +98,16 @@ export type {
   StudioRecording,
   Suggestion,
   SystemLoad,
+  ModelStatus,
+  PullTask,
+  CalendarResponse,
+  AdminClip,
+  LongForm,
+  ProviderStatus,
+  IntegrationKey,
+  KeyStatusResponse,
+  KeyTestResponse,
+  AdminOverview,
   Today,
   TourProgress,
   User,
@@ -70,8 +124,47 @@ export class ApiError extends Error {
 const SERVER_BASE = process.env.API_URL ?? "http://api:8000";
 export const MOCK = process.env.NEXT_PUBLIC_API_MOCK === "1";
 
+// Slow, stable endpoints cached in the browser. Never cache anything polled for
+// freshness (studio candidates, clip render state).
+const CLIENT_CACHE: [RegExp, number][] = [
+  [/^\/admin\/setup$/, 60_000],
+  [/^\/help\/guide$/, 60_000],
+  [/^\/tours$/, 30_000],
+  [/^\/me$/, 30_000],
+];
+const clientCache = new Map<string, { at: number; value: unknown }>();
+
+function cacheTtl(path: string): number | undefined {
+  return typeof window === "undefined"
+    ? undefined
+    : CLIENT_CACHE.find(([re]) => re.test(path))?.[1];
+}
+
+// Server components: cache the slow, stable reads so warm navigations are
+// instant. Mutations go through the /api proxy, which calls clearApiCache().
+const SERVER_CACHE: [RegExp, number][] = [
+  [/^\/admin\/setup$/, 60_000],
+  [/^\/help\/guide$/, 60_000],
+  [/^\/today$/, 15_000],
+  [/^\/results$/, 15_000],
+  [/^\/history$/, 15_000],
+  [/^\/tours$/, 30_000],
+  [/^\/me$/, 30_000],
+];
+const serverCache = new Map<string, { at: number; value: unknown }>();
+
+export function clearApiCache() {
+  serverCache.clear();
+}
+
 function base() {
   return typeof window === "undefined" ? SERVER_BASE : "/api";
+}
+
+// Links and images rendered into HTML must be same-origin, even during server
+// rendering: the browser resolves them through the web app's /api proxy.
+function browserBase() {
+  return "/api";
 }
 
 function csrfToken(): string {
@@ -89,11 +182,26 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   if (body) headers["Content-Type"] = "application/json";
   const csrf = csrfToken();
   if (csrf) headers["X-CSRF-Token"] = csrf;
+  const ttl = cacheTtl(path);
+  if (method === "GET" && ttl) {
+    const hit = clientCache.get(path);
+    if (hit && Date.now() - hit.at < ttl) return hit.value as T;
+  }
+  let session = "";
   if (typeof window === "undefined") {
     const { cookies } = await import("next/headers");
     const store = await cookies();
-    const token = store.get("clipdesk_session")?.value;
-    if (token) headers["Cookie"] = `clipdesk_session=${token}`;
+    session = store.get("clipdesk_session")?.value ?? "";
+    if (session) headers["Cookie"] = `clipdesk_session=${session}`;
+  }
+  const serverTtl =
+    typeof window === "undefined"
+      ? SERVER_CACHE.find(([re]) => re.test(path))?.[1]
+      : undefined;
+  if (method === "GET" && serverTtl) {
+    const key = `${session}:${path}`;
+    const hit = serverCache.get(key);
+    if (hit && Date.now() - hit.at < serverTtl) return hit.value as T;
   }
   const res = await fetch(`${base()}${path}`, {
     method,
@@ -111,7 +219,16 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     }
     throw new ApiError(res.status, detail);
   }
-  return (await res.json()) as T;
+  const data = (await res.json()) as T;
+  if (method === "GET" && ttl) {
+    if (clientCache.size > 200) clientCache.clear();
+    clientCache.set(path, { at: Date.now(), value: data });
+  }
+  if (method === "GET" && serverTtl) {
+    if (serverCache.size > 200) serverCache.clear();
+    serverCache.set(`${session}:${path}`, { at: Date.now(), value: data });
+  }
+  return data;
 }
 
 const get = <T>(path: string) => request<T>("GET", path);
@@ -164,6 +281,12 @@ export const api = {
   // --- clips -----------------------------------------------------------
   clips: (params = "") => get<List<Clip>>(`/clips${params}`),
   clip: (id: string) => get<Clip>(`/clips/${id}`),
+  clipCaptions: (id: string) =>
+    get<{
+      captions: { start: number; end: number; text: string }[];
+      source: "override" | "transcript";
+      caption_style: string | null;
+    }>(`/clips/${id}/captions`),
   updateClip: (id: string, fields: Record<string, unknown>) =>
     patch<Clip>(`/clips/${id}`, fields),
   trim: (id: string, start: number, end: number) =>
@@ -173,14 +296,14 @@ export const api = {
   voicePreview: (id: string, voice?: string) =>
     post<{ id: string; state: string }>(`/clips/${id}/voice-preview`, { voice }),
   voiceOverStatus: (id: string) => get<VoiceOver>(`/voice-overs/${id}`),
-  voiceOverAudioUrl: (id: string) => `${base()}/voice-overs/${id}/audio`,
+  voiceOverAudioUrl: (id: string) => `${browserBase()}/voice-overs/${id}/audio`,
   approveClip: (id: string) => post<{ id: string; state: string }>(`/clips/${id}/approve`, {}),
   postClip: (id: string) => post<{ id: string; state: string }>(`/clips/${id}/post`, {}),
   createExport: (id: string, fields: Record<string, unknown>) =>
     post<{ id: string }>(`/clips/${id}/export`, fields),
-  downloadClipUrl: (id: string) => `${base()}/clips/${id}/download`,
-  downloadExportUrl: (id: string) => `${base()}/clips/${id}/export`,
-  thumbnailUrl: (id: string) => `${base()}/clips/${id}/thumbnail`,
+  downloadClipUrl: (id: string) => `${browserBase()}/clips/${id}/download`,
+  downloadExportUrl: (id: string) => `${browserBase()}/clips/${id}/export`,
+  thumbnailUrl: (id: string) => `${browserBase()}/clips/${id}/thumbnail`,
   reviewClip: (id: string) => post<ReviewResult>("/ai/clip-review", { clip_id: id }),
   exportCopy: (id: string) => post<ClipExport>("/ai/export", { clip_id: id }),
 
@@ -189,6 +312,8 @@ export const api = {
     post("/marks", { assignment_id, kind, result, stream_time }),
   createStream: (title: string) => post<Stream>("/streams", { title }),
   streamStatus: (id: string) => get<{ connected: boolean }>(`/streams/${id}/status`),
+  obsStatus: () => get<ObsStatus>("/live/obs"),
+  obsSnapshotUrl: () => `${browserBase()}/live/obs/snapshot`,
 
   // --- uploads ---------------------------------------------------------
   uploadStart: () => post<{ upload_id: string; chunk_size: number }>("/uploads/start", {}),
@@ -214,14 +339,19 @@ export const api = {
   resultsSummary: () => get<{ summary: string; fallback: boolean; by_type: Results["by_type"] }>(
     "/ai/results-summary",
   ),
-  recordMetric: (clip_id: string, views: number, avg_view_percentage: number) =>
-    post("/metrics", { clip_id, views, avg_view_percentage }),
+  recordMetric: (
+    clip_id: string,
+    views: number,
+    avg_view_percentage: number,
+    extra?: { swiped?: number; saves?: number; shares?: number },
+  ) =>
+    post("/metrics", { clip_id, views, avg_view_percentage, ...extra }),
   history: (params = "") => get<List<HistoryEntry>>(`/history${params}`),
   settings: () => get<Settings>("/settings"),
   updateSettings: (fields: Record<string, unknown>) =>
     patch<{ ok: boolean } & Record<string, unknown>>("/settings", fields),
   deleteAccount: () => del("/account"),
-  exportAccountUrl: () => `${base()}/account/export`,
+  exportAccountUrl: () => `${browserBase()}/account/export`,
 
   // --- ai --------------------------------------------------------------
   help: (question: string) => post<HelpAnswer>("/ai/help", { question }),
@@ -252,6 +382,65 @@ export const api = {
     "/admin/setup",
   ),
   adminTemplates: (params = "") => get<List<unknown>>(`/admin/templates${params}`),
+  adminOverview: () => get<AdminOverview>("/admin/overview"),
+  adminProjects: () => get<{ items: Project[] }>("/admin/projects"),
+  adminResearchRun: (run_id: string) => get<ResearchRun>(`/admin/research/${run_id}`),
+  poolBulk: (ids: string[], action: "approve" | "reject" | "assign", user_id?: string) =>
+    post<{ updated: number }>("/admin/pool/bulk", { ids, action, user_id }),
+
+  // --- admin: local models -----------------------------------------------
+  adminModels: () => get<ModelStatus>("/admin/models"),
+  adminModelPull: (name: string) =>
+    post<PullTask>("/admin/models/pull", { name }),
+  adminModelPullStatus: (id: string) => get<PullTask>(`/admin/models/pull/${id}`),
+  adminModelUnload: (name: string) => post<{ ok: boolean }>("/admin/models/unload", { name }),
+  adminModelFree: () => post<{ ok: boolean; error?: string | null }>("/admin/models/free"),
+
+  // --- admin: posting calendar --------------------------------------------
+  adminCalendar: (month = "") => get<CalendarResponse>(`/admin/calendar?month=${month}`),
+  adminSchedule: (clip_id: string, scheduled_for: string, platform = "youtube") =>
+    post<{ ok: boolean }>("/admin/calendar", { clip_id, scheduled_for, platform }),
+  adminPublish: (id: string) =>
+    post<{ ok: boolean; unproven?: string }>(`/admin/calendar/${id}/publish`, {}),
+  adminUnschedule: (id: string) => del<{ ok: boolean }>(`/admin/calendar/${id}`),
+
+  // --- admin: long-form builder -------------------------------------------
+  adminClips: () => get<{ items: AdminClip[] }>("/admin/clips"),
+  adminLongForms: () => get<{ items: LongForm[] }>("/admin/long-form"),
+  adminCreateLongForm: (title: string, clip_ids: string[], intro = "", outro = "") =>
+    post<{ id: string; state: string }>("/admin/long-form", { title, clip_ids, intro, outro }),
+  adminLongForm: (id: string) => get<LongForm>(`/admin/long-form/${id}`),
+  adminLongFormUrl: (id: string) => `${browserBase()}/admin/long-form/${id}/download`,
+
+  // --- admin: provider picker ---------------------------------------------
+  adminProvider: () => get<ProviderStatus>("/admin/provider"),
+  adminSaveProvider: (fields: Record<string, string>) =>
+    post<{ ok: boolean }>("/admin/provider", fields),
+
+  // --- admin: integration keys --------------------------------------------
+  adminKeys: () => get<KeyStatusResponse>("/admin/keys"),
+  adminSaveKey: (name: string, value: string) =>
+    post<{ ok: boolean; masked: string }>("/admin/keys", { name, value }),
+  adminRemoveKey: (name: string) => del<{ ok: boolean }>(`/admin/keys/${name}`),
+  adminTestKey: (name: string) =>
+    post<KeyTestResponse>("/admin/keys/test", { name }),
+
+  // --- games / research -------------------------------------------------
+  games: () => get<Game[]>("/games"),
+  adminGames: (params = "") => get<List<Game>>(`/admin/games${params}`),
+  adminGameSearch: (query: string) =>
+    post<{ results: GameSearchEntry[] }>("/admin/games/search", { query }),
+  adminCreateGame: (fields: Record<string, unknown>) =>
+    post<{ id: string; slug: string; name: string }>("/admin/games", fields),
+  adminGame: (id: string) => get<GameProfile>(`/admin/games/${id}`),
+  adminUpdateGame: (id: string, fields: Record<string, unknown>) =>
+    patch<{ id: string; enabled: boolean }>(`/admin/games/${id}`, fields),
+  adminRunResearch: (id: string) =>
+    post<{ run_id: string; status: string; stage: string }>(
+      `/admin/games/${id}/research`,
+      {},
+    ),
+  cardImageUrl: (id: string) => `${browserBase()}/missions/${id}/card.svg`,
 
   // --- studio -----------------------------------------------------------
   studioUpload: (file: File) => {
@@ -271,7 +460,20 @@ export const api = {
   },
   studioDetect: (recording_id: string, top_n = 5) =>
     post("/studio/detect", { recording_id, top_n }),
+  studioVision: (recording_id: string, top_n = 5) =>
+    post("/studio/vision", { recording_id, top_n }),
+  candidateThumbUrl: (id: string) => `${browserBase()}/studio/candidates/${id}/thumb`,
   studioRecording: (id: string) => get<StudioRecording>(`/studio/recordings/${id}`),
+  studioRecordings: () =>
+    get<{
+      items: {
+        id: string;
+        filename: string;
+        duration_seconds: number;
+        width: number;
+        height: number;
+      }[];
+    }>("/studio/recordings"),
   studioGenerate: (recording_id: string, mission_id: string, windows: Record<string, unknown>[]) =>
     post<{ clips: string[]; count: number }>("/studio/generate", {
       recording_id,
@@ -283,11 +485,82 @@ export const api = {
     get<{ caption_styles: Record<string, unknown>; templates: { id: string }[] }>(
       "/studio/templates",
     ),
-  studioRecordingUrl: (id: string) => `${base()}/studio/recordings/${id}/file`,
+  studioRecordingUrl: (id: string) => `${browserBase()}/studio/recordings/${id}/file`,
+  studioSsd: () => get<SsdResponse>("/studio/ssd"),
+  studioSsdImport: (path: string, release = true) =>
+    post<{
+      recording_id: string;
+      filename: string;
+      duration_seconds: number;
+      width: number;
+      height: number;
+      released?: boolean;
+    }>("/studio/ssd/import", { path, release }),
+
+  // --- first-run wizard --------------------------------------------------
+  wizard: () => get<WizardState>("/admin/wizard"),
+  saveWizardStep: (step: string, status: string, detail?: string) =>
+    post<WizardState>(`/admin/wizard/${step}`, { status, detail }),
+
+  // --- engine activity ---------------------------------------------------
+  engineEvents: (limit = 20) => get<{ items: EngineEvent[] }>(`/admin/engine-events?limit=${limit}`),
+
+  // --- projects ---------------------------------------------------------
+  platforms: () => get<{ items: Platform[]; default: string }>("/platforms"),
+  projects: () => get<{ items: Project[] }>("/projects"),
+  project: (id: string) => get<Project>(`/projects/${id}`),
+  createProject: (name: string, game_id?: string, platform?: string) =>
+    post<Project>("/projects", { name, game_id, platform }),
+  attachProject: (id: string, recording_id: string) =>
+    post<Project>(`/projects/${id}/attach`, { recording_id }),
+  queueProject: (id: string, vision?: boolean, platform?: string) =>
+    post<{ queued: boolean; project_id: string; state: Project }>(
+      `/projects/${id}/queue`,
+      { vision, platform },
+    ),
+  setProjectVision: (id: string, vision: boolean) =>
+    post<Project>(`/projects/${id}/vision`, { vision }),
+  deleteProject: (id: string) => del(`/projects/${id}`),
+
+  // --- automatic upload-to-Shorts pipeline -----------------------------
+  pipelineUpload: (file: File, platform?: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    if (platform) form.append("platform", platform);
+    const headers: Record<string, string> = {};
+    const csrf = csrfToken();
+    if (csrf) headers["X-CSRF-Token"] = csrf;
+    return fetch(`${base()}/pipeline/upload`, {
+      method: "POST",
+      headers,
+      body: form,
+    }).then(async (r) => {
+      if (!r.ok) throw new ApiError(r.status, await r.text());
+      return r.json();
+    });
+  },
+  pipelines: () => get<{ items: PipelineRun[] }>("/pipeline"),
+  pipeline: (run_id: string) =>
+    get<{
+      run: PipelineRun;
+      candidates: PipelineCandidate[];
+      clips: PipelineClip[];
+    }>(`/pipeline/${run_id}`),
+  pipelineTimestamps: (run_id: string, timestamps: { start: number; end: number }[]) =>
+    post<{ added: number; ignored: string[] }>(`/pipeline/${run_id}/timestamps`, {
+      timestamps,
+    }),
+  pipelineResume: (run_id: string) =>
+    post<{ run_id: string; state: string }>(`/pipeline/${run_id}/resume`, {}),
+  pipelineThumbUrl: (run_id: string, candidate_id: string) =>
+    `${browserBase()}/pipeline/${run_id}/candidates/${candidate_id}/thumb`,
 
   // --- community -------------------------------------------------------
+  reportError: (message: string, stack?: string | null, path?: string) =>
+    post<{ ok: boolean }>("/client-error", { message, stack, path }),
+  adminErrors: () => get<{ items: ErrorReport[] }>("/admin/errors"),
   leaderboard: (id: string, params = "") =>
-    get<List<{ rank: number; user_id: string; result_value: number | null; clip_id: string | null }>>(
+    get<List<{ rank: number; user_id: string; display_name: string; result_value: number | null; clip_id: string | null }>>(
       `/missions/${id}/leaderboard${params}`,
     ),
   publicMission: (slug: string) =>

@@ -25,6 +25,7 @@ import {
   useToast,
 } from "@/components/ui";
 import { ThemeToggle } from "@/components/theme";
+import { Metric, Pipeline, ProgressCard, StatusBadge, WorkQueue } from "@/components/work";
 
 export default function Styleguide() {
   const [tab, setTab] = useState("one");
@@ -42,7 +43,7 @@ export default function Styleguide() {
       </header>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm uppercase tracking-[0.2em] text-muted">Buttons</h2>
+        <h2 className="folio">Buttons</h2>
         <div className="flex flex-wrap gap-3">
           <Button>Primary</Button>
           <Button variant="outline">Outline</Button>
@@ -53,7 +54,7 @@ export default function Styleguide() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm uppercase tracking-[0.2em] text-muted">Badges</h2>
+        <h2 className="folio">Badges</h2>
         <div className="flex flex-wrap gap-3">
           <Badge>Mission</Badge>
           <Badge tone="accent">Daily</Badge>
@@ -63,7 +64,7 @@ export default function Styleguide() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm uppercase tracking-[0.2em] text-muted">Inputs</h2>
+        <h2 className="folio">Inputs</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Title">
             <Input placeholder="A title" />
@@ -82,7 +83,7 @@ export default function Styleguide() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm uppercase tracking-[0.2em] text-muted">Status</h2>
+        <h2 className="folio">Status</h2>
         <div className="flex flex-wrap gap-6">
           <span className="flex items-center gap-2 text-sm"><StatusDot tone="success" label="Ready" /> Ready</span>
           <span className="flex items-center gap-2 text-sm"><StatusDot tone="danger" label="Failed" /> Failed</span>
@@ -94,7 +95,7 @@ export default function Styleguide() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm uppercase tracking-[0.2em] text-muted">Stat tile</h2>
+        <h2 className="folio">Stat tile</h2>
         <div className="grid gap-4 sm:grid-cols-3">
           <Card><Stat label="Views" value="1,204" hint="last 30 days" /></Card>
           <Card><Stat label="Clips" value="12" /></Card>
@@ -103,7 +104,7 @@ export default function Styleguide() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm uppercase tracking-[0.2em] text-muted">Card</h2>
+        <h2 className="folio">Card</h2>
         <Card>
           <div className="flex flex-col gap-2">
             <Badge tone="accent">m_0214</Badge>
@@ -114,7 +115,7 @@ export default function Styleguide() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm uppercase tracking-[0.2em] text-muted">Tabs</h2>
+        <h2 className="folio">Tabs</h2>
         <Tabs
           tabs={[{ id: "one", label: "One" }, { id: "two", label: "Two" }]}
           active={tab}
@@ -123,7 +124,7 @@ export default function Styleguide() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm uppercase tracking-[0.2em] text-muted">Table</h2>
+        <h2 className="folio">Table</h2>
         <Table head={["Clip", "State", "Views"]}>
           <Tr>
             <Td>5 STARS. ONE BICYCLE.</Td>
@@ -143,7 +144,7 @@ export default function Styleguide() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm uppercase tracking-[0.2em] text-muted">States</h2>
+        <h2 className="folio">States</h2>
         <PageState loading>
           <span />
         </PageState>
@@ -158,7 +159,46 @@ export default function Styleguide() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm uppercase tracking-[0.2em] text-muted">Dialog & toast</h2>
+        <h2 className="folio">Work kit</h2>
+        <div className="flex flex-wrap gap-2">
+          <StatusBadge status="running" />
+          <StatusBadge status="needs" />
+          <StatusBadge status="done" />
+          <StatusBadge status="failed" />
+          <StatusBadge status="idle" />
+        </div>
+        <Pipeline steps={["fetch", "write", "store"]} current={1} label="Research progress" />
+        <Pipeline
+          steps={["planned", "recording", "imported", "analyzing", "clips_ready", "reviewed", "exported"]}
+          current={3}
+          label="Project stage"
+        />
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card>
+            <Metric label="Host RAM" value="18.4 / 32 GB" hint="58% used" />
+          </Card>
+          <Card>
+            <ProgressCard
+              title="Friday stream — GTA"
+              status="running"
+              progress={50}
+              stage="analyzing"
+              meta="5 candidates"
+            />
+          </Card>
+          <Card>
+            <WorkQueue
+              items={[
+                { id: "1", title: "detect_moments", subtitle: "transcribe", status: "running", meta: "45%" },
+                { id: "2", title: "render_clip", subtitle: "failed", status: "failed", meta: "render" },
+              ]}
+            />
+          </Card>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="folio">Dialog & toast</h2>
         <div className="flex gap-3">
           <Button variant="outline" onClick={() => setOpen(true)}>
             Open dialog
